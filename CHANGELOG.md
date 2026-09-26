@@ -6,6 +6,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-26
+
+### Highlights
+
+The board's off-list now names switched-off tools (it said "everything on" while a tool was off), and long origins wrap inside their card.
+
 ## [0.1.2] - 2026-09-26
 
 ### Highlights
