@@ -6,6 +6,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-26
+
+### Highlights
+
+A patch release for two defects found by running the released binary in a plain world.
+
+### Fixed
+- A machine-wide agent file named after the throne (e.g. OpenCode's `~/.config/opencode/agents/rimuru.md`) was imported as a creature with rank `elf`, so the session ran with the elf's office, model route and tool shelf. The session's name is now reserved.
+- The toolbox's level-2 hint named `node .isekai/tools/toolbox.js`, which releases do not ship; it names `isekai toolbox` unless the world ships the JS instrument.
+
 ## [0.1.1] - 2026-09-26
 
 ### Highlights
