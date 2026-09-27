@@ -43,6 +43,8 @@ type World struct {
 	Now  func() time.Time
 	// Path is the PATH an external is looked up on; empty means the process environment's.
 	Path string
+	// Extra are externals declared in config (registry.tools), read as extra.jsonl lines are.
+	Extra []json.RawMessage
 }
 
 // Open opens a world under the default directory name.
@@ -417,7 +419,7 @@ func (w *World) externalsOf() []external {
 		}
 		return false
 	}
-	for _, raw := range memory.ReadJSONL(w.ExtraPath()) {
+	for _, raw := range append(memory.ReadJSONL(w.ExtraPath()), w.Extra...) {
 		var x map[string]any
 		if json.Unmarshal(raw, &x) != nil {
 			continue

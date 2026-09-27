@@ -1,6 +1,7 @@
 package world
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -38,7 +39,9 @@ type Options struct {
 
 // World is one opened world.
 type World struct {
-	Root         string
+	Root string
+	// ToolboxExtra are externals declared in config (registry.tools), for the toolbox.
+	ToolboxExtra []json.RawMessage
 	Lex          Lexicon
 	Ranks        Ranks
 	Law          *Law

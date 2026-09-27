@@ -386,6 +386,40 @@ document is JSON here; the same keys in YAML are the same config.
 - **`budgets`** are honest stop lines: a session or a Court that reaches its token or USD line
   checkpoints, reports and stops, never mid-write. A cost is computed only for priced models.
 
+## Registry — where things come from
+
+`registry` (or its own `registry.yaml`) says where the world's things come from. Keys and tokens are
+named, never written.
+
+```yaml
+# .isekai/registry.yaml
+models:                       # the catalogue a gateway serves: "<provider>/<model-id>"
+  gateway/kimi-k3:   { tier: 3, contextWindow: 262144, price: { input: 0, output: 0 } }
+  gateway/glm-5-3:   { tier: 2, contextWindow: 131072 }
+tools:                        # externals the toolbox indexes (the extra.jsonl fields)
+  - { name: kubectl, description: "the cluster CLI", triggers: [kube, pods, deploy] }
+packages:                     # a private Artifactory for the package managers
+  npm: https://artifactory.corp/api/npm/npm-remote/
+  pip: https://artifactory.corp/api/pypi/pypi-remote/simple
+  go:  https://artifactory.corp/api/go/go-remote
+  tokenEnv: ARTIFACTORY_TOKEN # let through to the shell by name (the agent can read it: use a read-only token)
+  env: { GONOSUMDB: corp.example, PIP_TRUSTED_HOST: artifactory.corp }
+containers:                   # --containered
+  image: ""                   # a prebuilt runtime to pull instead of building one
+  base: artifactory.corp/docker-remote/debian:bookworm-slim
+  apt:  https://artifactory.corp/artifactory/debian-remote
+```
+
+- **models** join `providers.<provider>.models` unless the provider declares the model itself; a model
+  whose provider is not configured is a hole.
+- **tools** are indexed by the toolbox like `extra.jsonl` lines, so the agent can find and load them.
+- **packages** set `NPM_CONFIG_REGISTRY`, `PIP_INDEX_URL` and `UV_INDEX_URL`, `GOPROXY`, and `env`'s
+  names in every bash command's environment — after secrets are scrubbed, over the process's own
+  values — and in the container. `tokenEnv` names the one secret let through.
+- **containers**: `image` is pulled (docker's own login answers for the private registry); otherwise
+  the runtime is built from the embedded Dockerfile with `base` and `apt` as build arguments, its tag
+  following them so a changed mirror rebuilds.
+
 ## Permission rules
 
 A rule is `{ "match": "<tool>:<glob>", "action": "allow" | "ask" | "deny" }`. The tool is a

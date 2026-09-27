@@ -32,15 +32,27 @@ law:
 
 ## Install
 
-This repository is private: download a release with the GitHub CLI.
-
 ```sh
-gh release download --repo Kaginari/isekai --pattern "isekai_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
-tar -xzf isekai_*.tar.gz isekai && install -m 755 isekai ~/.local/bin/
-isekai version
+curl -fsSL -o install.sh https://raw.githubusercontent.com/Kaginari/isekai/main/install.sh
+sh install.sh                     # downloads the release for your OS and checks it against checksums.txt
+# or
+go install github.com/Kaginari/isekai/cmd/isekai@latest
 ```
 
-Or build it: `CGO_ENABLED=0 go build -o isekai ./cmd/isekai` (Go ≥ 1.26; the standard library plus the Charm libraries for the terminal).
+Or build it: `CGO_ENABLED=0 go build -o isekai ./cmd/isekai` (Go ≥ 1.26).
+
+Release archives for linux/macOS × amd64/arm64 ship with `checksums.txt` and build provenance:
+`gh attestation verify <archive> --repo Kaginari/isekai`. A container image to try the binary:
+`docker run --rm -it -e ANTHROPIC_API_KEY -v "$PWD:/work" ghcr.io/kaginari/isekai:latest` — the
+binary alone on Debian slim (no bubblewrap, git or toolchains); for real work in a container use
+`--containered`, which builds a runtime with them.
+
+**Requirements.** Linux or macOS. `bubblewrap` (`bwrap`) for the sandboxed shell on Linux — without it
+the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--containered`.
+
+**Data boundary.** No telemetry. The binary contacts only the providers you configure (and the
+package or container registries you name); any other network act is `outward` and asks you, and the
+sandboxed shell has no network unless an `outward` act was approved.
 
 ## Quick start
 
@@ -98,7 +110,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `isekai` / `repl` | the live session: talk while Courts work; `/agents`, `/send`, `/usage`, `/status`, `/compact` |
 | `run "<ask>"` | one ask to its end, non-interactive; `--json` for machines |
 | `resume <id>` · `sessions` | continue or list sessions |
-| `status` | the instrument board and the off-list (every law feature that is switched off, and where) |
+| `status` | every live reading (models, sandbox, guard, memory) and every law feature switched off, with where — gaps print as `@?` lines |
 | `config show\|explain\|check\|path\|patch` | the effective config with the origin of every value |
 | `memory` · `toolbox` · `onto` | the three memories, the two-level toolbox, the creature graph |
 | `usage` | tokens and cost by body, office, rank, model and day |
@@ -106,44 +118,169 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `goal --validate "<cmd>" "<objective>"` | work turn after turn until the command passes; the binary runs it, the model cannot skip it |
 | `review [range]` | two reviewers on two models in parallel, one merged shortlist; nothing fixed before you approve |
 | `handoff [focus]` | a handoff note for a fresh session (`/handoff read` picks it up) |
-| `guard check\|test\|show\|install` | the global dangerous-command guard; `install` wires it into Claude Code and OpenCode |
+| `guard check\|test\|show\|export\|hook\|install` | the global dangerous-command guard; `install --yes` wires it into Claude Code and OpenCode |
 | `board [--ssh [addr]]` | the board without a session — on the web, and over SSH (keys in `~/.ssh/authorized_keys` only) |
 | `--containered` | the whole binary in a Docker container: the world read-write, the rest read-only |
 | `selftest` · `version` · `init` | |
 
 ## Configuration
 
-`.isekai/config.yaml` (or `.json`), layered over `~/.config/isekai/`, env and flags. A taste:
+Configuration is YAML (or JSON), layered — each layer overrides the one before it:
 
-```yaml
-providers:
-  vllm: { type: openai, baseURL: https://vllm.internal/v1, apiKeyEnv: VLLM_API_KEY }
-models:
-  default: anthropic/claude-opus-5
-  offices: { great-sage: anthropic/claude-haiku-4-5, raphael: anthropic/claude-opus-5, ciel: anthropic/claude-fable-5-1 }
-permissions:
-  rules:
-    - { match: "bash:git push*", action: ask }
-    - { match: "bash:git push --force*", action: deny }
-tools:
-  custom:
-    kube-pods: { run: [kubectl, get, pods, -n, "{{ns}}"], params: { ns: { type: string } }, class: outward }
-rules:
-  - { text: "Tests must pass before a change lands.", check: "go test ./..." }
+| Layer | Where | Kept in git |
+|---|---|---|
+| built-in defaults | in the binary — everything on | — |
+| global | `~/.config/isekai/` | no |
+| project | `.isekai/` in the world | yes |
+| project local | `.isekai/config.local.yaml` | no (machine-only) |
+| environment | `ISEKAI_CONFIG=<file>`, `ISEKAI_CONFIG_CONTENT=<yaml>`, `ISEKAI_MODEL`, `ISEKAI_DISABLE_PROJECT_CONFIG=1` (skip the project layers), `ISEKAI_PROVIDER_<NAME>_API_KEY` (built-in provider names only; a custom provider uses `apiKeyEnv`) | — |
+| flags | `--model`, `--set key=value`, `--approve outward`, `--dry-run`, `--no-<feature>` | — |
+
+`isekai config explain` shows every effective value and the file and line it came from;
+`isekai status` shows every model, the guard, the sandbox and anything switched off.
+
+### One file per part
+
+A layer can be one `config.yaml`, or split: beside it, a file named after a section holds just that
+section. The example in [`examples/gateway/`](examples/gateway/) — isekai on vLLM-hosted models
+behind a gateway — is laid out this way:
+
+```
+.isekai/
+├── config.yaml        # the world's own settings
+├── providers.yaml     # model endpoints
+├── registry.yaml      # models, tools, package and container registries
+├── models.yaml        # who runs on what
+├── guards.yaml        # catastrophic commands, refused before any approval
+├── rules.yaml         # rules every creature reads, optionally checked at the gate
+└── permissions.yaml   # ask / allow / deny per command
 ```
 
-
-Any section can live in its own file beside `config.yaml` — `models.yaml`, `providers.yaml`,
-`rules.yaml`, `guards.yaml` — and `config explain` names the file every value came from. `guards.yaml`
-may be just a list of patterns, added to the built-in denylist of catastrophic commands:
+**`providers.yaml`** — where the models are. Keys are named, never written:
 
 ```yaml
-# .isekai/guards.yaml
+gateway:
+  enabled: true
+  type: openai                       # any OpenAI-compatible endpoint: vLLM, a gateway, OpenRouter, Ollama
+  baseURL: https://llm-gateway.example.corp/v1
+  apiKeyEnv: GATEWAY_API_KEY         # the variable's name; export the key in your shell
+  toolCalls: native                  # vLLM with --enable-auto-tool-choice; "text" for tags in the text
+  contextWindow: auto                # read from /v1/models (max_model_len)
+  timeout: 10m
+  # headers: { X-Tenant: platform }        # a routing header; a credential here is refused
+  # tls: { caFile: /etc/ssl/certs/corp-ca.pem }
+```
+
+`contextWindow: auto` reads the served maximum from `/v1/models`; a gateway that does not report it
+needs `contextWindow: <n>` here or per model in `registry.yaml`. (A provider named `vllm` needs no
+`type`: it is known.)
+
+**`registry.yaml`** — where things come from: the models a gateway serves, the tools the agent can
+discover, a private Artifactory, the container registry (the example ships `packages` and `containers`
+commented out):
+
+```yaml
+models:                                     # "<provider>/<id>" — tier orders the offices; price in USD per 1M tokens
+  gateway/muse-glimmer: { tier: 1, contextWindow: 131072, price: { input: 0, output: 0 } }
+  gateway/glm-5-3:      { tier: 2 }
+  gateway/kimi-k3:      { tier: 3 }
+tools:                                      # external tools the toolbox indexes
+  - { name: kubectl, description: "the cluster CLI", triggers: [kube, pods, deploy] }
+packages:                                   # set in every shell command and in the container
+  npm: https://artifactory.example.corp/artifactory/api/npm/npm-remote/
+  pip: https://artifactory.example.corp/artifactory/api/pypi/pypi-remote/simple
+  go:  https://artifactory.example.corp/artifactory/api/go/go-remote
+  tokenEnv: ARTIFACTORY_TOKEN               # let through by name — the agent can read it: use a read-only token
+  env: { GONOSUMDB: example.corp }
+containers:                                 # for --containered
+  base: artifactory.example.corp/docker-remote/debian:bookworm-slim
+  apt:  https://artifactory.example.corp/artifactory/debian-remote
+  # image: artifactory.example.corp/docker-local/isekai-runtime:1   # pull a prebuilt runtime instead
+```
+
+For a private container registry, `docker login artifactory.example.corp` first: docker's own login
+answers for the pull.
+
+**`models.yaml`** — the session's model and the three offices (Great Sage reads, Raphael gives verdicts,
+Ciel drafts). A call is retried on 429 and 5xx (honouring `Retry-After`); when it still fails, or
+fails outright on a transport error, the fallback is tried — never on a refusal. An *office* is what a
+Court Body does for a call; a *rank* is its place in the tree (elf → orc → slime); a *creature* is
+one named body — each can be given its own model:
+
+```yaml
+default: { model: gateway/kimi-k3, fallback: gateway/glm-5-3 }
+offices:
+  great-sage: { model: gateway/muse-glimmer, fallback: gateway/glm-5-3 }
+  raphael:    { model: gateway/glm-5-3,      fallback: gateway/kimi-k3 }
+  ciel:       { model: gateway/kimi-k3,      fallback: gateway/glm-5-3 }
+# ranks: { slime: …, orc: … }   creatures: { slime-auth: … }   tasks: { drain: …, gate: … }
+```
+
+**`guards.yaml`** — added to the built-in denylist (disk wipes, `rm -rf ~`, force-pushes, repository and
+secret deletion, history purges, secret-store reads, `curl … | sh`). A match is refused before any
+approval — no rule or `--approve` can run it:
+
+```yaml
 - '(^|[[:space:]])terraform[[:space:]]+destroy'
-- 'kubectl[[:space:]]+delete[[:space:]]+(ns|namespace)'
+- 'kubectl[[:space:]]+delete[[:space:]]+(ns|namespace|node)'
+- 'helm[[:space:]]+uninstall'
 ```
 
-The full schema: [`docs/canon/config.md`](docs/canon/config.md). The design: [`docs/canon/binary.md`](docs/canon/binary.md).
+**`rules.yaml`** and **`permissions.yaml`**:
+
+```yaml
+# rules.yaml — every creature reads them; a check runs at the gate
+- { text: "Tests must pass before a change lands.", check: "make test" }
+- { text: "No secret, key or token is ever written to a file." }
+```
+
+```yaml
+# permissions.yaml — ask / allow / deny per command. An allow on bash, git or webfetch is a
+# loosening that `config check` lists; a bare bash:* allow is refused.
+rules:
+  - { match: "bash:git push*", action: ask }
+  - { match: "bash:kubectl get*", action: allow }
+  - { match: "bash:kubectl*", action: ask }
+```
+
+### Every other section
+
+| Section | What it controls | A taste |
+|---|---|---|
+| `tools` | the builtin tools, their limits, custom tools, the bash sandbox | `bash: { sandbox: bwrap, timeout: 2m }` · `custom: { kube-pods: { run: [kubectl, get, pods], class: read } }` |
+| `law` | the gate and its checks, the human gate, budgets per turn | `gate: { retries: 1, testsIntact: true }` · `humanGate: { approve: [outward] }` |
+| `memory` · `compaction` | recall and notes; draining the context when it fills | `compaction: { trigger: { fraction: 0.85 } }` |
+| `mcp` | MCP servers (Claude Code's `.mcp.json` and OpenCode's are imported) | `servers: { gh: { command: [gh-mcp] } }` |
+| `hooks` | shell hooks at preTool, postTool, sessionStart, preCompact, stop, userPrompt | `preTool: [{ match: "bash", command: "./check.sh" }]` |
+| `discovery` | where instructions, skills, commands and agents are found (Claude Code and OpenCode dirs included) | `skills: { paths: [.claude/skills] }` |
+| `budgets` | spend ceilings for the session and each Court | `session: { tokens: 400000, usd: 5 }` |
+| `ui` · `output` | the dashboard, the status line, output format | `board: { autostart: false }` |
+| `sessions` · `undo` | where sessions and undo snapshots live, how long | `sessions: { keepDays: 30 }` |
+
+| `toolbox` · `ontology` · `instruments` | the searchable tool registry, the creature graph, the journals | `toolbox: { budgetTokens: 1500 }` |
+| `mode` · `smallModel` · `logLevel` | `build` or `plan` (plan writes nothing); a small model for small tasks | `mode: plan` |
+| `tools.profile` · `tools.missing` | the toolset shape (`max`, `anthropic`, `openai`, `minimal`); what happens when a tool is missing | `profile: minimal` |
+| `permissions.import` · `mcp.import` | take Claude Code's and OpenCode's permissions and MCP servers | `import: { claudeCode: { enabled: false } }` |
+| `guard` | more denylist files, patterns inline | `files: [~/corp-guards.txt]` |
+
+Everything is on by default; switching something off is always shown in `status`, never silent.
+`isekai config explain` shows every value with the file and line it came from. The full schema:
+[`docs/canon/config.md`](docs/canon/config.md) · the design: [`docs/canon/binary.md`](docs/canon/binary.md) · the terminal:
+[`docs/canon/tui.md`](docs/canon/tui.md).
+
+## Safety, in code
+
+Beyond the gate, the human gate and the sandbox described above:
+
+- **The guard** — the catastrophic and irreversible are refused before any approval, held to a
+  151-case test corpus; `isekai guard install --yes` wires the same list into Claude Code and
+  OpenCode (without `--yes` it only shows the change).
+- **The gate, hardened** — it runs the checks as they were before the turn, fails a turn that
+  deleted or skipped tests, and sends a failure back to the model once, then to you.
+- **Dry-run and previews** — `--dry-run` plans and shows what it would run or ask, running nothing;
+  every edit shows its diff; `/board` and `ctrl+t` show every agent live.
+- **The sandbox** (`bwrap`) or **the container** (`--containered`: the world read-write, the rest
+  read-only, pulled or built from your private registry).
 
 ## Benchmarks
 

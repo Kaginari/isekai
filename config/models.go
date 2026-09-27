@@ -45,9 +45,11 @@ func (c *Config) ResolveModel(creature, race, office, task string) (Model, Origi
 			m.Provider, m.ID = p, id
 			m.Entry = c.Providers[p]
 		}
-		m.Origin, _ = c.Origins[slot]
+		// the model field's own origin first: a {model, fallback} map merged over a lower layer's
+		// keeps that layer's file, while its fields keep their own
+		m.Origin, _ = c.Origins[slot+".model"]
 		if m.Origin.File == "" {
-			m.Origin, _ = c.Origins[slot+".model"]
+			m.Origin, _ = c.Origins[slot]
 		}
 		return m, true
 	}

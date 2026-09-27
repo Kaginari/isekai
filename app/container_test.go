@@ -7,12 +7,13 @@ import (
 
 func TestContainerArgsMountTheWorldReadWriteAndTheRestReadOnly(t *testing.T) {
 	s := ContainerSpec{Dist: "isekai", Image: "isekai-runtime:x", Exe: "/opt/isekai", Root: "/w", Cwd: "/w/src", Home: "/home/u", UID: 1000, GID: 1000,
-		RO: []string{"/home/u/.config/isekai"}, RW: []string{"/home/u/.local/share/isekai"}, EnvKeys: []string{"OPENROUTER_API_KEY"}, Argv: []string{"run", "hi"}}
+		RO: []string{"/home/u/.config/isekai"}, RW: []string{"/home/u/.local/share/isekai"}, EnvKeys: []string{"OPENROUTER_API_KEY", "ARTIFACTORY_TOKEN"},
+		EnvSet: []string{"NPM_CONFIG_REGISTRY=https://art/npm/"}, Argv: []string{"run", "hi"}}
 	got := strings.Join(s.Args(), " ")
 	for _, want := range []string{
 		"-v /w:/w ", "-v /opt/isekai:/usr/local/bin/isekai:ro", "-v /home/u/.config/isekai:/home/u/.config/isekai:ro",
 		"-v /home/u/.local/share/isekai:/home/u/.local/share/isekai ", "--user 1000:1000", "-e OPENROUTER_API_KEY ",
-		"-e ISEKAI_CONTAINERED=1", "-w /w/src isekai-runtime:x /usr/local/bin/isekai run hi", "--network host",
+		"-e ISEKAI_CONTAINERED=1", "-e ARTIFACTORY_TOKEN ", "-e NPM_CONFIG_REGISTRY=https://art/npm/", "-w /w/src isekai-runtime:x /usr/local/bin/isekai run hi", "--network host",
 	} {
 		if !strings.Contains(got+" ", want) {
 			t.Fatalf("docker argv misses %q:\n%s", want, got)
@@ -95,4 +96,24 @@ func TestGuardPatternsFromConfig(t *testing.T) {
 	if !strings.Contains(a.guardLine(), "3 sources") {
 		t.Fatalf("status counts the config as a source: %s", a.guardLine())
 	}
+}
+
+func TestRegistryToolsReachTheToolbox(t *testing.T) {
+	w := newTestWorld(t, "isekai", isekaiCreatures())
+	w.write(".isekai/registry.yaml", "tools:\n  - {name: kubectl-corp, description: the cluster CLI behind the corp proxy, triggers: [kube]}\n")
+	a := w.open()
+	tb, err := a.World.Toolbox()
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg, err := tb.BuildRegistry(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range reg.Entries {
+		if e.Name == "kubectl-corp" {
+			return
+		}
+	}
+	t.Fatal("a registry.tools entry is not in the toolbox")
 }

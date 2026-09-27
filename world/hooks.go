@@ -201,7 +201,13 @@ func (w *World) SessionOf(e *loop.Engine) *loop.Session {
 func (w *World) Memory() (*memory.World, error) { return memory.OpenIn(w.Root, w.Lex.WorldDir) }
 
 // Toolbox opens the toolbox instrument on this world.
-func (w *World) Toolbox() (*toolbox.World, error) { return toolbox.OpenIn(w.Root, w.Lex.WorldDir) }
+func (w *World) Toolbox() (*toolbox.World, error) {
+	tb, err := toolbox.OpenIn(w.Root, w.Lex.WorldDir)
+	if tb != nil {
+		tb.Extra = w.ToolboxExtra
+	}
+	return tb, err
+}
 
 // Recall runs the recall beat: memory hits as `src#sec` anchors, toolbox @T lines. Never a body.
 func (w *World) Recall(as, ask string, opt RecallOptions) loop.Recall {
