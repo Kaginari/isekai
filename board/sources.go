@@ -306,6 +306,26 @@ type Sources struct {
 	Memory  func() *MemoryView
 	Toolbox func() *ToolboxView
 	Doc     func(path string) (string, error)
+	// Bodies are the minted agents (.claude/agents, .opencode/agents); Skills every skill the
+	// session can wear, the binary's own included. The integrator knows them; files answer empty.
+	Bodies func() []BodyInfo
+	Skills func() []SkillInfo
+}
+
+// BodyInfo is one minted Body: the vessel a ranked creature rides (Minds & Bodies).
+type BodyInfo struct {
+	Name        string `json:"name"`
+	Mode        string `json:"mode"` // subagent (a Court body) · all/primary (a Keeper)
+	Model       string `json:"model,omitempty"`
+	Description string `json:"description,omitempty"`
+	Source      string `json:"source"`
+}
+
+// SkillInfo is one skill the session can wear, wherever it was found.
+type SkillInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Source      string `json:"source"` // claude · opencode · native · builtin · …-global
 }
 
 // FileSources reads the world's files. Court, Config, Off and Session answer honestly empty.
@@ -332,6 +352,8 @@ func FileSources(root, worldDir string, layout onto.Layout, now func() time.Time
 		Memory:  f.memory,
 		Toolbox: f.toolbox,
 		Doc:     f.doc,
+		Bodies:  func() []BodyInfo { return nil },
+		Skills:  func() []SkillInfo { return nil },
 	}
 }
 
@@ -368,6 +390,12 @@ func (s Sources) withDefaults(d Sources) Sources {
 	}
 	if s.Doc == nil {
 		s.Doc = d.Doc
+	}
+	if s.Bodies == nil {
+		s.Bodies = d.Bodies
+	}
+	if s.Skills == nil {
+		s.Skills = d.Skills
 	}
 	return s
 }

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Kaginari/isekai/memory"
 )
 
 // Live is the running session as the dashboard drives it: its event stream, and the few acts a
@@ -76,6 +78,22 @@ func (b *Board) liveRoutes() {
 	}))
 	b.mux.HandleFunc("/dash", b.dash)
 	b.mux.HandleFunc("/dash/stream", b.dashStream)
+	// the world's two planes beside the ontology: the minted bodies, every wearable skill, and
+	// the desks (thoughts live in the worn mind)
+	b.mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) {
+		bodies, skills := b.src.Bodies(), b.src.Skills()
+		if bodies == nil {
+			bodies = []BodyInfo{}
+		}
+		if skills == nil {
+			skills = []SkillInfo{}
+		}
+		desks := []memory.Desk{}
+		if m := b.src.Memory(); m != nil && m.Desks != nil {
+			desks = m.Desks
+		}
+		writeJSON(w, map[string]any{"bodies": bodies, "skills": skills, "desks": desks})
+	})
 	b.mux.HandleFunc("/api/live", func(w http.ResponseWriter, r *http.Request) {
 		st := map[string]any{"session": false}
 		if b.opt.Live != nil {
