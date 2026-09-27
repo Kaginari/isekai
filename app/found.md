@@ -15,16 +15,16 @@ points, packages, models, services, tests, build and CI files, the README. Note 
 
 ## 2. Decide the team — by what the code needs, not by a quota
 
-- **One elf** (`{{ELF}}<name>`) — the shared mind and voice: owns the cross-domain rules and the
+- **One elf** (`{{VOICE}}<name>`) — the shared mind and voice: owns the cross-domain rules and the
   project-wide files (README, the module/package manifest). A second elf only when the project is
   really two products with separate audiences.
-- **Orcs** (`{{ORC}}<domain>`) — one per domain that deserves its own gate. Two to five is usual; one
+- **Orcs** (`{{GATE}}<domain>`) — one per domain that deserves its own gate. Two to five is usual; one
   for a small tool. Merge domains too thin to judge on their own; never make an orc per folder
   when the folders are layers of one feature.
-- **Slimes** (`{{SLIME}}<zone>`) — one per vertical slice: the files that change together (e.g. a
+- **Slimes** (`{{TRUTH}}<zone>`) — one per vertical slice: the files that change together (e.g. a
   command, its service, its model and its tests). Each slime reports to exactly one orc (its truth
   link); its territory is those files, precisely.
-- **A kijin** (`{{KIJIN}}<subsystem>`) — only for a standing subsystem someone must own across
+- **A kijin** (`{{LEAD}}<subsystem>`) — only for a standing subsystem someone must own across
   sessions (CI and releases, deploy, infrastructure). Reports to rimuru.
 - **Minds** (skills) — know-how worth wearing: a contract or convention two or more creatures share
   (zone minds, worn by slimes), a review checklist an orc applies (verdict minds), a pipeline or
@@ -37,15 +37,15 @@ Before writing, show the plan as a table: creature · rank · reports to · terr
 
 ## 3. Write it, in exactly these shapes
 
-A creature doc, at `{{WORLD}}/<rank dir>/<short>/README.md` (dirs: elf `{{ELF_DIR}}`, orc
-`{{ORC_DIR}}`, slime `{{SLIME_DIR}}`, kijin `{{KIJIN_DIR}}`); its name is the prefix plus `<short>`:
+A creature doc, at `{{WORLD}}/<rank dir>/<short>/README.md` (dirs: elf `{{VOICE_DIR}}`, orc
+`{{GATE_DIR}}`, slime `{{TRUTH_DIR}}`, kijin `{{LEAD_DIR}}`); its name is the prefix plus `<short>`:
 
 ```
-# {{SLIME}}<short>
+# {{TRUTH}}<short>
 
-- **Rank:** {{SLIME_RANK}}
+- **Rank:** {{TRUTH_RANK}}
 - **Territory:** `path/one/`, `path/file.go`
-- **Reports to:** {{ORC}}<domain>
+- **Reports to:** {{GATE}}<domain>
 - **Minds:** <mind>, <mind>
 - **Purpose:** the ground truth of … (one sentence, what it owns and why it matters)
 

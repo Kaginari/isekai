@@ -291,9 +291,9 @@ var foundBrief string
 func foundingAsk(root string, d config.Dist, s sketch, dirs, prefix, display map[string]string) string {
 	r := strings.NewReplacer(
 		"{{BIN}}", d.Name, "{{WORLD}}", d.WorldDir, "{{PROJECT}}", filepath.Base(root), "{{LANG}}", or(s.Lang, "unknown"),
-		"{{ELF_DIR}}", dirs["elf"], "{{ORC_DIR}}", dirs["orc"], "{{SLIME_DIR}}", dirs["slime"], "{{KIJIN_DIR}}", dirs["kijin"],
-		"{{ELF}}", prefix["elf"], "{{ORC}}", prefix["orc"], "{{SLIME}}", prefix["slime"], "{{KIJIN}}", prefix["kijin"],
-		"{{SLIME_RANK}}", or(display["slime"], "Slime"),
+		"{{VOICE_DIR}}", dirs["elf"], "{{GATE_DIR}}", dirs["orc"], "{{TRUTH_DIR}}", dirs["slime"], "{{LEAD_DIR}}", dirs["kijin"],
+		"{{VOICE}}", prefix["elf"], "{{GATE}}", prefix["orc"], "{{TRUTH}}", prefix["slime"], "{{LEAD}}", prefix["kijin"],
+		"{{TRUTH_RANK}}", or(display["slime"], "Slime"),
 		"{{SKETCH}}", s.table(prefix))
 	return r.Replace(foundBrief)
 }
