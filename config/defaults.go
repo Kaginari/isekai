@@ -19,6 +19,7 @@ const defaultsJSON = `{
     "ollama":     { "enabled": false, "type": "openai", "apiKeyEnv": "", "baseURL": "http://127.0.0.1:11434/v1", "timeout": "10m", "toolCalls": "native", "contextWindow": "auto", "models": {} },
     "mock":       { "enabled": false, "type": "mock", "script": "" }
   },
+  "guard": { "enabled": true, "files": [], "patterns": [] },
   "tools": {
     "profile":   "max",
     "read":      { "enabled": true, "maxLines": 2000, "maxBytes": 51200 },
@@ -48,7 +49,7 @@ const defaultsJSON = `{
   "law": {
     "crest":      { "enabled": true },
     "humanGate":  { "enabled": true, "strict": false, "approve": [], "dryRun": false },
-    "gate":       { "enabled": true, "rightAuthor": true, "traitsHold": true, "dutiesDone": true, "docTruthful": true },
+    "gate":       { "enabled": true, "rightAuthor": true, "traitsHold": true, "dutiesDone": true, "docTruthful": true, "retries": 1, "testsIntact": true },
     "vitality":   { "enabled": true },
     "territory":  { "enabled": true },
     "wire":       { "enabled": true, "cap": 2048, "requireUnsaid": true, "raw": false },

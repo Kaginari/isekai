@@ -31,7 +31,11 @@ type GateOptions struct {
 	DutiesDone  bool
 	DocTruthful bool
 	Checks      []Check
-	Log         bool          // append the verdict to log.md
+	Log         bool // append the verdict to log.md
+	Retries     int  // a failed gate goes back to the model this many times per turn
+	TestsIntact bool // a turn may not pass by deleting, skipping or narrowing tests
+	// TestsBefore is the test files' text as the turn opened; the EndGate hook fills it per call.
+	TestsBefore map[string]string
 	Timeout     time.Duration // per verify command; 0 = 120s
 }
 
@@ -57,6 +61,9 @@ func (w *World) Gate(ctx context.Context, opt GateOptions, as string, wrote []st
 	if !opt.Enabled {
 		return Verdict{Word: "off", Holes: []string{"law.gate is off — the turn's writes were not checked"}}
 	}
+	// the verify lines as they stood before the turn: a body edits its own doc in the same turn
+	// (Vitality), so the post-turn lines alone would let it rewrite the check it is judged by
+	before := w.verifyLines()
 	_ = w.Reload() // docs may have changed this turn; the roster is read fresh
 	fail := func(why string) { v.Reasons = append(v.Reasons, why) }
 	orcs := w.GateHolders()
@@ -99,13 +106,32 @@ func (w *World) Gate(ctx context.Context, opt GateOptions, as string, wrote []st
 		}
 		sort.Strings(names)
 		for _, n := range names {
-			for _, cmd := range touched[n].Verify {
+			now := touched[n].Verify
+			cmds := append([]string(nil), before[n]...)
+			for _, c := range before[n] {
+				if !contains(now, c) {
+					v.Holes = append(v.Holes, fmt.Sprintf("%s: %s's verify `%s` was removed or changed this turn — the pre-turn line still ran; the gate holder confirms the change", w.Lex.Checks[1], n, c))
+				}
+			}
+			for _, c := range now {
+				if !contains(cmds, c) {
+					cmds = append(cmds, c)
+				}
+			}
+			for _, cmd := range cmds {
 				if code, tail := w.run(ctx, cmd, opt.Timeout); code != 0 {
 					fail(fmt.Sprintf("%s: %s verify `%s` exit %d%s", w.Lex.Checks[1], n, cmd, code, tail))
 				}
 			}
 		}
 		v.Checked = append(v.Checked, w.Lex.Checks[1])
+	}
+	// tests intact — the turn did not pass by making the tests easier
+	if opt.TestsIntact && opt.TestsBefore != nil {
+		for _, why := range w.testsIntact(opt.TestsBefore, wrote) {
+			fail("Tests intact: " + why + " — only the human decides a test goes")
+		}
+		v.Checked = append(v.Checked, "Tests intact")
 	}
 	// 3. duties done — the commission is answered on the wire
 	if opt.DutiesDone {
@@ -186,7 +212,9 @@ func (w *World) EndGate(opt GateOptions) func(ctx context.Context, s *loop.Sessi
 		if len(s.Wrote) == 0 {
 			return "", nil, nil
 		}
-		v := w.Gate(ctx, opt, as, s.Wrote, &r.Report, r.IsWire, s.Ask)
+		o := opt
+		o.TestsBefore = s.TestsBefore
+		v := w.Gate(ctx, o, as, s.Wrote, &r.Report, r.IsWire, s.Ask)
 		holes := append([]string(nil), v.Holes...)
 		if opt.Log && opt.Enabled {
 			result := "done"
@@ -252,4 +280,15 @@ func firstLine(s string) string {
 		s = s[:120] + "…"
 	}
 	return s
+}
+
+// verifyLines is each creature's verify commands as the roster holds them now.
+func (w *World) verifyLines() map[string][]string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	out := map[string][]string{}
+	for _, c := range w.Creatures {
+		out[c.Name] = append([]string(nil), c.Verify...)
+	}
+	return out
 }

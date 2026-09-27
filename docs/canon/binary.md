@@ -5,13 +5,15 @@ for harnesses that only *read* it (Claude Code, OpenCode); a model can read a la
 it. Here the law is the harness: the gate, Vitality, the log, the human gate, the instruments and
 the wire are code paths the model cannot route around, and every creature is a native type.
 
-Source: `isekai/` at the repository root (Go module, stdlib only). Build with
+Source: `isekai/` at the repository root (Go module; stdlib plus the Charm libraries for the
+terminal UI, `canon/tui.md`). Build with
 `go build -o bin/isekai ./cmd/isekai` from `isekai/`. Toolchain: Go ≥ 1.23.
 
 ## Principles of the build
 
-- **Minimal.** Standard library only. No TUI, no LSP, no web, no plugin system. A line REPL and a
-  one-shot mode. A feature enters when a session names the need twice (Nature 4).
+- **Minimal.** Standard library only — except the terminal UI, built on the Charm libraries
+  (`canon/tui.md`). No LSP, no plugin system. A feature enters when a session names the need twice
+  (Nature 4).
 - **Files are truth.** The binary reads and writes the same files the JS instruments do
   (`log.md`, `memory/`, `toolbox/`, `instruments/`) in the same formats. It never keeps a private
   store the world cannot read without it.
@@ -26,7 +28,7 @@ Source: `isekai/` at the repository root (Go module, stdlib only). Build with
 |---|---|---|
 | `provider` | one `Provider` interface (messages + tool calls + usage); `anthropic` (Messages API), `openai` (chat-completions — also OpenRouter, Ollama, any compatible endpoint), `mock` (scripted, for tests) | the provider call is the one standing outward act |
 | `tool` | `Tool{Name, Description, Schema, Class, Run}`; built-ins `read`, `write`, `edit`, `bash`, `glob`, `grep`, `dispatch` | every tool declares a class; `bash` is classified per command (port of `loop.js`'s classifier) — a declared class only tightens |
-| `gate` | the human gate: TTY prompt, `--approve <class>` pre-approval, `--dry-run` | Nature 7, Law 6: outward and destructive always ask; nothing auto-approved; a denial stops the turn |
+| `gate` | the human gate: the TUI's choice block or the TTY prompt (`Gate.Answer` is the seam), `--approve <class>` pre-approval, `--dry-run` | Nature 7, Law 6: outward and destructive always ask; nothing auto-approved; a denial stops the turn |
 | `loop` | the turn engine: perceive → recall → plan → act → verify → record per tool step; journal to `.isekai/instruments/loop/<run-id>.jsonl` | §The loop — budgets are readings; past one, checkpoint and stop honestly |
 | `instrument` | context occupancy from provider-reported usage, 200k budget / 180k stress zone; `status` board | Nature 9, §Instruments — Rimuru's stress is a reading |
 | `memory` | port of `memory.js`: status, index, recall (meaning + relation rank), remember (`--kind law|colony|territory`) | §Memory tiers — same files, same formats |
@@ -39,7 +41,8 @@ Source: `isekai/` at the repository root (Go module, stdlib only). Build with
 | `sandbox` · `shell` | bwrap containment and env scrubbing; one persistent bash per body with background jobs | Nature 7, §Bash below |
 | `mcp` · `discover` | the MCP client (stdio, streamable HTTP); what other harnesses wrote (instructions, Minds, commands, Bodies, MCP imports) | §MCP below; `harness-parity.md` |
 | `board` | the world, seen: an HTTP handler over the same instruments | §The board below |
-| `app` | the one engine behind both binaries: config → world → providers, shelf, MCP, discoveries, hooks; sessions (JSONL), the live REPL, `run`, `bench`, `selftest`, `init`, `board` | everything above, wired |
+| `app` | the one engine behind both binaries: config → world → providers, shelf, MCP, discoveries, hooks; sessions (JSONL), the live session (the TUI on a terminal, the line REPL on a pipe or `--plain`), `run`, `bench`, `selftest`, `init`, `board` | everything above, wired |
+| `tui` | the terminal UI (`canon/tui.md`): the view model (blocks from the loop's events), the Bubble Tea program, the choice block the gate and the `ask` tool answer through | the one siphon that never narrows — the human's |
 | `cmd/isekai` · `cmd/agent-one` | the two distributions: one `main` each, differing only by the name they hand `app.Main` (lexicon, world dir, env prefix, law file follow) | — |
 
 ## Bash — the model's shell, the world's rules
@@ -55,6 +58,30 @@ Source: `isekai/` at the repository root (Go module, stdlib only). Build with
 - **Sandboxed by default.** Each command runs under `bwrap`: the filesystem is read-only except the
   world root and a private `/tmp`, no network unless the command passed the human gate as
   `outward`. No `bwrap` on the machine → `sandbox: none`, reported as `@?` in `status`.
+- **The whole binary in a container — `--containered`.** The binary re-runs itself under Docker
+  (`docker run --rm --init`): the world mounted read-write at its own path, this binary and what a
+  session reads from the host mounted read-only (`~/.config/<dist>`, `~/.<dist>`, the Claude and
+  OpenCode instruction/skill/command/agent dirs, git's identity — only those that exist), the
+  session store `~/.local/share/<dist>` read-write (sessions must save), `$HOME` otherwise an empty
+  tmpfs (no `~/.ssh`, no other secrets), the caller's uid, the host network (the model API and the
+  board). Keys cross by name (`-e NAME`), never by value: the terminal's variables, the dist's own
+  `<PREFIX>*`, every `*_API_KEY` / `*_BASE_URL`. The image is built on first use from the Dockerfile
+  embedded in the binary (debian slim + bash, git, ripgrep, python3, jq, make, curl…), tagged by the
+  Dockerfile's hash so a changed runtime is rebuilt; `--image <ref>` runs a richer one. Inside,
+  `<PREFIX>CONTAINERED=1` makes the flag a no-op, and `status` says `container: docker <image>` in
+  place of the sandbox line: the container is the boundary, bwrap does not nest in it.
+- **The guard, before everything.** A denylist of the catastrophic and irreversible — disk wipes,
+  `rm -rf` of `/`, home or a system dir (by `~`, `$HOME` or the home's own path), force-pushes and
+  remote deletions, repository and secret deletion, history purges, secret-store reads, a script
+  from the network piped into a shell — refuses a bash command before the policy and the gate: no
+  approval runs it. The built-in list (`guard/patterns.txt`) is always on; the machine-wide
+  `~/.agents/hooks/dangerous-patterns.txt` and `guard.files` add to it. `guard test` runs the
+  corpus (151 commands, from davidondrej/skills, MIT) — every block blocked, every allow allowed —
+  and the classifier is held to the same corpus: every command the guard blocks must reach the
+  human (outward or destructive) even with the guard off. `guard install` wires the same list into
+  Claude Code (a PreToolUse hook) and OpenCode (a plugin), showing the change first — one denylist
+  for every agent on the machine. It stops accidents, not a determined agent (`python -c` slips past
+  any regex); the sandbox and the gate stay the containment.
 - **Classified before it runs.** The classifier settles the class; permission rules and the human
   gate decide; the model's own claim only tightens. `git` is read through its global options
   (`git -C . push`, `git -c k=v push`, `git --no-pager push` are the verb's class). A path is
@@ -193,9 +220,15 @@ The throne never chooses its horse: the session (Rimuru) runs on the model the h
 
 ## Live session — talk while the court works
 
-- **The human is never locked out.** A turn runs in the background of the REPL. A line typed
-  mid-turn is queued and delivered to the running body at its next tool step (the way Claude
-  Code does); `Ctrl-C` interrupts the turn, a second `Ctrl-C` exits.
+- **Two faces, one engine.** On a terminal the session is the TUI (`canon/tui.md`); on a pipe,
+  under `TERM=dumb`, or with `--plain`, it is the line REPL. Both run the same engine, sessions,
+  Courts and gate.
+- **The human is never locked out.** A turn runs in the background. A line typed mid-turn is
+  queued and delivered to the running body at its next tool step (the way Claude Code does);
+  `esc` (TUI) or `Ctrl-C` interrupts the turn, a second `Ctrl-C` exits.
+- **A stopped turn is not a dead session.** When a turn ends on its tool results (denied,
+  escalated, checkpointed), the next ask rides that user message rather than following it — two
+  user messages in a row is a shape no provider takes.
 - **Courts run in the background.** `dispatch` may be asynchronous: the dispatcher keeps working
   and is woken by the Court's report. A running Court stays addressable (`/send <court> <text>`)
   until its dispatcher accepts the report; then its context dies (§Minds & Bodies — the task is
@@ -203,7 +236,7 @@ The throne never chooses its horse: the session (Rimuru) runs on the model the h
 - **The court is visible.** `/agents` (and a status line above the prompt) shows every live body:
   rank, office, model, state (thinking · tool · waiting on gate · done), elapsed, context
   occupancy against its window, tokens and cost so far. Starts and reports are announced between
-  prompts, one line each.
+  prompts, one line each (the TUI draws each Court as a block with its report rendered).
 - **Consumption is an instrument** (Nature 9). Every provider call's usage (input, output, cache
   read, cache write) is journaled to `.isekai/instruments/usage/<session>.jsonl`, priced from the
   provider's per-model `price` in config (unpriced models show tokens, never a guessed cost), and
@@ -219,13 +252,25 @@ The throne never chooses its horse: the session (Rimuru) runs on the model the h
 At the end of any turn that wrote files, before the turn is reported done:
 1. **Right slime authored** — every written path maps to the territory of the body that wrote it.
 2. **Traits hold** — each touched creature's `verify` commands (from its doc) run; exit codes are
-   the reading.
+   the reading. The lines that run are the ones the doc held *before* the turn, plus any it added:
+   Vitality makes a body edit its own doc in the same turn, so the post-turn lines alone would let
+   it rewrite the check it is judged by. A pre-turn line the turn removed or changed still runs, and
+   the change is a hole for the gate holder to confirm.
+- **Tests intact** (`law.gate.testsIntact`) — a turn may not pass by making the tests easier. The
+   loop keeps the test files' text as the turn opens (Go, JS/TS, Python; bounded); a touched test
+   file that lost tests, gained a skip or an `.only`, or was deleted fails the gate. Only the human
+   decides a test goes.
 3. **Duties done** — the commission's `@ASK` is answered (`@S` present, holes named as `@?`).
 4. **Doc truthful** — a change under a territory with no change to its owning doc fails
    (Nature 1). The owning doc is the Slime's doc, else the Orc's.
 
 The verdict (pass / fail + reason) is appended to `log.md` by the binary. A world with no orcs
 records `Gate: n/a (no orcs)` and still runs check 4 against any doc it can find.
+
+**A fail goes back once.** A failed verdict is first sent back to the model, its reasons as the next
+message, and the same turn continues — the whole turn's writes are gated again — up to
+`law.gate.retries` times (default 1; 0 fails at once). Every attempt's verdict is in `log.md`, and
+the answer carries a hole naming each send-back; past the retries the turn fails.
 
 **Every write is seen, whatever tool made it.** A tool that knows its paths reports them
 (`write`, `edit`, `patch`); the shell, a custom tool and an MCP server do not. So the engine
@@ -315,6 +360,50 @@ for what dispatch could not avoid.
 Every pass is switchable in config (`compaction.passes.*`); a `summary` strategy exists as the
 generic fallback, and `status` shows which strategy and passes are live.
 
+## Handoff — what a fresh session needs
+
+`/handoff [focus]` (or `<dist> handoff [focus]`) is a turn: the binary gathers what it knows — the
+session's first ask, the uncommitted changes, the recent commits, the last log.md entries, the previous
+handoff to carry forward — and the model writes `<world>/handoffs/<time>.md` from a fixed template:
+goal, why, state (done · partial · not started — state, not orders), decisions and why, traps and dead
+ends, pointers (by path, never copied), open work. Secrets by location only. The next session's welcome
+names a handoff under two weeks old; `/handoff read [path]` hands it to the model with one rule: read
+every listed file, trust no claim unverified, then wait for the human. The context stress zone points
+at it. (After davidondrej/skills' handoff, MIT.)
+
+## Goals — work until a command proves it
+
+`<dist> goal --validate "<cmd>" [--read <files>] [--constraints <text>] [--max-turns N] "<objective>"`
+runs one session to a contract: objective, what to read first, what must not change, the validation,
+the stop condition. The binary runs the validation itself after every turn (bash in the world root,
+15 min) — the model can neither skip nor edit it — and hands a failure back as the next turn's ask with
+the exit code and the output's tail. It stops when the validation passes (exit 0), when the model ends
+an answer with `@? human: <what it needs>` (exit 3), at the turn ceiling (default 12, exit 1), or when a
+turn fails or checkpoints. The contract forbids weakening tests; the gate's tests-intact enforces it on
+every turn. (After davidondrej/skills' goal-loop, MIT.)
+
+## Review — two reviewers, one shortlist
+
+`/review [range]` (or `<dist> review [range]`) runs two independent reviewers in parallel, on two
+offices' models (raphael and ciel: two models when config gives them two), each with the same neutral
+brief — read the diff, the changed code in full, the code around it and its tests; report serious or
+critical issues with file:line, why and the fix; separate verified from suspected; say whether it is
+ready to merge. The range is the argument, else the uncommitted changes, else the last commit. A
+reviewer's shelf is read-only: anything above a read is refused, never asked. A reviewer that does not
+finish fails the review — a partial review is not a review. Both reports go to the session, which
+merges them: deduplicated, judged (agreement alone does not make an issue real), a numbered shortlist
+marked [both] / [raphael] / [ciel] with the ones both found first, the count dropped as overthinking,
+and a request for the human's approval — nothing is fixed before it. In a session the reviewers run in
+the background and the merge arrives as a turn. A world's own `/review` command wins over the built-in one. (After davidondrej/skills' total-review, MIT.)
+
+## The first run — a setup form
+
+`init` founds the world; on a terminal it then asks, in a Huh form, which model the world runs on —
+keep the global config, OpenRouter's free models, Anthropic, OpenAI, Ollama, or any OpenAI-compatible
+server — and writes the world's `config.yaml` (the key's *name* only; the key never lands in a file),
+saying so when that variable is not set in the shell. A pipe, `--plain`, a world that already has a
+config, or `<PREFIX>NO_SETUP` skips it.
+
 ## The board — the world, seen
 
 `isekai` lights the board when it starts (`ui.board.autostart`, default on; `isekai board` alone
@@ -330,6 +419,13 @@ supersedes `tempest.js` once it shows everything tempest shows.
   components — so every page is responsive from a phone to a wide screen, offline. Isekai's own
   look is a thin theme over it (colour tokens for each rank and lane, dark and light), never a
   second layout system. Charts and the colony graph are inline SVG sized by their grid column.
+
+**Over SSH — `board --ssh [addr]`.** Wish serves the terminal board (`canon/tui.md` §The board) to
+any SSH client: each connection its own full-screen board over the world's files. It listens on
+`127.0.0.1:2222` by default (a warning when told to listen beyond the machine), admits only the keys in
+`~/.ssh/authorized_keys` and fails closed without that file; its host key lives in
+`~/.local/share/<dist>/ssh/`. The command's own output — the web board, the SSH server, each session —
+is a Charm Log: levelled, coloured, timed.
 
 ## Tests
 

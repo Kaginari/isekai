@@ -37,6 +37,8 @@ type Court struct {
 	order  []string
 	wake   []string // reports of finished background Courts, for the session's next turn
 	onWake func()
+	// onFinish sees a background Court's report as it lands (the TUI draws its block).
+	onFinish func(name, report string)
 }
 
 func newCourt(a *App) *Court {
@@ -107,7 +109,11 @@ func (c *Court) Finish(name, report string) {
 			close(b.done)
 		}
 	}
+	f := c.onFinish
 	c.mu.Unlock()
+	if f != nil && report != "" {
+		f(name, report)
+	}
 }
 
 // Send queues a line for a running body (delivered at its next tool step).
@@ -173,7 +179,7 @@ func (c *Court) Bodies() []LiveBody {
 func (c *Court) Live() int {
 	n := 0
 	for _, b := range c.Bodies() {
-		if b.State != "done" {
+		if b.State != "done" && b.Depth > 0 { // the session itself is not a dispatched agent
 			n++
 		}
 	}
@@ -211,7 +217,10 @@ func (c *Court) Lines() []string {
 func (c *Court) StatusLine(s *loop.Session) string {
 	tot := c.app.Journal.Total()
 	cost := "unpriced"
-	if tot.Calls > 0 && tot.Unpriced == 0 {
+	switch {
+	case tot.Calls == 0:
+		cost = "no calls yet"
+	case tot.Unpriced == 0:
 		cost = fmt.Sprintf("$%.4f", tot.USD)
 	}
 	ctx := "ctx —"

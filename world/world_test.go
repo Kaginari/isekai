@@ -237,6 +237,7 @@ func noTTY() *gate.Gate {
 func build(m *mock.Provider) Build {
 	h := DefaultHooks()
 	h.Recall = RecallOptions{}
+	h.Gate.Retries = 0 // a failing case fails at once; the retry has its own test
 	return Build{Provider: m, Gate: noTTY(), Hooks: h, Territory: TerritoryOptions{Enabled: true}, Court: CourtOptions{Enabled: true, Unsaid: true}, Journal: "-"}
 }
 
@@ -332,7 +333,24 @@ func TestGateVerdicts(t *testing.T) {
 	if r, _ = e.Run(context.Background(), "x"); r.Status != loop.Fail || !strings.Contains(r.Verdict, "Traits hold: slime-auth verify `test ! -f src/auth/BROKEN` exit 1") {
 		t.Fatalf("traits: %s %q", r.Status, r.Verdict)
 	}
+	// traits: a body cannot pass its own gate by rewriting its check — the pre-turn line runs
+	m = mock.New(writeCall("1", "src/auth/t2.go", "t"), writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `true`\n"), mock.Text("@S DONE\n@U colony c\n@E 0"))
+	e = w.Engine("slime-auth", build(m))
+	if r, _ = e.Run(context.Background(), "x"); r.Status != loop.Fail || !strings.Contains(r.Verdict, "slime-auth verify `test ! -f src/auth/BROKEN` exit 1") ||
+		!strings.Contains(strings.Join(r.Holes, "|"), "was removed or changed this turn") {
+		t.Fatalf("a rewritten verify line escaped the gate: %s %q %v", r.Status, r.Verdict, r.Holes)
+	}
 	os.Remove(filepath.Join(dir, "src/auth/BROKEN"))
+	// a failed gate goes back to the model once: it fixes what the gate names, the turn passes
+	m = mock.New(writeCall("1", "src/auth/r.go", "package auth"), mock.Text("@S DONE\n@U colony c\n@E 0"),
+		writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- r.go added\n"), mock.Text("@S DONE doc updated\n@U colony c\n@E 0"))
+	b0 := build(m)
+	b0.Hooks.Gate.Retries = 1
+	e = w.Engine("slime-auth", b0)
+	r, _ = e.Run(context.Background(), "x")
+	if r.Status != loop.Done || !strings.HasPrefix(r.Verdict, "pass") || !strings.Contains(strings.Join(r.Holes, "|"), "gate failed and was sent back (1 of 1)") {
+		t.Fatalf("gate retry: %s %q %v", r.Status, r.Verdict, r.Holes)
+	}
 	// an injected check fails the turn
 	b = build(mock.New(writeCall("1", "src/auth/u.go", "u"), writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n"), mock.Text("@S DONE\n@U colony c\n@E 0")))
 	b.Hooks.Gate.Checks = []Check{{Name: "gofmt", Command: "echo 'u.go not formatted'; exit 3"}}
@@ -640,5 +658,50 @@ func TestLogTitleNoOrcs(t *testing.T) {
 	lg := logText(t, dir)
 	if !strings.Contains(lg, "] elf-core — Gate: n/a (no orcs) — note it") || strings.Contains(lg, "gate Gate") {
 		t.Fatalf("log:\n%s", lg)
+	}
+}
+
+// A turn may not pass by making the tests easier: fewer tests or more skips fail the gate; more
+// tests pass.
+func TestGateTestsIntact(t *testing.T) {
+	dir := fixture(t)
+	w := open(t, dir)
+	doc := ".isekai/slime/auth/README.md"
+	docBody := "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n"
+	two := "package auth\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n\nfunc TestB(t *testing.T) {}\n"
+	os.WriteFile(filepath.Join(dir, "src/auth/token_test.go"), []byte(two), 0o644)
+	run := func(test string) *loop.Result {
+		m := mock.New(writeCall("1", "src/auth/token_test.go", test), writeCall("2", doc, docBody+"- "+test[len(test)-12:]+"\n"), mock.Text("@S DONE\n@U colony c\n@E 0"))
+		r, _ := w.Engine("slime-auth", build(m)).Run(context.Background(), "x")
+		os.WriteFile(filepath.Join(dir, "src/auth/token_test.go"), []byte(two), 0o644)
+		return r
+	}
+	if r := run("package auth\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n"); r.Status != loop.Fail || !strings.Contains(r.Verdict, "src/auth/token_test.go lost 1 test (2 → 1)") {
+		t.Fatalf("a deleted test passed the gate: %s %q", r.Status, r.Verdict)
+	}
+	if r := run("package auth\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { t.Skip(\"later\") }\n\nfunc TestB(t *testing.T) {}\n"); r.Status != loop.Fail || !strings.Contains(r.Verdict, "gained 1 skip/only marker") {
+		t.Fatalf("a skipped test passed the gate: %s %q", r.Status, r.Verdict)
+	}
+	if r := run(two + "\nfunc TestC(t *testing.T) {}\n"); r.Status != loop.Done || !strings.HasPrefix(r.Verdict, "pass") {
+		t.Fatalf("a new test failed the gate: %s %q %v", r.Status, r.Verdict, r.Holes)
+	}
+}
+
+func TestTestsIntactLanguages(t *testing.T) {
+	cases := []struct {
+		lang, text   string
+		tests, skips int
+	}{
+		{"js", "describe('a', () => {\n  it('x', () => {})\n  test('y', () => {})\n  it.skip('z', () => {})\n  xit('w', () => {})\n  it.only('v', () => {})\n})", 2, 3},
+		{"py", "import pytest\n\ndef test_a():\n    pass\n\n@pytest.mark.skip\ndef test_b():\n    pass\n\nasync def test_c():\n    pytest.skip('no')\n", 3, 2},
+		{"go", "func TestA(t *testing.T) { t.Skipf(\"x\") }\nfunc BenchmarkB(b *testing.B) {}\nfunc helper() {}\n", 2, 1},
+	}
+	for _, c := range cases {
+		if n := len(testDecl[c.lang].FindAllString(c.text, -1)); n != c.tests {
+			t.Errorf("%s: %d tests, want %d", c.lang, n, c.tests)
+		}
+		if n := len(testSkip[c.lang].FindAllString(c.text, -1)); n != c.skips {
+			t.Errorf("%s: %d skips, want %d", c.lang, n, c.skips)
+		}
 	}
 }
