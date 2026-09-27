@@ -494,7 +494,7 @@
     return getJSON('api/colony').then(c => {
       c.nodes = c.nodes || []; c.edges = c.edges || []; c.lanes = c.lanes || []; c.labels = c.labels || [];
       // a mind's lane is drawn as mind:<lane> (the lane order and labels speak that way)
-      for (const n of c.nodes) if (n.kind === 'mind' && !c.lanes.includes(n.lane) && c.lanes.includes('mind:' + n.lane)) n.lane = 'mind:' + n.lane;
+      for (const n of c.nodes) if (n.kind === 'mind' && c.lanes.includes('mind:' + n.lane)) n.lane = 'mind:' + n.lane; // a lane may share a rank's name
       colony = c; netDraw(); relations();
     }).catch(() => { $('#net-note').textContent = 'the ontology is silent'; });
   }
