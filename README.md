@@ -58,7 +58,7 @@ sandboxed shell has no network unless an `outward` act was approved.
 
 ```sh
 cd your-project
-isekai init                      # found a world here: .isekai/ with the law and a config
+isekai init --level complex      # found a world here — light: the law only · medium: a colony sketched from the tree · complex: the model reads all the code and hires the team
 export ANTHROPIC_API_KEY=…        # or any OpenAI-compatible endpoint (vLLM, Ollama, OpenRouter)
 isekai                           # the live session — the board opens at http://127.0.0.1:7411
 isekai run "add a health check endpoint and its test"
@@ -123,7 +123,8 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `dash [--open]` | the session in the browser: the console, the neural net, metrics, relations; approvals answered there |
 | `board` | the board and a read-only dashboard without a session, on 127.0.0.1 |
 | `--containered` | the whole binary in a Docker container: the world read-write, the rest read-only |
-| `selftest` · `version` · `init` | |
+| `init [--level light\|medium\|complex]` | found a world: the law only; a colony sketched from the tree (no model); or a founding session that reads all the code and decides the elves, orcs, slimes, kijin, minds, bodies and relations |
+| `selftest` · `version` | |
 
 ## Configuration
 

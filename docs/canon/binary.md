@@ -403,6 +403,19 @@ the background and the merge arrives as a turn. A world's own `/review` command 
 
 ## The first run — a setup form
 
+`init --level` founds the world at one of three depths (a terminal asks which when no level is named):
+**light** (or soft) writes the law, the log, the instruments and the memory tiers — creatures come
+later; **medium** also sketches a colony from the file tree with no model — an elf, an orc per
+source area (thin areas merged into a core orc), a slime per sub-area, a kijin when there is CI,
+and verify lines for the language (a Go dir starting with `_` is tested by explicit path, since
+`./...` skips it) — never overwriting a doc; **complex** runs a founding session: the model reads
+every source file and decides the team the code needs — how many elves, orcs, slimes, a kijin,
+which minds (zone, verdict, global) and which bodies (court, keeper) — writes the docs, skills and
+agents in the shapes the ontology reads, keeps only verify lines that pass now, and runs
+`onto check` until it is clean; the medium sketch is its first hint (`app/found.md` is the brief).
+The founding turn writes every creature's doc as the session, so its gate lifts "right author" for
+that turn only; every other check holds.
+
 `init` founds the world; on a terminal it then asks, in a Huh form, which model the world runs on —
 keep the global config, OpenRouter's free models, Anthropic, OpenAI, Ollama, or any OpenAI-compatible
 server — and writes the world's `config.yaml` (the key's *name* only; the key never lands in a file),
