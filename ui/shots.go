@@ -19,9 +19,9 @@ var Widths = []int{360, 768, 1280}
 // Themes are rendered at every width.
 var Themes = []string{"light", "dark"}
 
-// Browser finds a headless-capable Chromium: $ISEKAI_CHROMIUM / $CHROME, then the usual names.
+// Browser finds a headless-capable Chromium: $UI_CHROMIUM / $CHROME, then the usual names.
 func Browser(env func(string) string) string {
-	for _, k := range []string{"ISEKAI_CHROMIUM", "AGENT_ONE_CHROMIUM", "CHROME"} {
+	for _, k := range []string{"UI_CHROMIUM", "CHROME"} {
 		if v := env(k); v != "" {
 			return v
 		}

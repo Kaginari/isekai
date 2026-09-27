@@ -103,7 +103,7 @@ func cmdUI(dist string, f cliFlags, args []string, io IO) int {
 	hole := ""
 	if !noShots {
 		if b := ui.Browser(io.Env); b == "" {
-			hole = "no headless Chromium (chromium, google-chrome, or $ISEKAI_CHROMIUM) — the catalogue was not rendered; the lints ran"
+			hole = "no headless Chromium (chromium, google-chrome, or $UI_CHROMIUM) — the catalogue was not rendered; the lints ran"
 		} else {
 			home, _ := os.UserHomeDir()
 			shots, err = ui.Shoot(context.Background(), b, root, d.WorldDir, m, home)
