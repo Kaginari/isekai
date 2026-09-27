@@ -1,0 +1,23 @@
+# slime-app
+
+- **Rank:** Slime
+- **Territory:** `app/`, `cmd/`
+- **Reports to:** orc-app
+- **Minds:** slime-go-proving, slime-creature-docs, slime-wire-and-journals
+- **Purpose:** the ground truth of the engine's assembly: config → world → providers, sandbox, shelf, MCP, discoveries, hooks; the CLI, the REPL and TUI host, sessions, the live Court, the container, usage, init and founding, selftest, bench.
+
+## Traits
+- Main (cli.go): Containered() first (re-exec under Docker when --containered), then the command word, flags (splitFlags; valueFlags take the next token), config overrides (--json, --format), then New(opt). init/config/memory/toolbox/onto/guard/ui/selftest run before a world is opened; status, sessions and usage tolerate a broken world (NoWorld). The command list is `commands` and `isekai help` prints it — README's CLI table mirrors it.
+- New (app.go): config.LoadWith → openWorld under the lexicon → Providers (routes per office/rank/task, fallback wrapper, TLS caFile or insecureSkipVerify from config) → sandbox (newSandbox, envAllow) → Shelf (shelfOrder bash read ls glob grep write edit multiedit patch git webfetch websearch ask; worldToolNames dispatch recall remember toolbox onto skill desk) → ConnectMCP → Discover → hooks (world hooks merged with drain hooks, shell hooks, the guard hook, the permission decideHook, the missing-tool policy, the UI gate). Every hole collected on the way prints as `@?` in status.
+- REPL slash commands: /dash /agents /send <body> <text> /usage /status /config [explain] /compact /review [range] /handoff [read] /sessions /resume <id> /quit, plus discovered commands and MCP prompts (/server:prompt). wantsTUI unless --plain or no TTY; the TUI host implements tui.Host and mirrors events to the web bus (replay 4000) for /dash.
+- Files the app owns at runtime: sessions as JSONL under ~/.local/share/isekai/sessions (config sessions.dir, keepDays 30); the usage journal .isekai/instruments/usage/<session>.jsonl (UsageRecord per call; `usage` rolls up by body, office, rank, model, day); the desk .isekai/instruments/desk/<session>.md (deskTool; over the limit of 5 is a stress reading in the output); handoffs under .isekai/handoffs.
+- container.go: `docker run --rm --init`, the world mounted read-write at its own path, this binary and hostReadOnly paths (~/.config/<dist>, ~/.<dist>, ~/.claude/{CLAUDE.md,skills,commands,agents}, ~/.config/opencode, ~/.agents/skills, git identity — only those that exist) read-only, the session store read-write, HOME otherwise an empty tmpfs, the caller's uid, host network; passEnv forwards by NAME only: TERM COLORTERM COLORFGBG LANG LC_ALL TZ NO_COLOR, <PREFIX>*, *_API_KEY, *_BASE_URL; inside, <PREFIX>CONTAINERED=1 makes the flag a no-op. The image is built from the embedded app/container.Dockerfile and tagged by its hash (DefaultRuntimeImage); --image runs another.
+- embed.go embeds app/law/isekai.md and app/law/AGENT-ONE.md; Init writes the law, log.md, name, memory/shared/notes.jsonl, ontology/schema.ttl and a .gitignore for the derived files, never touching an existing file. TestEmbeddedLawsMatchTheWorld compares the embedded isekai law with ../../.isekai/isekai.md — this repository's own world law — so the two files must stay byte-equal.
+- found.go: Levels light|medium|complex; sketchColony reads the tree (areas ≥ 3 source files become orcs, up to 6; smaller ones fold into orc-core; a kijin-release when .github/workflows exists); plan.doc writes a creature README in the shape onto reads; writeSketch never overwrites; found.md is the embedded brief with {{WORLD}} {{BIN}} {{VOICE}}… placeholders filled by foundingAsk.
+- hooks.go runs config shell hooks (preTool, postTool, sessionStart, stop, preCompact, userPrompt) with `sh -c`, JSON on stdin, HOOK_* and FILE env, 10 s default timeout; exit 2 blocks with stderr as the reason; stdout beginning with @S is parsed as a wire report. A hook runs OUTSIDE the sandbox with the process environment — a hook command is trusted config.
+- guard.go wires the guard hook and `isekai guard check|test|show|export|hook|install`; permissions.go's decideHook only tightens the class default unless a rule allows; missing.go proposes a config patch to enable a disabled tool the model asked for (MissingPolicy); review.go dispatches raphael and ciel on two models and merges; goal.go loops turns until --validate passes (goalDefaultTurns 12); mockscript.go is the bench's scripted provider; selftest.go runs core and app selftests; setup.go asks a first-run preset; bench.go runs benchTasks on every configured model.
+
+## Verify
+- `go test ./app/... ./cmd/...`
+
+## Thoughts

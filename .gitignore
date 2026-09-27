@@ -4,4 +4,3 @@ bench/jobs/
 bench/.smoke-config.yaml
 bench/.fakevllm-*.log
 __pycache__/
-/.isekai/
