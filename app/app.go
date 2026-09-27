@@ -290,7 +290,7 @@ func (a *App) Build() world.Build {
 		Gate:      a.Gate,
 		Shelf:     func(as string, depth int) (*tool.Registry, func()) { return a.Shelf.Build(as) },
 		Budget:    lawBudget(cfg, maxOut),
-		Hooks:     hookOptions(cfg, a.rules),
+		Hooks:     a.withUIGate(hookOptions(cfg, a.rules)),
 		Territory: world.TerritoryOptions{Enabled: cfg.Law.Territory.Enabled},
 		Court: world.CourtOptions{Enabled: a.on("dispatch"), MaxDepth: cfg.Tools.Dispatch.MaxDepth, Cap: cfg.Law.Wire.Cap, Unsaid: cfg.Law.Wire.RequireUnsaid,
 			Background: cfg.Tools.Dispatch.Background, Wake: func(body, report string, failed bool) {

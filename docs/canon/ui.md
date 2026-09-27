@@ -1,7 +1,38 @@
-# UI — how the world draws its pages
+# UI — how pages are built
 
-Every page the world serves or ships — the board, a report, a creature's dashboard — follows one
-design system, so a reader who learned one page can read them all.
+Two kinds of page, one discipline: every page is built from one design system, so a reader who
+learned one page can read them all, and a global change is one edit.
+
+## Pages the agent builds for an app — the ui system
+
+The app's own ui dir (`ui/`, `src/ui/`, `web/ui/` …) is the source of truth; the world keeps only
+the derived legend. The built-in `ui` Mind carries the method and the craft; `isekai ui` is the
+instrument.
+
+- **Tokens in three tiers**, read in one direction: raw (palettes.css `--n-*` `--p-*`, the space,
+  type, radius and time scales) → meaning (`--surface --ink --accent --space-m --step-1 …`, per
+  theme) → component (a component's own `--card-pad`, aliasing meaning tokens). A retheme, dark
+  mode, a density or type change, a radius change: one tier, one file.
+- **Cascade layers** `reset, tokens, layout, components, utilities` — a global rule never loses a
+  specificity fight.
+- **Layout primitives** (layout.css) instead of per-component layout: `.page` (the grid with a
+  full-bleed escape), `.stack` `.cluster` `.grid` (auto-fit, no breakpoints) `.cols` (12 columns by
+  container width — the Bootstrap idea, container-driven) `.sidebar` `.switcher` `.center` `.cover`
+  `.frame`. Components respond to the space they get (container queries), not the screen.
+- **One component = one dir** `components/<name>/<name>.{css,html}`, one root class, variants as
+  `data-*`, states as ARIA; its css starts `/* @component <name> — tokens: … */`.
+- **The legend is derived**: `ui scan` writes `<world>/ui-assets/{manifest.json,legend.md,catalogue.html}`.
+  Nobody edits it; the agent reads legend.md before any ui change.
+- **Proof**: `ui check` lints (no literal colour or px outside the token files; every class
+  declared; every token defined; headers true) and renders the catalogue at 360/768/1280 in both
+  themes, failing a component that scrolls sideways. The gate runs the lints on every turn that
+  touched the ui dir (`law.gate.ui`); the screenshots are read by the agent before "done".
+- **An existing system wins**: a project on Tailwind, Bootstrap or a design-system package keeps
+  it; the principles apply inside it.
+
+## The world's own pages — the board
+
+The board and the world's reports follow the rules below.
 
 ## Layout: the Bootstrap grid
 

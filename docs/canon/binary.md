@@ -260,6 +260,11 @@ At the end of any turn that wrote files, before the turn is reported done:
    loop keeps the test files' text as the turn opens (Go, JS/TS, Python; bounded); a touched test
    file that lost tests, gained a skip or an `.only`, or was deleted fails the gate. Only the human
    decides a test goes.
+- **UI system** (`law.gate.ui`) — a turn that wrote under the app's ui dir (`ui/`, `src/ui/`, …)
+   regenerates the legend (`<world>/ui-assets/`, derived, never the model's to write) and must pass
+   `ui check`'s lints: no literal colour or pixel length outside tokens.css and palettes.css, every
+   class the html uses declared, every token read defined, every component header true. The
+   screenshots are not taken at the gate; the Mind has the agent take and read them.
 3. **Duties done** — the commission's `@ASK` is answered (`@S` present, holes named as `@?`).
 4. **Doc truthful** — a change under a territory with no change to its owning doc fails
    (Nature 1). The owning doc is the Slime's doc, else the Orc's.
