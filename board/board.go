@@ -25,7 +25,7 @@ import (
 	"github.com/Kaginari/isekai/onto"
 )
 
-//go:embed assets/bootstrap.min.css assets/bootstrap.bundle.min.js static/* templates/*
+//go:embed assets/bootstrap.min.css assets/bootstrap.bundle.min.js static/* templates/* all:web
 var content embed.FS
 
 // Names are the lexicon labels every template reads: no isekai term is hard-coded in a page.
@@ -36,6 +36,7 @@ type Names map[string]string
 func DefaultNames() Names {
 	return Names{
 		"board":                 "Board",
+		"bin":                   "isekai",
 		"page.overview":         "Overview",
 		"page.court":            "Court",
 		"page.usage":            "Usage",
@@ -106,6 +107,7 @@ type Options struct {
 	Now       func() time.Time
 	Poll      time.Duration // how often the watcher looks for changes (default 1s)
 	Logger    *log.Logger
+	Live      Live // the running session, for the dashboard; nil = read-only
 }
 
 // Board is the handler.
@@ -121,6 +123,7 @@ type Board struct {
 	once    sync.Once
 	liveCrt bool // an integrator wired Court()
 	liveCfg bool
+	token   string // guards the dashboard's acts (live.go)
 }
 
 // New builds the board. It starts a watcher goroutine; Close stops it.
@@ -138,7 +141,7 @@ func New(o Options) *Board {
 		o.Logger = log.New(&discard{}, "", 0)
 	}
 	o.Prefix = strings.TrimSuffix(o.Prefix, "/")
-	b := &Board{opt: o, hub: newHub(), stop: make(chan struct{})}
+	b := &Board{opt: o, hub: newHub(), stop: make(chan struct{}), token: newToken()}
 	b.liveCrt = o.Sources.Court != nil
 	b.liveCfg = o.Sources.Config != nil
 	b.src = o.Sources.withDefaults(FileSources(o.WorldRoot, o.WorldDir, o.Layout, o.Now))
@@ -223,6 +226,7 @@ func (b *Board) routes() {
 	b.mux.HandleFunc("/api/colony", b.apiColony)
 	b.mux.Handle("/assets/", b.static)
 	b.mux.Handle("/static/", b.static)
+	b.liveRoutes()
 }
 
 // ---- pages

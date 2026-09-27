@@ -425,12 +425,23 @@ supersedes `tempest.js` once it shows everything tempest shows.
   look is a thin theme over it (colour tokens for each rank and lane, dark and light), never a
   second layout system. Charts and the colony graph are inline SVG sized by their grid column.
 
-**Over SSH — `board --ssh [addr]`.** Wish serves the terminal board (`canon/tui.md` §The board) to
-any SSH client: each connection its own full-screen board over the world's files. It listens on
-`127.0.0.1:2222` by default (a warning when told to listen beyond the machine), admits only the keys in
-`~/.ssh/authorized_keys` and fails closed without that file; its host key lives in
-`~/.local/share/<dist>/ssh/`. The command's own output — the web board, the SSH server, each session —
-is a Charm Log: levelled, coloured, timed.
+**The dashboard — `/dash`, and `dash`.** Beside the board pages the same server serves a
+dashboard built on the world's own ui system (`board/web/`: tokens, palettes, layout primitives,
+components — held to `ui check` by a test): the session's console (the transcript read like a page,
+tool calls, Courts and verdicts as folded cards, approvals and questions as choice cards, one input:
+Enter sends, ↑ recalls, Esc interrupts, `/` runs a command), the world as a neural net (layers from
+input to crown, bonds as synapses, live bodies glow and their synapses carry a pulse, a click lights
+a node's neighbourhood and opens its knowledge card), metrics (tokens, cost, calls, context, cache;
+by day, model and body) and relations (the bond matrix and its dimensions: by rank, lane and bond).
+With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
+terminal. `<dist> dash [--open]` runs the session headless with the dashboard as its only ui, and
+approvals are answered in the browser. The board listens on 127.0.0.1 only (with `--containered`
+the container shares the host network, so it is still the host's loopback); every act (ask,
+answer, interrupt) carries a per-run token the page embeds and must name a loopback Host with a
+same-origin Origin, so another site cannot drive the session and a rebound DNS name cannot reach
+it. The page's CSP allows only its own scripts.
+
+The command's own output — the board, each session — is a Charm Log: levelled, coloured, timed.
 
 ## Tests
 
