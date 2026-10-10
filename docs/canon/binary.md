@@ -39,7 +39,7 @@ line of `go.mod` (Go ≥ 1.26).
 | `onto` | the ontology: schema, graph, reasoning, validation, projection | §The ontology below |
 | `config` | the switchboard (`canon/config.md`): layers, origins, refusals, permission rules, models per office/rank/task, ranks as data | the honesty rule; a disabled law is a finding |
 | `compact` | the drain: pointerize, trim, the unsaid, the desk, the episode, verify | §Compaction below |
-| `sandbox` · `shell` | bwrap containment and env scrubbing; one persistent bash per body with background jobs | Nature 7, §Bash below |
+| `sandbox` · `shell` | bwrap (Linux) / Seatbelt (macOS) containment and env scrubbing; one persistent bash per body with background jobs | Nature 7, §Bash below |
 | `mcp` · `discover` | the MCP client (stdio, streamable HTTP); what other harnesses wrote (instructions, Minds, commands, Bodies, MCP imports) | §MCP below; `harness-parity.md` |
 | `board` | the world, seen: an HTTP handler over the same instruments | §The board below |
 | `app` | the one engine behind both binaries: config → world → providers, shelf, MCP, discoveries, hooks; sessions (JSONL), the live session (the TUI on a terminal, the line REPL on a pipe or `--plain`), `run`, `bench`, `selftest`, `init`, `board` | everything above, wired |
@@ -56,14 +56,27 @@ line of `go.mod` (Go ≥ 1.26).
   words; the binary always executes.
 - **One persistent session per body.** The shell keeps its cwd and exported variables between
   calls; `{"restart": true}` resets it. A Court Body gets its own session and loses it with its task.
-- **Sandboxed by default.** Each command runs under `bwrap`: the filesystem is read-only except the
-  world root and a private `/tmp`, no network unless the command passed the human gate as
+- **Sandboxed by default.** The fence is the platform's, chosen by the OS and probed once
+  (`sandbox.probeFor`). On Linux each command runs under `bwrap`: the filesystem is read-only except
+  the world root and a private `/tmp`, no network unless the command passed the human gate as
   `outward`, its own pid/ipc/uts namespaces (the host's processes are out of sight), and the home's
   credential paths (`sandbox.secretHomes`: `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.docker`,
   `~/.netrc`, `~/.config/gcloud`, `~/.config/gh`, keyrings, browser profiles …) masked — an empty
-  tmpfs over a directory, `/dev/null` over a file. No `bwrap` on the machine (macOS) or a kernel that
-  refuses user namespaces → `sandbox: none`, reported as `@?` in `status`; on macOS the fence is
-  `--docker-agent` (Seatbelt / `sandbox-exec` is the native equivalent, not used yet).
+  tmpfs over a directory, `/dev/null` over a file. On macOS it runs under Seatbelt:
+  `/usr/bin/sandbox-exec -p <profile> -DKEY=path… -- argv` (`sandbox/seatbelt.go`), every path a
+  `-D` parameter read by `(param "KEY")`, never spliced into the SBPL. The profile is
+  `(allow default)` then fences: `(deny file-write*)` but the world root, the extra read-write
+  paths, `/private/tmp`, `/private/var/folders` and the terminal/null devices (symlinks resolved —
+  Seatbelt matches real paths); `(deny network*)` but loopback and unix sockets, mDNSResponder
+  closed, unless outward; `process-info*` and `signal` only within the sandbox (no pid namespace:
+  other processes stay listed); Apple Events, LaunchServices and the pasteboard denied; and, last
+  so nothing re-allows them, reads and writes of `secretHomes` plus `macSecretHomes` (keychains,
+  cookies, browser profiles), each as written and as resolved. Allow-default, not deny-default:
+  isekai runs whatever the world builds with, and a deny-default list breaks toolchains it cannot
+  foresee; mach IPC stays open, so it fences mistakes, not a hostile binary (`--docker-agent` is
+  that boundary). The probe runs `/usr/bin/true` under the very profile, so a macOS that refuses it
+  reads `sandbox-exec refused: …`. No `bwrap`, a kernel that refuses user namespaces, a refused
+  profile or another OS → `sandbox: none`, reported as `@?` in `status`.
 - **The whole binary in a container — `--docker-agent`.** The binary re-runs itself under Docker
   (`docker run --rm --init`): the world mounted read-write at its own path, this binary and what a
   session reads from the host mounted read-only (`~/.config/<dist>`, `~/.<dist>`, the Claude and

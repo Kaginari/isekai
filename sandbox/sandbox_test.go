@@ -46,6 +46,7 @@ func TestNoneMode(t *testing.T) {
 	if nilS.Mode() != None || nilS.Status() == "" {
 		t.Fatal("nil sandbox is None")
 	}
+	onOS(t, "linux")
 	bad := New(Options{Enabled: true, Bwrap: "/nonexistent/bwrap"})
 	if bad.Mode() != None || bad.Why() == "" {
 		t.Fatalf("missing binary: %s %q", bad.Mode(), bad.Why())

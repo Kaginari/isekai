@@ -8,6 +8,18 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **A native sandbox on macOS: Seatbelt.** On a Mac every shell command, verify line, hook,
+  custom tool and stdio MCP server now runs under `/usr/bin/sandbox-exec` with a profile that
+  mirrors bwrap's fence: writes only to the world, its read-write paths and the temp dirs; no
+  network but loopback and unix sockets unless the act passed the gate as outward; the home's
+  credentials (plus the keychains, cookies and browser profiles) unreadable; other processes not
+  inspectable or signalable; Apple Events, LaunchServices and the clipboard closed. Paths cross as
+  `-D` parameters, never as profile text. `status` prints `sandbox: seatbelt (sandbox-exec)`, or
+  `sandbox: none — sandbox-exec refused: …` when a macOS refuses the profile;
+  `tools.bash.sandbox: none` opts out. README's Security section has the table and the limits (no
+  pid namespace; allow-default with mach IPC open); `go test ./sandbox/ -run Seatbelt -v` on a Mac
+  proves it there.
+
 - **The terminal UI is one frame.** A window of 60×26 or more is a single box-drawn grid under the
   headroom row: a header (the brand on its gradient, the world, the model, the session and its
   state), the conversation titled in its edge, the input inside the main column only (never under

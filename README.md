@@ -20,8 +20,9 @@ law:
 - **The human gate** — every action is classified (`read` · `write` · `outward` · `destructive`)
   before it runs. Outward and destructive acts ask you; per-command rules (`bash:git push*`) can
   allow, ask or deny. The model's claim about a command can only make it stricter.
-- **The sandbox** — `bash` runs in a persistent shell under `bwrap`: the filesystem read-only
-  except the world, no network unless the gate let the act out, secrets scrubbed from the env.
+- **The sandbox** — `bash` runs in a persistent shell under `bwrap` (Linux) or Seatbelt (macOS):
+  the filesystem read-only except the world, no network unless the gate let the act out, secrets
+  scrubbed from the env.
 - **Memory, native** — recall before every step, remember after; knowledge the agent held but never
   wrote down (*the unsaid*) is surfaced and routed to where it belongs. When context fills, it is
   **drained** into those homes by pointer, not summarized away.
@@ -48,7 +49,8 @@ binary alone on Debian slim (no bubblewrap, git or toolchains); for real work in
 `--docker-agent`, which builds a runtime with them.
 
 **Requirements.** Linux or macOS. `bubblewrap` (`bwrap`) for the sandboxed shell on Linux — without it
-the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--docker-agent`.
+the shell runs unsandboxed and `status` says so; macOS uses its built-in `sandbox-exec`. Docker for
+`--docker-agent`.
 Chromium or Chrome for `ui check`'s screenshots.
 
 **Data boundary.** No telemetry. The binary contacts only the providers you configure (and the
@@ -467,34 +469,52 @@ asking the model to behave.
 
 ### The sandbox
 
-On **Linux**, every shell command, verify line, hook and custom tool runs under
-[bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`), probed once at start —
-`isekai status` prints `sandbox: bwrap (<version>)` or why it is off:
+Every shell command, verify line, hook and custom tool runs fenced, by the platform's own
+sandbox, probed once at start — on **Linux** [bubblewrap](https://github.com/containers/bubblewrap)
+(`bwrap`), on **macOS** Seatbelt (`/usr/bin/sandbox-exec`). `isekai status` prints
+`sandbox: bwrap (<version>)` or `sandbox: seatbelt (sandbox-exec)`, or why it is off:
 
-| inside the sandbox | |
-|---|---|
-| the world's directory and a private `/tmp` | read-write |
-| the rest of the disk | read-only |
-| your credentials — `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.config/gcloud`, `~/.config/gh`, password stores, keyrings, browser profiles | masked: they read as empty |
-| the network | off, unless the act passed the human gate as outward |
-| other processes | out of sight (own pid, ipc and uts namespaces) |
-| the command's life | dies with isekai; killed whole at its timeout |
+| inside the sandbox | Linux (bwrap) | macOS (Seatbelt) |
+|---|---|---|
+| the world's directory | read-write | read-write |
+| temp | a private `/tmp` | read-write `/tmp` and `$TMPDIR` (`/private/var/folders`) — shared with the host |
+| the rest of the disk | read-only | read-only |
+| your credentials — `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.config/gcloud`, `~/.config/gh`, password stores, keyrings, browser profiles | masked: they read as empty | denied (read and write), plus `~/Library/Keychains`, `~/Library/Cookies` and the Safari, Chrome, Chromium, Brave, Edge, Firefox and Arc profiles |
+| the network | off, unless the act passed the human gate as outward | off but loopback and unix sockets (DNS too), unless outward |
+| other processes | out of sight (own pid, ipc and uts namespaces) | still listed (`ps`), but cannot be inspected or signalled |
+| the command's life | dies with isekai; killed whole at its timeout | killed whole at its timeout |
 
 It is a strong fence for a coding agent, not a virtual machine: the read-only rest of the disk is
 still readable (the classifier asks before an outward read, the sandbox does not hide it), and
 bwrap needs unprivileged user namespaces — some kernels and containers refuse them, and then the
-shell runs unsandboxed and `status` says so. `tools.bash.sandbox: none` turns it off on purpose.
+shell runs unsandboxed and `status` says so. `tools.bash.sandbox: none` turns it off on purpose,
+on either OS (`bwrap`, the default, means "the platform's fence" on a Mac too).
 
-On **macOS** there is no bwrap: the shell runs unsandboxed and `status` says so. Two ways to fence
-it there today:
+On a Mac, Seatbelt's limits:
 
-- **`--docker-agent`** — the whole binary runs inside a Docker container (Docker Desktop, OrbStack
-  or colima): the world mounted read-write, the rest read-only, pulled or built from your private
-  registry (`registry.containers`). Inside it, `law.humanGate.trustContainer` lets the container
-  be the membrane.
-- **Seatbelt** (`sandbox-exec`, built into macOS and used by other coding agents) is the native
-  equivalent of bwrap — writes only to the world and `/tmp`, network denied, secret paths denied.
-  isekai does not use it yet; until it does, prefer `--docker-agent` for untrusted work on a Mac.
+- **It starts from allow-all and fences** — writes, network, credentials, other processes, Apple
+  Events to other apps, LaunchServices (`open`) and the clipboard — rather than denying all and
+  listing what toolchains need, which breaks Xcode, JVMs and native builds it cannot foresee (the
+  choice Bazel's macOS sandbox makes). Mach IPC otherwise stays open: a hostile binary could ask
+  launchd (`launchctl`) to start something outside the fence, and the login keychain answers the
+  `security` tool through its own prompts. It fences a model's mistakes; for untrusted code use
+  `--docker-agent`.
+- **No pid namespace** — other processes stay visible to `ps`; a command does not die with
+  isekai if isekai itself is killed hard (it still dies at its timeout).
+- **Loopback and unix sockets stay open** with the network off, so a test can serve itself — and
+  a local daemon (a database on `localhost`, Docker's socket, `ssh-agent`) stays reachable, as
+  under bwrap.
+- **Caches under your home are read-only** (`~/Library/Caches`, so `GOCACHE`): point them into
+  the world or `$TMPDIR`.
+- **`sandbox-exec` is deprecated by Apple** but ships with every macOS and runs Codex CLI's and
+  Claude Code's sandboxes. isekai's CI has no Mac: `go test ./sandbox/ -run Seatbelt -v` on a Mac
+  proves the fence there; if this macOS refuses the profile, `status` says `sandbox: none —
+  sandbox-exec refused: …`.
+
+For a harder boundary on either OS, **`--docker-agent`** runs the whole binary inside a Docker
+container (Docker Desktop, OrbStack or colima on a Mac): the world mounted read-write, the rest
+read-only, pulled or built from your private registry (`registry.containers`). Inside it,
+`law.humanGate.trustContainer` lets the container be the membrane.
 
 ## Benchmarks
 
