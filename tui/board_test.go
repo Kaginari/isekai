@@ -121,8 +121,8 @@ func TestBoardHoldsBlocksUntilClosed(t *testing.T) {
 		<-m.prints
 	}
 	m.Update(EvNotice{Text: "a court finished"})
-	if len(m.prints) != 0 || len(m.held) != 1 {
-		t.Fatalf("a block printed under the board: prints %d held %d", len(m.prints), len(m.held))
+	if held := len(m.blocks) - m.printedIdx; len(m.prints) != 0 || held != 1 {
+		t.Fatalf("a block printed under the board: prints %d held %d", len(m.prints), held)
 	}
 	m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.board != nil || len(m.prints) != 1 {

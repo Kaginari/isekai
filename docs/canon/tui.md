@@ -49,8 +49,9 @@ one place the binary takes third-party code; versions pinned in go.sum.
 ## Interaction
 
 - **Input** — multiline (`shift+enter` where the terminal reports it apart from `enter` — Bubble
-  Tea v2 asks for key disambiguation — and everywhere `\` + enter, `alt+enter`, `ctrl+j`), history
-  with ↑/↓ on the first/last line, a paste of three lines or more collapsed to
+  Tea v2 asks for key disambiguation — and everywhere `\` + enter, `alt+enter`, `ctrl+j`); the box
+  grows with its visual rows, a long line's wraps included, up to eight, then scrolls inside;
+  history with ↑/↓ on the first/last row, a paste of three lines or more collapsed to
   `[pasted N lines]` and restored on send, `@path` completes files in the world (tab).
 - **Slash commands** — typing `/` opens an inline menu of built-in and discovered commands with
   their descriptions, filtered as you type; tab completes, enter runs. `/help` prints the menu
@@ -66,9 +67,16 @@ one place the binary takes third-party code; versions pinned in go.sum.
   turn at once. A question the model asks (`ask`) is the same block with its options and a free
   line. The proposed rule is the tool and the act's first two words (`bash:git push*`), the host
   for a URL, the subject itself otherwise; it lands in the local layer, never the project's.
-- **Keys** — `esc` interrupts the turn (else closes a menu, else clears the input), `ctrl+c`
-  interrupts and a second within two seconds exits, `ctrl+o` re-prints the last collapsed block
-  in full, `ctrl+l` redraws, `?` on an empty input shows the shortcuts.
+- **Keys** — `esc` closes a menu, else interrupts the turn, else clears the input; `ctrl+c`
+  clears the input, else interrupts the turn, else (idle, empty) arms the exit and a second
+  within two seconds exits — a mashed `ctrl+c` stops a turn, never the session. A cleared draft
+  is one ↑ away, the newest history item. `ctrl+o` re-prints the last collapsed block in full,
+  `ctrl+l` redraws, `?` on an empty input shows the shortcuts; `ctrl+p` walks the plan decks and
+  `alt+n` snaps back to the current one (no plain letter is ever a chord). Under the panes
+  `pgup`/`pgdn` page the chat, `shift+↑/↓` walk it a line, the wheel scrolls it; `ctrl+u`/`ctrl+d`
+  stay the input's.
+- **Markdown** — `<` and `>` outside code are text, never HTML: `Vec<T>` reads `Vec<T>`.
+- **Errors** wrap to the width; nothing is clipped.
 - **Non-interactive** — without a TTY on both stdin and stdout (pipes, CI, `run`, `TERM=dumb`) the
   plain line output stays: the TUI is only for a terminal. `--plain` (or `<PREFIX>PLAIN=1`)
   forces the line REPL anywhere.
@@ -89,7 +97,8 @@ one place the binary takes third-party code; versions pinned in go.sum.
 - **Every body — `ctrl+t`.** A full-screen view with a tab per body: the session and every Court
   seen. A Court's tab is its own log as it happens — its thinking, its text, its tool steps as cards —
   under its face, rank, state and ask; the session's tab is its transcript. The live area names the
-  running Courts with the key to watch them. `tab` switches, `↑↓` scrolls, `esc` returns.
+  running Courts with the key to watch them. `tab` switches, `↑↓` scrolls, `esc` returns; `i`
+  pipes a line to the selected body's inbox, borrowing the input line and giving the draft back.
 
 ## Overlays
 
@@ -129,8 +138,8 @@ overdrawn):
 ## The board — `/board`
 
 The web board's feeds drawn full screen in the terminal (alt screen); `esc` gives the session back
-with its scrollback untouched. Blocks that finish while it is open wait and land when it closes; a
-width change meanwhile reprints the transcript on the way out. Four pages, `tab` or `1`–`4`:
+with its scrollback untouched. Blocks that finish while it is open wait and land once when it
+closes; a width change meanwhile reprints the transcript on the way out. Four pages, `tab` or `1`–`4`:
 
 - **Agents** — every live body: state glyph, rank, office, state, age, a context bar, tokens,
   cost, model (columns drop by priority on a narrow screen); `enter` opens the body's detail.

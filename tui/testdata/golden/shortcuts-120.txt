@@ -1,17 +1,18 @@
-╭────────────────────────────────────────────────────────────────────╮
-│ ctrl+p        walk plan decks                                      │
-│ c             snap to current plan (pinned stale/archived view)    │
-│ C             snap to current plan (any view)                      │
-│ enter         send                                                 │
-│ shift+enter   newline (also \ enter, alt+enter)                    │
-│ ↑ ↓           history (on the first / last line)                   │
-│ /             commands                                             │
-│ ctrl+k        command palette (fuzzy)                              │
-│ @path         complete a file in the world (tab)                   │
-│ esc           interrupt the turn · clear the input                 │
-│ ctrl+c ×2     exit                                                 │
-│ ctrl+o        expand the last collapsed block                      │
-│ ctrl+l        redraw                                               │
-│ ?             this list                                            │
-│ alt+p / alt+c / alt+fcollapse the plan / courts / files rail cards │
-╰────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────╮
+│ ctrl+p        walk plan decks                                │
+│ alt+n         snap to the current plan (off a stale deck)    │
+│ enter         send                                           │
+│ shift+enter   newline (also \ enter, alt+enter)              │
+│ ↑ ↓           history (on the first / last line)             │
+│ /             commands                                       │
+│ ctrl+k        command palette (fuzzy)                        │
+│ @path         complete a file in the world (tab)             │
+│ esc           interrupt · clear the input (↑ brings it back) │
+│ ctrl+c        clear · interrupt · twice when idle: exit      │
+│ pgup / pgdn   scroll the chat (shift+↑ ↓ a line, the wheel)  │
+│ ctrl+t        the bodies: every body's log                   │
+│ ctrl+o        expand the last collapsed block                │
+│ ctrl+l        redraw                                         │
+│ ?             this list                                      │
+│ alt+p/c/f     fold the plan / courts / files cards           │
+╰──────────────────────────────────────────────────────────────╯

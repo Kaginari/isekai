@@ -9,9 +9,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The 'c — current' switch: a stale deck stays browsable, the banner names the hint, and
-// pressing c walks the view to the current deck (the throne default the elf pick uses at
-// model.go:392-400). A live view keeps 'c' for typing; another stale view switches back.
+// The alt+n "current" switch: a stale deck stays browsable, the banner names the hint, and
+// alt+n walks the view to the current deck (the throne default the elf pick uses). Plain c
+// keeps typing; another stale view switches back.
 func TestPlanCurrentSwitch(t *testing.T) {
 	host := &fakeHost{plans: []RailPlan{
 		{Body: "slime-tui-board", Rank: "slime", Office: "p2", Stale: true,
@@ -46,13 +46,12 @@ func TestPlanCurrentSwitch(t *testing.T) {
 	if strings.Contains(view, "the throne's slice") {
 		t.Fatal("the live deck is not the view")
 	}
-	if !strings.Contains(view, "— current") && !strings.Contains(view, "— ᴄᴜʀʀᴇɴᴛ") {
+	if !strings.Contains(view, "ᴀʟᴛ+ɴ —") || !strings.Contains(view, "ᴄᴜʀʀᴇɴᴛ") {
 		t.Fatalf("the stale banner names the hint:\n%s", view)
 	}
 
-	// 'c' switches to the current deck and frees the sticky pick
-	m.planSticky = true // the 'c' chord requires a deliberate pin (2026-10-13 sticky gate)
-	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	// alt+n switches to the current deck and frees the sticky pick
+	m.key(tea.KeyPressMsg{Code: 'n', Mod: tea.ModAlt})
 	if m.planSticky {
 		t.Fatal("the switch hands the default back")
 	}
@@ -63,7 +62,7 @@ func TestPlanCurrentSwitch(t *testing.T) {
 		t.Fatal("the current deck renders")
 	}
 
-	// a live view keeps 'c' for typing
+	// plain c always types
 	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	if m.input.Value() != "c" {
 		t.Fatalf("plain c keeps typing on a live view: %q", m.input.Value())
@@ -75,25 +74,24 @@ func TestPlanCurrentSwitch(t *testing.T) {
 	if !m.plans[m.planIdx].Stale {
 		t.Fatalf("setup: second stale view wanted, got %+v", m.plans[m.planIdx])
 	}
-	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m.key(tea.KeyPressMsg{Code: 'n', Mod: tea.ModAlt})
 	if got := m.plans[m.planIdx]; got.Body != "rimuru" {
 		t.Fatalf("the switch is not per-deck: %s", got.Body)
 	}
 
-	// an archived deck answers 'c' the same way — it is a stale view once removed
+	// an archived deck answers alt+n the same way — it is a stale view once removed
 	// (the archived pin rides the Plans-host side; here we assert the switch on it).
-	// Flip the stale slime deck to archived, put the view back on it, press c → rimuru.
+	// Flip the stale slime deck to archived, put the view back on it, press alt+n → rimuru.
 	m.plans[0].Archived = true
 	m.planIdx = 0
-	m.planSticky = true // the 'c' chord requires a deliberate pin (2026-10-13 sticky gate)
-	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m.key(tea.KeyPressMsg{Code: 'n', Mod: tea.ModAlt})
 	if got := m.plans[m.planIdx]; got.Body != "rimuru" {
 		t.Fatalf("an archived view switches too: %s", got.Body)
 	}
 }
 
 // 2026-10-13 relay (throne→elf-isekai→orc-host, Card A): a session booting onto a STALE
-// default deck must never eat plain 'c' runes — the chord requires a deliberate sticky pin.
+// default deck must never eat plain 'c' runes.
 func TestPlanCurrentStaleDefaultTypesC(t *testing.T) {
 	host := &fakeHost{plans: []RailPlan{
 		{Body: "rimuru", Rank: "rimuru", Office: "p1", Stale: true,
@@ -125,8 +123,8 @@ func TestPlanCurrentStaleDefaultTypesC(t *testing.T) {
 	m.setInput("")
 }
 
-// 2026-10-13 relay: snapping from a stale view whose session has NO live deck says so and
-// swallows nothing further — the snap target loops never land on another stale deck.
+// Snapping from a stale view whose session has NO live deck says so — the snap never lands on
+// another stale deck.
 func TestPlanCurrentNoLiveDeck(t *testing.T) {
 	host := &fakeHost{plans: []RailPlan{
 		{Body: "slime-a", Rank: "slime", Stale: true, Archived: true,
@@ -144,14 +142,14 @@ func TestPlanCurrentNoLiveDeck(t *testing.T) {
 		t.Fatal("evTick must populate m.plans — railVisible>0 not satisfied?")
 	}
 
-	// deliberately pin the stale deck, then press 'c': the sticky chord fires…
+	// pin the stale deck, then press alt+n: nothing live to snap to…
 	m.key(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}) // flips planSticky on
 	m.planIdx = 0                                       // view the stale deck itself
 	if !m.planSticky || !m.plans[m.planIdx].Stale {
 		t.Fatalf("setup: ctrl+p pins the stale deck, got sticky=%v deck=%+v", m.planSticky, m.plans[m.planIdx])
 	}
 	before := m.planIdx
-	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m.key(tea.KeyPressMsg{Code: 'n', Mod: tea.ModAlt})
 	if m.planIdx != before {
 		t.Fatalf("no live deck exists: the view stays put, got %d (was %d)", m.planIdx, before)
 	}
@@ -159,19 +157,19 @@ func TestPlanCurrentNoLiveDeck(t *testing.T) {
 		t.Fatalf("the snap says 'plan · no live deck' instead of looping onto another stale deck, got %q", m.message)
 	}
 	if got := m.input.Value(); got != "" {
-		t.Fatalf("the sticky chord still swallows the rune (banner, not typing): %q", got)
+		t.Fatalf("the chord never types: %q", got)
 	}
-	// …and the pin dropped, so the NEXT plain 'c' types — the loop is dead
+	// …and plain c types, pinned or not
 	m.key(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	if got := m.input.Value(); got != "c" {
-		t.Fatalf("after the failed snap planSticky reset, plain c types: %q", got)
+		t.Fatalf("plain c types on a pinned stale deck: %q", got)
 	}
 	m.setInput("")
 }
 
-// 2026-10-13 relay: shift+C is the always-works escape hatch — a stale view, NOT sticky,
-// snaps to the live throne deck with the distinct uppercase banner.
-func TestPlanCurrentShiftC(t *testing.T) {
+// alt+n works from any view — a stale one, NOT sticky — and lands on the live throne deck;
+// shift+C is a typed capital.
+func TestPlanCurrentAltN(t *testing.T) {
 	host := &fakeHost{plans: []RailPlan{
 		{Body: "slime-tui-board", Rank: "slime", Stale: true,
 			Items: []RailPlanItem{{Text: "yesterday's slice", Status: "pending"}}},
@@ -194,14 +192,19 @@ func TestPlanCurrentShiftC(t *testing.T) {
 	}
 
 	m.key(tea.KeyPressMsg{Code: 'C', Text: "C", Mod: tea.ModShift})
+	if got := m.input.Value(); got != "C" || m.planIdx != 0 {
+		t.Fatalf("shift+C types and leaves the view: %q idx %d", got, m.planIdx)
+	}
+	m.setInput("")
+	m.key(tea.KeyPressMsg{Code: 'n', Mod: tea.ModAlt})
 	if got := m.plans[m.planIdx]; got.Body != "rimuru" || got.Stale || got.Archived {
-		t.Fatalf("shift+C snaps to the live throne deck from any view: %+v", got)
+		t.Fatalf("alt+n snaps to the live throne deck from any view: %+v", got)
 	}
 	liveBanner := "plan · rimuru (2/2) · current"
 	if m.message != liveBanner {
-		t.Fatalf("the shift+C banner fires on a non-sticky view (distinct from the chord-gated path): want %q, got %q", liveBanner, m.message)
+		t.Fatalf("the alt+n banner fires on a non-sticky view: want %q, got %q", liveBanner, m.message)
 	}
 	if got := m.input.Value(); got != "" {
-		t.Fatalf("shift+C never types: %q", got)
+		t.Fatalf("alt+n never types: %q", got)
 	}
 }

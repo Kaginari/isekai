@@ -594,9 +594,9 @@ type RailPlan struct {
 	Items  []RailPlanItem
 	Stale  bool // penned before this session's birth: last session's intent shown as memory, never this session's outstanding work
 	// Archived flags a deck that the boot sweep (LEC-2026-10-04-STALE-PLANS Order 1) moved under
-	// <planDir>/archive/: no longer live, still browsable in the rail ('c' snaps off it; ORDER 1's
+	// <planDir>/archive/: no longer live, still browsable in the rail (alt+n snaps off it; ORDER 1's
 	// app Plans() merge sets this — until that lands the field stays false and archived decks are
-	// indistinguishable from stale ones, which the 'c' gate already treats as snap-away view).
+	// indistinguishable from stale ones, which alt+n already treats as a snap-away view).
 	Archived bool
 }
 
@@ -912,9 +912,9 @@ func (t Theme) Rail(v RailView, widths ...int) string {
 		header := "plan ▸ " + v.Plan.Body
 		switch {
 		case v.Plan.Archived:
-			header += " · archived (boot-swept under tmp/plans/archive) — c — current"
+			header += " · archived (boot-swept under tmp/plans/archive) — alt+n — current"
 		case v.Plan.Stale:
-			header += " · stale (penned in an earlier session) — c — current"
+			header += " · stale (penned in an earlier session) — alt+n — current"
 		}
 		if v.Collapsed["plan"] {
 			out = append(out, t.railCollapsedHeader("◇", "plan — "+v.Plan.Body, len(v.Plan.Items), rw)...)
@@ -1024,9 +1024,13 @@ func (t Theme) Notice(text string, width int) string {
 	return t.dim.Render(ansi.Truncate(text, width, "…"))
 }
 
-// Error is one line in the error colour.
+// Error is the error colour, wrapped to the width: a long error reads whole, never clipped.
 func (t Theme) Error(text string, width int) string {
-	return t.bad.Render(ansi.Truncate(text, width, "…"))
+	lines := strings.Split(wrap(expandTabs(strings.TrimRight(text, "\n")), width), "\n")
+	for i, l := range lines {
+		lines[i] = t.bad.Render(l)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ChoiceView is an inline choice: the human gate's approval, or a question the model asks.
@@ -1283,9 +1287,14 @@ type Shortcut struct{ Key, Does string }
 
 // Shortcuts renders the ? panel.
 func (t Theme) Shortcuts(list []Shortcut, width int) string {
+	kw := 14
+	for _, s := range list {
+		kw = max(kw, ansi.StringWidth(s.Key)+2)
+	}
 	var rows []string
 	for _, s := range list {
-		rows = append(rows, t.accent.Render(fmt.Sprintf("%-14s", s.Key))+t.dim.Render(s.Does))
+		does := ansi.Truncate(s.Does, max(width-4-kw, 8), "…")
+		rows = append(rows, t.accent.Render(s.Key+strings.Repeat(" ", kw-ansi.StringWidth(s.Key)))+t.dim.Render(does))
 	}
 	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(t.border.GetForeground()).Padding(0, 1)
 	return box.Render(strings.Join(rows, "\n"))
@@ -1295,20 +1304,21 @@ func (t Theme) Shortcuts(list []Shortcut, width int) string {
 func DefaultShortcuts() []Shortcut {
 	return []Shortcut{
 		{"ctrl+p", "walk plan decks"},
-		{"c", "snap to current plan (pinned stale/archived view)"},
-		{"C", "snap to current plan (any view)"},
+		{"alt+n", "snap to the current plan (off a stale deck)"},
 		{"enter", "send"},
 		{"shift+enter", "newline (also \\ enter, alt+enter)"},
 		{"↑ ↓", "history (on the first / last line)"},
 		{"/", "commands"},
 		{"ctrl+k", "command palette (fuzzy)"},
 		{"@path", "complete a file in the world (tab)"},
-		{"esc", "interrupt the turn · clear the input"},
-		{"ctrl+c ×2", "exit"},
+		{"esc", "interrupt · clear the input (↑ brings it back)"},
+		{"ctrl+c", "clear · interrupt · twice when idle: exit"},
+		{"pgup / pgdn", "scroll the chat (shift+↑ ↓ a line, the wheel)"},
+		{"ctrl+t", "the bodies: every body's log"},
 		{"ctrl+o", "expand the last collapsed block"},
 		{"ctrl+l", "redraw"},
 		{"?", "this list"},
-		{"alt+p / alt+c / alt+f", "collapse the plan / courts / files rail cards"},
+		{"alt+p/c/f", "fold the plan / courts / files cards"},
 	}
 }
 

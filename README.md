@@ -224,7 +224,8 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `/` · `ctrl+k` | commands · the palette |
 | `ctrl+t` | every body, live |
 | `ctrl+o` | expand the last folded block |
-| `esc` | interrupt the turn |
+| `esc` · `ctrl+c` | interrupt the turn · clear the input (↑ brings it back) |
+| `pgup` · `pgdn` · wheel | scroll the chat |
 
 ## The CLI
 

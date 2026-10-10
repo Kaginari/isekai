@@ -145,9 +145,8 @@ type Model struct {
 	// prints live, so when the window narrows the panes hand the scrollback what it missed —
 	// every block exactly once, never twice
 	printedIdx int
-	// the board: full screen while open; blocks that finish meanwhile wait in held
+	// the board: full screen while open; blocks that finish meanwhile wait past printedIdx
 	board    *boardState
-	held     []string
 	sender   func(tea.Msg)
 	attached chan struct{}
 }
@@ -185,6 +184,9 @@ func New(host Host, theme Theme, words Words) *Model {
 	})
 	ta.Placeholder = "ask, or / for commands"
 	ta.CharLimit = 0
+	// the box grows with its visual rows (soft wraps included) up to 8, then scrolls inside
+	ta.DynamicHeight = true
+	ta.MinHeight = 1
 	ta.MaxHeight = 8
 	ta.SetHeight(1)
 	ta.KeyMap.InsertNewline.SetEnabled(false)
@@ -391,8 +393,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if len(plans) > 0 {
 				// the steady state: the throne's own deck rides the rail; ctrl+p walks the others.
-				// A live throne deck is preferred over a stale one (2026-10-13 relay): booting
-				// facing a stale deck armed the 'c' chord from the first keystroke.
+				// A live throne deck is preferred over a stale one (2026-10-13 relay).
 				m.planIdx = 0
 				for i, p := range plans {
 					if (p.Rank == "rimuru" || p.Rank == "orchestrator") && !p.Stale && !p.Archived {
@@ -641,13 +642,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.print(fixed(strings.Join(msg.lines, "\n"))))
 		}
 		if msg.quit {
-			m.quit = true
-			cmds = append(cmds, tea.Quit)
+			cmds = append(cmds, m.leave())
 		}
 		return m, tea.Sequence(cmds...)
 	case EvQuit:
-		m.quit = true
-		return m, tea.Quit
+		return m, m.leave()
 	}
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
@@ -989,8 +988,7 @@ func (m *Model) print(render func(w int) string) tea.Cmd {
 		return nil
 	}
 	if m.board != nil || m.bview != nil {
-		m.held = append(m.held, block)
-		return nil
+		return nil // held: catchUp prints it once the screen comes back
 	}
 	m.enqueue(printItem{text: block})
 	m.printedIdx = len(m.blocks)
@@ -1015,6 +1013,39 @@ func (m *Model) reflow() tea.Cmd {
 	m.enqueue(printItem{text: strings.Join(parts, "\n\n"), clear: true})
 	m.printedIdx = len(m.blocks)
 	return nil
+}
+
+// leave ends the program. Under panes the transcript lived in the chat viewport and never
+// reached the scrollback: the blocks it missed print above the erased frame first, at the full
+// width, so the conversation stays in the terminal after exit.
+func (m *Model) leave() tea.Cmd {
+	m.quit = true
+	m.board, m.bview = nil, nil // the alternate screen keeps no print: leave it first
+	var parts []string
+	for _, r := range m.blocks[min(m.printedIdx, len(m.blocks)):] {
+		if b := r(m.width); b != "" {
+			parts = append(parts, b)
+		}
+	}
+	m.printedIdx = len(m.blocks)
+	if len(parts) == 0 {
+		return tea.Quit
+	}
+	return tea.Sequence(tea.Printf("%s\n", strings.Join(parts, "\n\n")), tea.Quit)
+}
+
+// catchUp prints the blocks the scrollback has not seen (held under the board or the bodies
+// view, or kept by the panes) — every block exactly once.
+func (m *Model) catchUp() {
+	if m.printedIdx >= len(m.blocks) {
+		return
+	}
+	for _, r := range m.blocks[m.printedIdx:] {
+		if b := r(m.width); b != "" {
+			m.enqueue(printItem{text: b})
+		}
+	}
+	m.printedIdx = len(m.blocks)
 }
 
 func (m *Model) enqueue(it printItem) {
@@ -1163,14 +1194,8 @@ func (m *Model) Render() string {
 	}
 	cw := m.width
 	rail := m.railVisible()
-	if rail == 0 && m.printedIdx < len(m.blocks) {
-		// pane exit (or an always-narrow run): the scrollback gets the blocks it never saw
-		for _, r := range m.blocks[m.printedIdx:] {
-			if b := r(m.width); b != "" {
-				m.enqueue(printItem{text: b})
-			}
-		}
-		m.printedIdx = len(m.blocks)
+	if rail == 0 {
+		m.catchUp() // pane exit (or an always-narrow run): the scrollback gets the blocks it never saw
 	}
 	if rail > 0 {
 		cw = m.width - rail // the rail's width carries its divider cell

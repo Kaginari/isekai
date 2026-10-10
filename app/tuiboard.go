@@ -25,7 +25,7 @@ func (h *tuiHost) Board(rng string) tui.BoardView { return h.a.BoardView(rng) }
 // last session's intent left readable (the 'continue on last plan' lifeline), never this
 // session's outstanding work. The boot sweep (LEC-2026-10-04-STALE-PLANS) keeps the live dir
 // to this session's decks; last session's decks merge in from the archive under Archived=true
-// so the rail renders them and 'c' can snap off them (contract: tui/blocks.go:597).
+// so the rail renders them and alt+n can snap off them (contract: tui/blocks.go:597).
 func (h *tuiHost) Plans() []tui.RailPlan {
 	dir := h.a.planDir()
 	boot := h.a.plansBoot()

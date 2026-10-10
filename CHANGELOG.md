@@ -133,6 +133,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **The TUI's input and keys.** A capital `C` (or `c` on a pinned stale deck) no longer vanishes
+  from a typed word: the plan snap moved to `alt+n`. The input box grows with a long line's wraps,
+  not only its newlines. `ctrl+c` clears a draft first and interrupts a busy turn without arming
+  the exit; `esc` and `ctrl+c` keep a cleared draft one ↑ away. Under the panes `ctrl+u`/`ctrl+d`
+  are the input's again — `pgup`/`pgdn` (now matched), `shift+↑/↓` and the wheel scroll the chat —
+  and the shortcuts list says so. The bodies view's pipe gives the draft back.
+- **The TUI's transcript.** Quitting in pane mode prints the conversation to the scrollback, so it
+  stays in the terminal after exit. A block that finished under the board prints once, not twice.
+  `<` and `>` in an answer survive Glamour (`Vec<T>`, `providers.<name>.script`); long errors wrap.
+
 - **`--help`, `-h` and `--version` answer at once**, outside a world too, and `<command> --help`
   shows that command; an unknown command is named unknown before any world lookup.
 - **Hints name the binary's own commands** (`isekai memory index`), not `memory.js`, in a world
