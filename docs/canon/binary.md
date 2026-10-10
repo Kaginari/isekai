@@ -488,19 +488,27 @@ answer, interrupt) carries a per-run token the page embeds and must name a loopb
 same-origin Origin, so another site cannot drive the session and a rebound DNS name cannot reach
 it. The page's CSP allows only its own scripts.
 
-**How the colony is drawn.** Minds and Bodies are two planes on one grid, never one crowd. The
-mind lanes keep their place *between* the ranks, each standing left of the rank it serves — tools
-before hands: zone minds · slime · verdict minds · orc · global minds · elf · ascended (the
-ascended are bodies of bodies — a seventh lane). The planes read through their dress: bodies carry
-portraits, halos and wide tints; minds are dashed rings on slim tints. Below the seven lanes, a
-full-width row names the **shared skills** — the host's commands and app-provided skills that are
-not the world's Minds — plainly, for what they are. The bonds are typed and coloured: slime⇒orc is
-the truth-current (cyan), orc⇒elf the verdict-current (gold), body⇌worn mind an anima-thread — one
-dashed shape tinted by lane. A mind node paints its brain in its lane's reasoning colour (zone
-gathers facts, verdict weighs rulings, global arms the voice, shared is the host's toolbox), so
-"whose work does this mind do?" is answered at a glance. The triad (Great Sage reads → Raphael
-judges → Ciel drafts) is drawn as one chain, each role's model named beside it, resolved from the
-minted bodies, never hand-typed.
+**How the colony is drawn.** The dashboard's net is the hierarchy as layers, read the way work
+flows: the throne (the session body, named by the lexicon) first, then each rank below it — the
+elves and the kijin, the orcs, the slimes — and the minds as a side layer, joined to their wearers
+by anima-threads that stay hairlines until a focus lights them. `/api/colony` guarantees the shape:
+the throne is always a node, every creature names its `parent` by its first upward bond (truth,
+verdict, reports, above), and a creature with no way up hangs under the throne by an `implied`
+reports edge and a note — the tree is connected and the gap is said. Wide, the layers are columns
+and the tree is tidy (a parent sits at the middle of its children); narrow, it is an outline, one
+row per neuron, indented by depth. Each neuron is a rank-coloured tile whose 28 cells are its last
+four weeks (`/api/activity`: runs from the loop journals, tokens from the usage journal — blank
+where no instrument saw any, never a made-up zero); each tree bond is as thick as the commissions
+it carried. Hover or keyboard focus lights a neuron's path to the throne and its subtree, the rest
+steps back; a click pins it and the side card reads its doc, territory, minds, bonds and work. A
+Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
+else the throne) and its report back up, green for DONE, amber or red otherwise; a running body
+breathes. The **3D** stage (`net3d.js`, WebGL2 written here, no library) stands the same tree as
+planes — the throne on top, each rank a ring, the minds a halo beneath — with additive glow on the
+dark theme, particles drifting down the bonds, a slow idle turn, drag to orbit, wheel or pinch to
+zoom, click to focus (the camera eases there); it falls back to 2D without WebGL2. Both animate
+only while the net is seen, at a frame budget, and stand still under `prefers-reduced-motion`;
+every colour is a token (the canvas reads them through probe elements).
 
 The command's own output — the board, each session — is a Charm Log: levelled, coloured, timed.
 

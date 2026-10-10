@@ -26,6 +26,8 @@
 <link rel="stylesheet" href="web/components/matrix/matrix.css">
 <link rel="stylesheet" href="web/components/kcard/kcard.css">
 <link rel="stylesheet" href="web/components/button/button.css">
+<script src="web/components/net/net.js" defer></script>
+<script src="web/components/net/net3d.js" defer></script>
 <script src="web/dash.js" defer></script>
 </head>
 <body data-words="{{WORDS}}">
@@ -74,13 +76,15 @@
     </section>
     <section class="panel" data-panel="net" aria-labelledby="h-net">
       <header class="panel-head"><h2 class="panel-title" id="h-net">Neural net</h2><span class="panel-note" id="net-note">—</span>
-        <div class="panel-tools"><button class="button" data-size="s" data-variant="quiet" type="button" id="net-clear">Clear focus</button></div></header>
+        <div class="panel-tools"><span class="net-mode" id="net-mode" role="group" aria-label="net view"><button type="button" data-mode="2d" aria-pressed="true">2D</button><button type="button" data-mode="3d" aria-pressed="false">3D</button></span><button class="button" data-size="s" data-variant="quiet" type="button" id="net-clear">Clear focus</button></div></header>
       <div class="panel-body">
-        <div class="stack" data-gap="s">
-          <div class="net" id="net"></div>
-          <div class="net-legend"><span><i data-bond="truth"></i><span data-word="bond.truth">truth</span></span><span><i data-bond="verdict"></i><span data-word="bond.verdict">verdict</span></span><span><i data-bond="reports"></i><span data-word="bond.reports">reports to</span></span><span><i data-bond="wears"></i><span data-word="bond.wears">wears</span></span><span><b class="net-key" data-kind="body">◉</b> body — K keeper · C court</span><span><b class="net-key" data-kind="mind">◌</b> mind — n/5 its desk</span></div>
-          <div id="net-findings"></div>
-          <div id="kcard"></div>
+        <div class="net-layout" data-side>
+          <div class="stack" data-gap="s">
+            <div id="net"></div>
+            <div class="net-legend"><span><i data-bond="reports"></i><span data-word="bond.reports">reports to</span></span><span><i data-bond="verdict"></i><span data-word="bond.verdict">verdict</span></span><span><i data-bond="truth"></i><span data-word="bond.truth">truth</span></span><span><i data-bond="implied"></i>implied</span><span><i data-bond="wears"></i><span data-word="bond.wears">wears</span></span><span><b class="net-key"></b>a tile: 4 weeks of work, a cell a day</span><span>bond weight · commissions</span></div>
+            <div id="net-findings"></div>
+          </div>
+          <aside class="net-side" aria-label="the focused neuron"><div id="kcard"></div></aside>
         </div>
       </div>
     </section>

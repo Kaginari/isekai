@@ -8,6 +8,18 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The neural net, rebuilt.** The dashboard's net draws the hierarchy as layers — the throne, then
+  each rank in the order work flows down, the minds beside — every neuron a rank-coloured tile
+  whose 28 cells are its last four weeks of work (runs and tokens from the journals; blank where no
+  instrument saw any), every tree bond weighted by the commissions it carried. Hovering or focusing
+  a neuron lights its path to the throne and its subtree; arrow keys walk the tree; the side card
+  reads its doc, territory, minds, bonds and work. A Court's dispatch travels down the tree as a
+  spark, its report comes back up (green when DONE, amber or red otherwise), and a running body
+  breathes. A **3D** stage (hand-written WebGL2, no library) stands the same tree as glowing planes
+  with particles drifting down the bonds; drag orbits, the wheel or a pinch zooms, a click focuses.
+  It animates only while seen, honours reduced motion, follows the theme's tokens, and falls back
+  to 2D without WebGL2. Narrow screens get the tree as an outline.
+
 - **Select and copy in the TUI's panes.** A drag in the chat pane selects (clamped to the chat,
   scrolling at its edges; a double click takes a word, a triple a line) and the release copies
   the plain text — OSC 52, the primary selection, and off SSH the desktop's `wl-copy`/`xclip`/

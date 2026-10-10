@@ -68,10 +68,12 @@
     main.dataset.view = v;
     for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
     store.set('view', v);
-    requestAnimationFrame(netDraw);
+    requestAnimationFrame(() => netDraw());
   }
   for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => view(t.dataset.view));
-  view(new URLSearchParams(location.hash.slice(1)).get('view') || store.get('view') || 'overview');
+  const HASH = new URLSearchParams(location.hash.slice(1));
+  if (HASH.get('theme')) theme(HASH.get('theme') === 'system' ? '' : HASH.get('theme'));
+  view(HASH.get('view') || store.get('view') || 'overview');
 
   // ---------- markdown, safely: escape first, then a small grammar ----------
   function inline(s) {
@@ -212,6 +214,7 @@
     body.append(c.log);
     c.card.append(body);
     c.card.open = open;
+    netSignal(e);
     liveNames.add(e.name);
     if (e.state === 'done' || e.failed) liveNames.delete(e.name);
     netLive();
@@ -334,7 +337,7 @@
     const es = new EventSource('dash/stream');
     es.addEventListener('reset', () => {
       log.replaceChildren(el('p', { class: 'console-empty', id: 'log-empty', text: 'Ask anything. The transcript reads like a page; tools, subagents and verdicts fold into cards.' }));
-      turn = answer = thinking = null; tools.clear(); courts.clear(); choices.clear();
+      turn = answer = thinking = null; tools.clear(); courts.clear(); choices.clear(); courtPhase.clear();
     });
     es.addEventListener('nosession', () => {
       $('#log-empty').textContent = 'No session here — this board was started without one. Run `' + word('bin', 'isekai') + ' dash` (or `' + word('bin', 'isekai') + '`) to talk to it.';
@@ -404,177 +407,97 @@
     }).catch(() => { const p = pill('board offline'); p.id = 'state'; $('#state').replaceWith(p); });
   }
 
-  // ---------- the neural net: bodies and minds, two planes on one grid ----------
-  // A creature is a BODY in its rank's layer (portrait, halo, K/C badge for a keeper or court
-  // vessel); a MIND is a dashed ring with a brain tinted by the lane it serves, carrying its desk
-  // (thoughts / limit — stress glows). Bonds are synapses; a live body's synapses carry a pulse.
+  // ---------- the neural net: the hierarchy as layers, minds beside (components/net/net.js) ----------
+  // The module draws; this file feeds it (the colony joined with the minted bodies and every
+  // wearable skill, the activity journals, the live court) and opens the knowledge card.
   const netBox = $('#net');
-  let colony = null, focus = '';
+  let colony = null, activity = null, focus = '';
   const liveNames = new Set();
-  const PORTRAITS = new Set(['rimuru', 'elf', 'orc', 'slime', 'kijin', 'darkelf', 'highelf', 'highorc']);
-  const BRAIN = 'M0 -6 C-3.2 -6 -5.6 -4.4 -5.6 -1.6 C-7.2 -0.6 -7.2 1.8 -5.4 2.8 C-6 4.6 -4.2 6.2 -2.2 6.2 C-1.1 6.2 -0.4 5.4 0 4.4 C0.4 5.4 1.1 6.2 2.2 6.2 C4.2 6.2 6 4.6 5.4 2.8 C7.2 1.8 7.2 -0.6 5.6 -1.6 C5.6 -4.4 3.2 -6 0 -6 Z';
   const MIND = 'mind';
   const isMind = n => n.kind === MIND;
-  const tone = n => isMind(n) ? n.lane : (n.rank || 'plain'); // what data-rank colours
   const keeper = b => b && (b.mode === 'all' || b.mode === 'primary');
-  function netDraw() {
-    if (!colony || !netBox.isConnected || netBox.offsetParent === null) return;
-    const W = Math.max(320, netBox.clientWidth);
-    const nodes = colony.nodes, edges = colony.edges, lanes = colony.lanes;
-    const label = id => (colony.labels.find(l => l.id === id) || {}).label || id.replace(/^[a-z]+:/, '') ;
-    const byLane = new Map(lanes.map(l => [l, []]));
-    for (const n of nodes) { if (!byLane.has(n.lane)) byLane.set(n.lane, []); byLane.get(n.lane).push(n); }
-    const deg = new Map();
-    for (const e of edges) { deg.set(e.from, (deg.get(e.from) || 0) + 1); deg.set(e.to, (deg.get(e.to) || 0) + 1); }
-    const pad = 28, gap = W < 560 ? 84 : 112, perRow = Math.max(1, Math.floor((W - 2 * pad) / gap));
-    const rows = [];
-    for (const [lane, list] of byLane) {
-      if (!list.length) continue;
-      for (let i = 0; i < list.length; i += perRow) rows.push({ lane, nodes: list.slice(i, i + perRow), first: i === 0 });
-    }
-    rows.reverse(); // the input layer at the bottom, the crown on top
-    const RH = 112, top = 8, H = top + rows.length * RH + 8;
-    const pos = new Map();
-    const g = svg('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'the ' + word('world', 'world') + ' as a neural net' });
-    const defs = svg('defs');
-    g.append(defs);
-    rows.forEach((row, i) => {
-      const y = top + i * RH;
-      // a layer wears its rank's colour (net.css maps data-rank → --node); a mind layer its lane's
-      g.append(svg('g', { 'data-rank': row.lane, 'data-plane': row.lane.includes(':') ? 'minds' : 'bodies' },
-        svg('rect', { class: 'net-row', x: 4, y, width: W - 8, height: RH - 10, rx: 12 }),
-        row.first ? svg('text', { class: 'net-row-label', x: 16, y: y + 16 }, document.createTextNode(label(row.lane) + ' · ' + byLane.get(row.lane).length)) : null));
-      row.nodes.forEach((n, j) => pos.set(n.id, { x: pad + (W - 2 * pad) * (j + 0.5) / row.nodes.length, y: y + RH / 2 + 4, n }));
-    });
-    const edgeLayer = svg('g', { 'data-layer': 'edges' }), pulseLayer = svg('g', { 'data-layer': 'pulses' }), nodeLayer = svg('g', { 'data-layer': 'nodes' });
-    g.append(edgeLayer, pulseLayer, nodeLayer);
-    for (const e of edges) {
-      const A = pos.get(e.from), B = pos.get(e.to);
-      if (!A || !B) continue;
-      const d = A.y === B.y
-        ? `M${A.x} ${A.y} Q ${(A.x + B.x) / 2} ${A.y - 34} ${B.x} ${B.y}`
-        : `M${A.x.toFixed(1)} ${A.y} C ${A.x.toFixed(1)} ${(A.y + B.y) / 2} ${B.x.toFixed(1)} ${(A.y + B.y) / 2} ${B.x.toFixed(1)} ${B.y}`;
-      edgeLayer.append(svg('path', { class: 'net-edge', 'data-bond': e.bond, 'data-from': e.from, 'data-to': e.to, d }));
-    }
-    let k = 0;
-    for (const [id, p] of pos) {
-      const n = p.n, r = (isMind(n) ? 12 : 17) + Math.min(7, 2.5 * Math.sqrt(deg.get(id) || 0));
-      const desk = n.desk;
-      const node = svg('g', { class: 'net-node', 'data-id': id, 'data-rank': tone(n), 'data-kind': isMind(n) ? 'mind' : 'body',
-        'data-stress': desk && desk.stress && desk.stress !== 'ok' ? desk.stress : false, tabindex: 0, role: 'button',
-        'aria-label': n.name + ' (' + (isMind(n) ? word('mind', 'mind') : (n.rank || 'body')) + ')' });
-      node.append(svg('circle', { class: 'net-node-halo', cx: p.x, cy: p.y, r: r * 1.7 }), svg('circle', { class: 'net-node-core', cx: p.x, cy: p.y, r }));
-      if (isMind(n)) {
-        const s = (r * 0.13).toFixed(2);
-        node.append(svg('g', { transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${s})` },
-          svg('path', { class: 'net-brain', d: BRAIN }), svg('path', { class: 'net-brain-fold', d: 'M0 -6 L0 4.4' })));
-      } else if (PORTRAITS.has(n.rank)) {
-        const cid = 'np-' + (k++);
-        defs.append(svg('clipPath', { id: cid }, svg('circle', { cx: p.x, cy: p.y, r: r * 0.86 })));
-        const img = svg('image', { class: 'net-portrait', href: 'web/portraits/' + n.rank + '.png', x: p.x - r * 0.86, y: p.y - r * 0.86, width: r * 1.72, height: r * 1.72,
-          preserveAspectRatio: 'xMidYMid slice', 'clip-path': `url(#${cid})` });
-        img.addEventListener('error', () => img.remove());
-        node.append(img);
-      } else {
-        node.append(svg('circle', { class: 'net-node-dot', cx: p.x, cy: p.y, r: r * 0.38 }));
-      }
-      if (n.body) node.append(svg('g', { class: 'net-badge' },
-        svg('circle', { cx: p.x + r * 0.8, cy: p.y - r * 0.8, r: 6.5 }),
-        svg('text', { x: p.x + r * 0.8, y: p.y - r * 0.8 + 3 }, document.createTextNode(keeper(n.body) ? 'K' : 'C'))));
-      if (desk) node.append(svg('text', { class: 'net-desk', x: p.x + r + 6, y: p.y + 4 }, document.createTextNode(desk.thoughts + '/' + desk.limit)));
-      node.append(svg('text', { class: 'net-node-label', x: p.x, y: p.y + r * 1.7 + 10 }, document.createTextNode(n.name.length > 18 ? n.name.slice(0, 17) + '…' : n.name)));
-      node.addEventListener('click', () => setFocus(focus === id ? '' : id));
-      node.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setFocus(focus === id ? '' : id); } });
-      nodeLayer.append(node);
-    }
-    netBox.replaceChildren(g);
-    const bodies = nodes.filter(n => !isMind(n)).length, minds = nodes.length - bodies;
-    $('#net-note').textContent = bodies + ' ' + word('bodies', 'bodies') + ' · ' + minds + ' ' + word('minds', 'minds') + ' · ' + edges.length + ' bonds · ' + rows.length + ' layers';
-    findingsList();
-    netLive(); applyFocus();
+  const net = window.isekaiNet.create(netBox, { word, onFocus: id => setFocus(id, true) });
+  function netDraw() { if (colony) net.redraw(); }
+  function netLive() { net.live(liveNames); }
+  // the 2D · 3D switch: remembered per reader; a page without WebGL2 stays 2D and says why
+  const modeBtns = [...document.querySelectorAll('#net-mode button')];
+  function netMode(v) {
+    const got = net.mode(v);
+    for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === got));
+    if (v) store.set('netmode', got);
   }
+  for (const b of modeBtns) b.addEventListener('click', () => netMode(b.dataset.mode));
+  if (!net.can3d()) { const b = modeBtns.find(x => x.dataset.mode === '3d'); if (b) { b.disabled = true; b.title = 'WebGL2 is not available here — the net stays 2D'; } }
   function findingsList() {
     const box = $('#net-findings');
     const items = [...colony.findings.map(t => ({ t, tone: 'warn' })), ...colony.notes.map(t => ({ t, tone: '' }))];
     box.replaceChildren(...(items.length ? [el('h3', { class: 'panel-note', text: colony.findings.length + ' findings · ' + colony.notes.length + ' notes — what the ontology says is missing' }),
       el('ul', { class: 'findings' }, items.map(i => el('li', { 'data-tone': i.tone || false, text: i.t })))] : []));
   }
-  function netLive() {
-    const g = netBox.querySelector('svg');
-    if (!g) return;
-    for (const n of g.querySelectorAll('.net-node')) n.toggleAttribute('data-live', liveNames.has(n.dataset.id));
-    const pulses = g.querySelector('[data-layer="pulses"]');
-    pulses.replaceChildren();
-    let k = 0;
-    for (const p of g.querySelectorAll('.net-edge')) {
-      const on = liveNames.has(p.dataset.from) || liveNames.has(p.dataset.to);
-      p.toggleAttribute('data-live', on);
-      if (on && !reduced && k++ < 40) {
-        const dot = svg('circle', { class: 'net-pulse', r: 3 });
-        dot.append(svg('animateMotion', { dur: '1.8s', repeatCount: 'indefinite', path: p.getAttribute('d'), keyPoints: liveNames.has(p.dataset.from) ? '0;1' : '1;0', keyTimes: '0;1', calcMode: 'linear' }));
-        pulses.append(dot);
-      }
-    }
-  }
-  function setFocus(id) { focus = id; applyFocus(); knowledge(id); }
-  function applyFocus() {
-    const g = netBox;
-    g.toggleAttribute('data-focus', !!focus);
-    const near = new Set([focus]);
-    for (const p of g.querySelectorAll('.net-edge')) {
-      const lit = !!focus && (p.dataset.from === focus || p.dataset.to === focus);
-      p.toggleAttribute('data-lit', lit);
-      if (lit) { near.add(p.dataset.from); near.add(p.dataset.to); }
-    }
-    for (const n of g.querySelectorAll('.net-node')) n.toggleAttribute('data-near', !!focus && near.has(n.dataset.id));
+  function setFocus(id, fromNet) {
+    focus = id;
+    if (!fromNet) net.focus(id);
     for (const th of document.querySelectorAll('#matrix th[data-id]')) th.toggleAttribute('data-hot', !!focus && th.dataset.id === focus);
+    knowledge(id);
   }
   $('#net-clear').addEventListener('click', () => setFocus(''));
   function knowledge(id) {
     const box = $('#kcard');
     box.replaceChildren();
-    if (!id || !colony) return;
+    if (!id || !colony) { box.append(el('p', { class: 'net-hint', text: 'Hover a neuron to light its path to the ' + word('rank.rimuru', 'throne') + ' and everything below it; click (or Enter) pins it here. Each tile is four weeks of that ' + word('body', 'body') + "'s work, a cell a day — blank where no instrument saw any." })); return; }
     const n = colony.nodes.find(x => x.id === id);
     if (!n) return;
-    const bonds = colony.edges.filter(e => e.from === id || e.to === id).map(e => (e.from === id ? e.bond + ' → ' + nameOf(e.to) : nameOf(e.from) + ' → ' + e.bond));
+    const m = net.model();
     const rows = [];
     const row = (k, v) => { if (v) rows.push(el('dt', { text: k }), el('dd', { text: v })); };
+    const a = activity && activity.bodies && activity.bodies[n.name];
     if (isMind(n)) {
       row('serves', label2(n.lane));
       row('source', n.source);
       row('desk', n.desk ? n.desk.thoughts + ' / ' + n.desk.limit + ' thoughts' + (n.desk.stress && n.desk.stress !== 'ok' ? ' — ' + n.desk.stress : '') + (n.desk.wornBy ? ' · worn by ' + n.desk.wornBy : '') : 'no desk yet');
+      row('worn by', colony.edges.filter(e => e.bond === 'wears' && e.to === id).map(e => nameOf(e.from)).join(', ') || '—');
       row('what', n.description);
     } else {
+      const p = m && m.parent.get(id);
+      const path = [];
+      for (let x = p, g = 0; x && g < 32; x = m.parent.get(x), g++) path.push(nameOf(x));
+      if (path.length) row('answers to', path.join(' → '));
+      const kids = (m && m.kids.get(id)) || [];
+      if (kids.length) row('below', kids.length + ' — ' + kids.map(nameOf).join(', '));
       row(word('territory', 'territory'), (n.owns || []).join(', ') || '—');
+      row(word('minds', 'minds'), colony.edges.filter(e => e.bond === 'wears' && e.from === id).map(e => nameOf(e.to)).join(', ') || '—');
       row('body', n.body ? (keeper(n.body) ? 'keeper' : 'court') + ' · ' + (n.body.model || 'the session model') + ' · ' + n.body.source : 'not minted — runs in the session');
+      row('work', a ? a.total + ' run' + (a.total === 1 ? '' : 's') + (a.failed ? ' (' + a.failed + ' not done)' : '') + ' · ' + num(a.tokens.reduce((x, y) => x + y, 0)) + ' tokens in 4 weeks' + (a.last ? ' · last ' + a.last.slice(0, 16).replace('T', ' ') : '') : 'no journaled work in 4 weeks');
     }
+    const bonds = colony.edges.filter(e => (e.from === id || e.to === id) && e.bond !== 'wears').map(e => (e.from === id ? word('bond.' + e.bond, e.bond) + ' → ' + nameOf(e.to) : nameOf(e.from) + ' → ' + word('bond.' + e.bond, e.bond)) + (e.implied ? ' (implied)' : ''));
     row('bonds', bonds.join(' · ') || '—');
     const docPath = n.doc || (n.desk && n.desk.src) || '';
     const doc = el('pre', { class: 'kcard-doc', text: docPath ? 'reading ' + docPath + '…' : 'no doc — the ontology notes it' });
-    const plan = el('pre', { class: 'kcard-plan', text: isMind(n) ? '' : 'plan …' });
+    const plan = el('pre', { class: 'kcard-doc', text: '' });
     box.append(el('article', { class: 'kcard' },
-      el('div', { class: 'kcard-title' }, n.name, el('span', { class: 'pill', 'data-tone': 'info', text: isMind(n) ? word('mind', 'mind') : (n.rank || 'body') }), liveNames.has(id) ? pill('running') : null),
-      el('dl', {}, rows), doc, plan));
+      el('div', { class: 'kcard-title' }, n.throne ? (n.label || n.name) : n.name, el('span', { class: 'pill', 'data-tone': 'info', text: isMind(n) ? word('mind', 'mind') : word('rank.' + n.rank, n.rank || 'body') }), liveNames.has(n.name) ? pill('running') : null),
+      el('dl', {}, rows), doc, isMind(n) ? null : plan));
     if (docPath) fetch('api/doc?path=' + encodeURIComponent(docPath)).then(r => r.ok ? r.text() : Promise.reject(new Error(r.status)))
-      .then(t => { doc.textContent = t.split('\n').slice(0, 60).join('\n'); }).catch(() => { doc.textContent = docPath + ' — not readable here'; });
+      .then(t => { doc.textContent = t.split('\n').slice(0, 40).join('\n'); }).catch(() => { doc.textContent = docPath + ' — not readable here'; });
     if (!isMind(n)) fetch('/api/plan?body=' + encodeURIComponent(id)).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))
       .then(p => {
-        if (!p || p.empty || !(p.items || p.deck || []).length) { plan.textContent = p && p.body && !n.name ? 'no deck for ' + p.body : 'no deck'; return; }
+        if (!p || p.empty || !(p.items || p.deck || []).length) { plan.remove(); return; }
         const head = 'plan ' + (p.body || id) + (p.updated ? ' · ' + p.updated : '');
         plan.textContent = head + '\n' + (p.items || p.deck).map(it => `[${it.status || '·'}] ${it.text || ''}`).join('\n');
-      }).catch(() => { plan.textContent = ''; });
+      }).catch(() => { plan.remove(); });
   }
   const label2 = id => ((colony && colony.labels.find(l => l.id === id)) || {}).label || id;
-  const nameOf = id => ((colony && colony.nodes.find(n => n.id === id)) || {}).name || id;
+  const nameOf = id => { const n = colony && colony.nodes.find(x => x.id === id); return n ? (n.throne ? n.label || n.name : n.name) : id; };
   // the ontology's graph, joined with the two planes it does not draw: minted bodies ride their
-  // creatures (or stand in their rank's layer), every wearable skill joins (the binary's own
-  // included), and each mind carries its desk
+  // creatures (the throne's own body rides the throne, wherever it was minted), every wearable
+  // skill joins (the binary's own included), and each mind carries its desk
   function loadColony() {
-    return Promise.all([getJSON('api/colony'), getJSON('api/world').catch(() => ({ bodies: [], skills: [], desks: [] }))]).then(([c, w]) => {
+    return Promise.all([getJSON('api/colony'), getJSON('api/world').catch(() => ({ bodies: [], skills: [], desks: [] })), getJSON('api/activity').catch(() => null)]).then(([c, w, act]) => {
       c.nodes = c.nodes || []; c.edges = c.edges || []; c.lanes = c.lanes || []; c.labels = c.labels || []; c.findings = c.findings || []; c.notes = c.notes || [];
       // a mind's lane is drawn as mind:<lane> (the lane order and labels speak that way)
-      for (const n of c.nodes) if (n.kind === 'mind' && c.lanes.includes('mind:' + n.lane)) n.lane = 'mind:' + n.lane; // a lane may share a rank's name
+      for (const n of c.nodes) if (n.kind === 'mind' && c.lanes.includes('mind:' + n.lane)) n.lane = 'mind:' + n.lane;
       const byName = new Map(c.nodes.map(n => [n.name, n]));
+      const throne = c.nodes.find(n => n.id === c.throne || n.throne);
       const ranks = c.lanes.filter(l => !l.includes(':'));
       for (const b of w.bodies || []) {
         const n = byName.get(b.name);
@@ -582,17 +505,10 @@
         let rank = ranks.find(r => b.name === r || b.name.startsWith(r + '-'));
         // a machine-wide agent (~/.config/…) is another world's unless it rides a member here or
         // carries one of this world's rank prefixes — the net draws this team, not the machine
-        if (/-global$/.test(b.source || '') && !rank && !WORDS['rank.' + b.name.split('-')[0].replace(/_/g, '')]) continue;
         const prefix = b.name.split('-')[0].replace(/_/g, '');
-        if (!rank && WORDS['rank.' + prefix]) {
-          // a rank born in time (kijin, dark elf …): its first body opens its layer, above the crown
-          rank = prefix;
-          c.lanes.splice(Math.max(0, c.lanes.findIndex(l => l.endsWith(':shared'))), 0, rank);
-          c.labels.push({ id: rank, label: WORDS['rank.' + prefix], kind: 'rank' }); ranks.push(rank);
-        }
-        const lane = rank || 'bodies:other';
-        if (!rank && !c.lanes.includes(lane)) { c.lanes.push(lane); c.labels.push({ id: lane, label: 'other bodies', kind: 'rank' }); }
-        const node = { id: 'body-' + b.name, name: b.name, kind: 'creature', rank: rank || '', lane, owns: [], body: b, description: b.description };
+        if (/-global$/.test(b.source || '') && !rank && !WORDS['rank.' + prefix]) continue;
+        if (!rank && WORDS['rank.' + prefix]) rank = prefix;
+        const node = { id: 'body-' + b.name, name: b.name, kind: 'creature', rank: rank || '', lane: rank || 'bodies:other', owns: [], body: b, description: b.description, parent: throne ? throne.id : '' };
         c.nodes.push(node); byName.set(b.name, node);
       }
       const shared = c.lanes.find(l => l.endsWith(':shared')) || 'mind:shared';
@@ -605,10 +521,30 @@
       }
       // a desk sits in a mind, or in a creature's own hat (<name>@hat, worn by that creature)
       for (const d of w.desks || []) { const n = byName.get(String(d.mind).replace(/@hat$/, '')); if (n && (d.thoughts || !n.desk)) n.desk = d; }
-      colony = c; netDraw(); relations();
-    }).catch(() => { $('#net-note').textContent = 'the ontology is silent'; });
+      colony = c; activity = act;
+      const m = net.set(c, act);
+      netLive();
+      const bodies = m.creatures.length, minds = m.minds.length;
+      const lit = act && act.lit ? Object.keys(act.bodies || {}).length + ' with journaled work' : 'no activity journal yet';
+      $('#net-note').textContent = bodies + ' ' + word('creatures', 'creatures') + ' · ' + minds + ' ' + word('minds', 'minds') + ' · ' + m.tree.length + ' tree bonds · ' + (m.maxDepth + 1) + ' layers · ' + lit;
+      findingsList();
+      if (focus) knowledge(focus); else knowledge('');
+      relations();
+    }).catch(err => { console.error(err); $('#net-note').textContent = 'the ontology is silent'; });
   }
-  new ResizeObserver(() => { clearTimeout(netDraw.t); netDraw.t = setTimeout(netDraw, 120); }).observe(netBox);
+  // a Court on the stream: a pulse down when it is commissioned, back up when it reports
+  const courtPhase = new Map();
+  function netSignal(e) {
+    const was = courtPhase.get(e.name);
+    const done = e.state === 'done' || !!e.report || e.failed;
+    if (!done && !was) { courtPhase.set(e.name, 'down'); net.signal('down', e.name); }
+    if (done && was !== 'up') {
+      courtPhase.set(e.name, 'up');
+      const st = String((e.report && e.report.Status) || e.exit || '').toUpperCase();
+      net.signal('up', e.name, e.failed || /FAIL|DENIED/.test(st) ? 'danger' : /ESCALATE|INTERRUPT/.test(st) || (st && !/DONE|PASS/.test(st)) ? 'warn' : 'ok');
+      setTimeout(() => { if (courtPhase.get(e.name) === 'up') courtPhase.delete(e.name); }, 1500);
+    }
+  }
 
   // ---------- relations: the matrix and its dimensions ----------
   function relations() {
@@ -868,6 +804,7 @@
     }
   }
 
+  netMode(HASH.get('net') || store.get('netmode') || '2d');
   header(); setInterval(header, 1500);
   loadColony(); metrics(); courtPoll(); treeLoad();
   setInterval(courtPoll, 2000); setInterval(metrics, 15000);
