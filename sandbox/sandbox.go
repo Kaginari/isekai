@@ -143,9 +143,11 @@ func baseArgs(opt Options, call Call) []string {
 		"--tmpfs", "/tmp",
 		"--dev", "/dev",
 		"--proc", "/proc",
+		"--unshare-pid", "--unshare-ipc", "--unshare-uts", // the child sees its own processes only
 		"--die-with-parent",
 		"--new-session",
 	}
+	args = append(args, maskSecrets()...)
 	if opt.Root != "" {
 		args = append(args, "--bind", opt.Root, opt.Root)
 	}
@@ -163,6 +165,36 @@ func baseArgs(opt Options, call Call) []string {
 		args = append(args, "--chdir", call.Cwd)
 	}
 	return args
+}
+
+// secretHomes are the home paths that hold credentials: inside the sandbox each existing one is
+// masked — an empty tmpfs over a directory, /dev/null over a file — so a command reads nothing
+// there even though the rest of the disk is readable.
+var secretHomes = []string{
+	".ssh", ".gnupg", ".aws", ".azure", ".kube", ".docker", ".netrc", ".git-credentials", ".npmrc",
+	".pypirc", ".config/gcloud", ".config/gh", ".config/hub", ".password-store", ".local/share/keyrings",
+	".mozilla", ".config/google-chrome", ".config/chromium", ".config/BraveSoftware", "snap/chromium",
+}
+
+func maskSecrets() []string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" || home == "/" {
+		return nil
+	}
+	var out []string
+	for _, rel := range secretHomes {
+		p := path.Join(home, rel)
+		fi, err := os.Stat(p)
+		switch {
+		case err != nil:
+			continue
+		case fi.IsDir():
+			out = append(out, "--tmpfs", p)
+		default:
+			out = append(out, "--ro-bind", "/dev/null", p)
+		}
+	}
+	return out
 }
 
 // Wrap prefixes argv with the bwrap invocation for this call; under None it returns argv as is.

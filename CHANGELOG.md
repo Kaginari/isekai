@@ -119,7 +119,7 @@ All notable changes to Isekai are recorded here. The format follows
   and an existing `tools.custom` name is never overwritten.
 
 - **The container's trust (law.humanGate.trustContainer).** Inside the harness's own runtime
-  container — `<PREFIX>CONTAINERED=1`, set only by the harness's own container argv, spoofable by
+  container — `<PREFIX>DOCKER_AGENT=1`, set only by the harness's own container argv, spoofable by
   no body — every action class reads as pre-approved at the Gate: the sandbox is the membrane,
   so outward and destructive stop asking. The guard denylist still refuses first; the world dir
   mounts read-write inside the sandbox or out.
@@ -169,6 +169,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Security
 
+- **The sandbox hides the host's processes and your credentials.** bwrap now gives every command its
+  own pid, ipc and uts namespaces, and masks the home's credential paths (`~/.ssh`, `~/.gnupg`,
+  `~/.aws`, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.config/gcloud`, `~/.config/gh`, keyrings, browser
+  profiles …) — they read as empty inside, while the world stays writable. README's new Security
+  section says what the sandbox fences, what it does not, and how to fence a Mac.
 - **The gate runs no command the model wrote this turn.** A verify line added to a creature doc in
   the same turn is a hole for the gate holder, not a reading; every verify line and injected check
   runs under the sandbox (no network, secrets scrubbed, its process group killed at the timeout).
@@ -190,6 +195,9 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **`--containered` is now `--docker-agent`** — the flag that runs the whole binary inside a Docker
+  container; the old name still works and says what it is called now. The marker inside the
+  container is `<PREFIX>DOCKER_AGENT`.
 - **Ascension happens.** The high elf and the high orc ascend by default on a long, clean record —
   `reports >= 20 && passRate >= 90% && holeRate <= 10%` (`ranks.high-elf.ascendsWhen`,
   `ranks.high-orc.ascendsWhen`; `""` turns it off). An ascended rank lives in its own dir and

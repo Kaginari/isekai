@@ -418,7 +418,7 @@ packages:                     # a private Artifactory for the package managers
   go:  https://artifactory.corp/api/go/go-remote
   tokenEnv: ARTIFACTORY_TOKEN # let through to the shell by name (the agent can read it: use a read-only token)
   env: { GONOSUMDB: corp.example, PIP_TRUSTED_HOST: artifactory.corp }
-containers:                   # --containered
+containers:                   # --docker-agent
   image: ""                   # a prebuilt runtime to pull instead of building one
   base: artifactory.corp/docker-remote/debian:bookworm-slim
   apt:  https://artifactory.corp/artifactory/debian-remote

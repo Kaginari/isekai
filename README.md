@@ -45,10 +45,10 @@ Release archives for linux/macOS × amd64/arm64 ship with `checksums.txt` and bu
 `gh attestation verify <archive> --repo Kaginari/isekai`. A container image to try the binary:
 `docker run --rm -it -e ANTHROPIC_API_KEY -v "$PWD:/work" ghcr.io/kaginari/isekai:latest` — the
 binary alone on Debian slim (no bubblewrap, git or toolchains); for real work in a container use
-`--containered`, which builds a runtime with them.
+`--docker-agent`, which builds a runtime with them.
 
 **Requirements.** Linux or macOS. `bubblewrap` (`bwrap`) for the sandboxed shell on Linux — without it
-the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--containered`.
+the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--docker-agent`.
 Chromium or Chrome for `ui check`'s screenshots.
 
 **Data boundary.** No telemetry. The binary contacts only the providers you configure (and the
@@ -172,7 +172,7 @@ everything the world enforces without asking a body to believe anything.
 **Never in any prompt — coded and enforced:**
 
 - the guard (dangerous commands refused before any approval) and the gate (who may approve)
-- the sandbox knot (bwrap / `--containered` envelope)
+- the sandbox knot (bwrap / the `--docker-agent` container)
 - budgets read as instruments: context window % readings, stress-zone behavior, session wallets
 - the closing witness's admissibility rule (machine-check or independent method)
 - the guts' scoring, the echo penalty, and where every reading journals
@@ -250,7 +250,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `ui init\|scan\|check` | web pages built from one token system: lay the foundation, regenerate the legend, lint and screenshot at 360/768/1280 in both themes |
 | `dash [--open]` | the session in the browser: the console, the neural net, metrics, relations; approvals answered there |
 | `board` | the board and a read-only dashboard without a session, on 127.0.0.1 |
-| `--containered` | the whole binary in a Docker container: the world read-write, the rest read-only |
+| `--docker-agent` | the whole binary in a Docker container: the world read-write, the rest read-only |
 | `init [--level light\|medium\|complex]` | found a world: the law only; a colony read from the tree with no model — the build files (go.mod, package.json workspaces, pyproject, Cargo, Maven, Gradle), sizes and imports give a slime per package or module dir, orcs over related slimes, an elf per three orcs (lane elves and a canon elf on a large project), a kijin for CI and infra, verify lines only where tests exist, existing docs kept; or a founding session that reads all the code and decides the elves, orcs, slimes, kijin, minds, bodies and relations |
 | `selftest` · `version` | |
 
@@ -276,7 +276,7 @@ Providers prefer `apiKeyEnv` (name the variable, never the value). Where an env 
 headless containers — the designated escape is `providers.<name>.apiKey` holding the
 literal; every other field still refuses credentials in a file (headers, urls, unknown keys).
 
-`--containered`'s registry pulls authenticate the same way: env-first, literal fallback —
+`--docker-agent`'s registry pulls authenticate the same way: env-first, literal fallback —
 `registry.containers: { usernameEnv, tokenEnv }` or `{ username, token }`. Docker receives the
 token on stdin, never argv.
 
@@ -333,7 +333,7 @@ packages:                                   # set in every shell command and in 
   go:  https://artifactory.example.corp/artifactory/api/go/go-remote
   tokenEnv: ARTIFACTORY_TOKEN               # let through by name — the agent can read it: use a read-only token
   env: { GONOSUMDB: example.corp }
-containers:                                 # for --containered
+containers:                                 # for --docker-agent
   base: artifactory.example.corp/docker-remote/debian:bookworm-slim
   apt:  https://artifactory.example.corp/artifactory/debian-remote
   # image: artifactory.example.corp/docker-local/isekai-runtime:1   # pull a prebuilt runtime instead
@@ -434,19 +434,67 @@ and 1280px in light and dark, failing any component that scrolls sideways. The g
 every turn that touched the ui dir (`law.gate.ui`). A project already on Tailwind, Bootstrap or a
 design-system package keeps it: the Mind follows the existing system.
 
-## Safety, in code
+## Security
 
-Beyond the gate, the human gate and the sandbox described above:
+Defence in layers: what a body may do is decided in code, before and around every act — never by
+asking the model to behave.
 
+- **Every act is classed** — read, write, outward (leaves the machine: network, `git push`, a
+  read of `/etc` or your home's secrets) or destructive (`rm -rf`, `git reset --hard`, history
+  rewrites). Writes stay inside the world's territory; outward and destructive acts ask you first
+  (the human gate), in the terminal or the dashboard. A command is classed by its real name
+  however it is called (`/usr/bin/git`, `\rm`, `sudo env -i /bin/rm`, `xargs`, `bash -c "…"`), and
+  an allow rule never carries a chained act (`npm test && curl …` needs the curl allowed too).
 - **The guard** — the catastrophic and irreversible are refused before any approval, held to a
-  151-case test corpus; `isekai guard install --yes` wires the same list into Claude Code and
+  155-case test corpus; `isekai guard install --yes` wires the same list into Claude Code and
   OpenCode (without `--yes` it only shows the change).
-- **The gate, hardened** — it runs the checks as they were before the turn, fails a turn that
-  deleted or skipped tests, and sends a failure back to the model once, then to you.
+- **The gate** — at the end of a turn it checks the author, the creatures' verify lines as they
+  stood *before* the turn (a body never runs a check it just wrote), the duties and the docs; it
+  fails a turn that deleted or skipped tests and sends a failure back once, then to you.
+- **A clone cannot loosen the law** — the tracked `.isekai/config.yaml` may tighten but never
+  switch off the human gate or pre-approve outward/destructive acts; that only comes from
+  `config.local.yaml` or your global config, and `status` names every standing approval.
+- **Secrets never ride along** — API keys are named by their environment variable, never written
+  in a file; every child process gets a scrubbed environment (names holding `API_KEY`, `TOKEN`,
+  `SECRET`, `PASSWORD`, `PRIVATE_KEY`, `ACCESS_KEY`, `CREDENTIAL`, and URLs carrying a password).
+- **Every command has a deadline** — a timeout kills the command's whole process tree.
+- **The dashboard** binds `127.0.0.1` only, guards every act with a session token and a same-origin
+  check, and serves a strict self-only Content-Security-Policy (no CDN, fonts bundled).
+- **Inside Claude Code** the hooks only ever tighten Claude Code's own permissions — they deny or
+  ask, never allow.
 - **Dry-run and previews** — `--dry-run` plans and shows what it would run or ask, running nothing;
-  every edit shows its diff; `/board` and `ctrl+t` show every agent live.
-- **The sandbox** (`bwrap`) or **the container** (`--containered`: the world read-write, the rest
-  read-only, pulled or built from your private registry).
+  every edit shows its diff; `ctrl+t` and the dashboard show every agent live.
+
+### The sandbox
+
+On **Linux**, every shell command, verify line, hook and custom tool runs under
+[bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`), probed once at start —
+`isekai status` prints `sandbox: bwrap (<version>)` or why it is off:
+
+| inside the sandbox | |
+|---|---|
+| the world's directory and a private `/tmp` | read-write |
+| the rest of the disk | read-only |
+| your credentials — `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.azure`, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.config/gcloud`, `~/.config/gh`, password stores, keyrings, browser profiles | masked: they read as empty |
+| the network | off, unless the act passed the human gate as outward |
+| other processes | out of sight (own pid, ipc and uts namespaces) |
+| the command's life | dies with isekai; killed whole at its timeout |
+
+It is a strong fence for a coding agent, not a virtual machine: the read-only rest of the disk is
+still readable (the classifier asks before an outward read, the sandbox does not hide it), and
+bwrap needs unprivileged user namespaces — some kernels and containers refuse them, and then the
+shell runs unsandboxed and `status` says so. `tools.bash.sandbox: none` turns it off on purpose.
+
+On **macOS** there is no bwrap: the shell runs unsandboxed and `status` says so. Two ways to fence
+it there today:
+
+- **`--docker-agent`** — the whole binary runs inside a Docker container (Docker Desktop, OrbStack
+  or colima): the world mounted read-write, the rest read-only, pulled or built from your private
+  registry (`registry.containers`). Inside it, `law.humanGate.trustContainer` lets the container
+  be the membrane.
+- **Seatbelt** (`sandbox-exec`, built into macOS and used by other coding agents) is the native
+  equivalent of bwrap — writes only to the world and `/tmp`, network denied, secret paths denied.
+  isekai does not use it yet; until it does, prefer `--docker-agent` for untrusted work on a Mac.
 
 ## Benchmarks
 

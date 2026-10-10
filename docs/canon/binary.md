@@ -58,8 +58,13 @@ line of `go.mod` (Go ≥ 1.26).
   calls; `{"restart": true}` resets it. A Court Body gets its own session and loses it with its task.
 - **Sandboxed by default.** Each command runs under `bwrap`: the filesystem is read-only except the
   world root and a private `/tmp`, no network unless the command passed the human gate as
-  `outward`. No `bwrap` on the machine → `sandbox: none`, reported as `@?` in `status`.
-- **The whole binary in a container — `--containered`.** The binary re-runs itself under Docker
+  `outward`, its own pid/ipc/uts namespaces (the host's processes are out of sight), and the home's
+  credential paths (`sandbox.secretHomes`: `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.docker`,
+  `~/.netrc`, `~/.config/gcloud`, `~/.config/gh`, keyrings, browser profiles …) masked — an empty
+  tmpfs over a directory, `/dev/null` over a file. No `bwrap` on the machine (macOS) or a kernel that
+  refuses user namespaces → `sandbox: none`, reported as `@?` in `status`; on macOS the fence is
+  `--docker-agent` (Seatbelt / `sandbox-exec` is the native equivalent, not used yet).
+- **The whole binary in a container — `--docker-agent`.** The binary re-runs itself under Docker
   (`docker run --rm --init`): the world mounted read-write at its own path, this binary and what a
   session reads from the host mounted read-only (`~/.config/<dist>`, `~/.<dist>`, the Claude and
   OpenCode instruction/skill/command/agent dirs, git's identity — only those that exist), the
@@ -69,7 +74,7 @@ line of `go.mod` (Go ≥ 1.26).
   `<PREFIX>*`, every `*_API_KEY` / `*_BASE_URL`. The image is built on first use from the Dockerfile
   embedded in the binary (debian slim + bash, git, ripgrep, python3, jq, make, curl…), tagged by the
   Dockerfile's hash so a changed runtime is rebuilt; `--image <ref>` runs a richer one. Inside,
-  `<PREFIX>CONTAINERED=1` makes the flag a no-op, and `status` says `container: docker <image>` in
+  `<PREFIX>DOCKER_AGENT=1` makes the flag a no-op, and `status` says `container: docker <image>` in
   place of the sandbox line: the container is the boundary, bwrap does not nest in it.
 - **The guard, before everything.** A denylist of the catastrophic and irreversible — disk wipes,
   `rm -rf` of `/`, home or a system dir (by `~`, `$HOME` or the home's own path), force-pushes and
@@ -518,7 +523,7 @@ tokens, live or idle; by day, model and body), relations (the bond matrix and it
 dimensions: by rank, lane and bond) and the tree keep their own full-size views.
 With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
 terminal. `<dist> dash [--open]` runs the session headless with the dashboard as its only ui, and
-approvals are answered in the browser. The board listens on 127.0.0.1 only (with `--containered`
+approvals are answered in the browser. The board listens on 127.0.0.1 only (with `--docker-agent`
 the container shares the host network, so it is still the host's loopback); every act (ask,
 answer, interrupt) carries a per-run token the page embeds and must name a loopback Host with a
 same-origin Origin, so another site cannot drive the session and a rebound DNS name cannot reach
