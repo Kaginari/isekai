@@ -282,14 +282,16 @@
       }
       case 'state': if (e.state === 'waiting on gate' || e.state === 'gating') net.act(e.body === throneName() ? '' : e.body, 'gate'); break;
       case 'turndone':
-        if (e.verdict || e.status) timelineAdd({ as: throneName() || 'session', ask: e.verdict ? 'verdict: ' + e.verdict : 'turn', at: new Date().toISOString(), status: /fail/i.test(e.verdict || '') ? 'FAIL' : (e.status || 'DONE') });
+        if (e.verdict || e.status) timelineAdd({ as: throneName() || 'session', ask: (lastAsk || 'turn') + (e.verdict ? ' — verdict: ' + e.verdict : ''), at: new Date().toISOString(), status: /fail/i.test(e.verdict || '') ? 'FAIL' : (e.status || 'DONE') });
         if (/fail/i.test(e.verdict || '') || /FAIL/.test(e.status || '')) net.act('', 'fail');
         else if (e.verdict || /^DONE$/i.test(e.status || '')) net.act('', 'pass');
         break;
     }
   }
+  let lastAsk = '';
   const throneName = () => { const m = net.model(); return m && m.throne ? m.throne.name : ''; };
   function onEvent(e) {
+    if ((e.type === 'ask' && !e.queued) || e.type === 'turnstart') lastAsk = String(e.text || '').slice(0, 160);
     treeEvent(e);
     netEvent(e);
     switch (e.type) {
