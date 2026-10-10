@@ -1,28 +1,13 @@
-# Canon transcriptions
+# The canon
 
-The files in this folder are faithful transcriptions from photographs of a fuller `ISEKAI.md`
-canon than the version currently installed by the `/isekai` command (`.isekai/isekai.md`,
-`.claude/commands/isekai.md`, `.opencode/commands/isekai.md`). The installed skill template
-only carries the Crest, the Nine Natures, Principles, the wire-language rules, Instruments,
-Minds & Bodies, the world table, the gate, and six Laws.
+The specs the binary is built to. [`ISEKAI.md`](../../ISEKAI.md) is the law every creature reads;
+these files are what it points to when a day asks a specific question — how the loop runs, what
+config holds, what the terminal draws. Where a spec and the code disagree, the code is wrong or
+the spec is stale, and either is a Vitality failure to fix in the same change.
 
-The photographed source has more structure than that: the same Nine Natures, but underneath
-them a numbered rule set (1–21, grouped into Chapters I–VII) and a separate E1–E6 protocol
-set for Minds & Bodies specifically. Rimuru's own throne-body instructions describe the full
-canon chain as **Nature laws 0–8 → rules 1–21 → E-protocols → colony map** — all three layers
-live together in one `ISEKAI.md`, not as separate documents. The source also documents the
-`/isekai` command's own logic in more detail than what's installed (two phases — audit-only
-vs. populate — plus an `AGENTS.md` template it appends).
-
-These files were transcribed rather than merged into `.isekai/isekai.md` / the installed
-`/isekai` command directly, because reconciling two differently-structured numbering schemes
-(Laws 1–6 vs. rules 1–21), and adding the Phase 2a/2b + `AGENTS.md` + `tools/tempest.js`
-logic the installed command doesn't have, without guessing at the parts the photos didn't
-capture, risked introducing contradictions into the live convention. Treat this folder as raw
-source material for a future, more complete `ISEKAI.md` and `/isekai` command — not yet
-operative. One piece of it *has* been built already: `tempest.js` itself
-(`.isekai/tools/tempest.js`), implemented from `instruments-tempest.md` since that spec was
-unambiguous enough to build directly.
+Some files carry the convention's longer history — the numbered rule set, the ascended races,
+the founding phases — as source material for the law, not as operative specs; they say so at
+their top.
 
 ## What's here
 
@@ -33,19 +18,19 @@ unambiguous enough to build directly.
   and Phase 2b (populate) logic — richer than what's installed
 - [`templates.md`](templates.md) — the `AGENTS.md` colony-block template Phase 2b appends
 - [`instruments-tempest.md`](instruments-tempest.md) — the full `tempest.js` instrument-board
-  spec — **implemented** at [`../tools/tempest.js`](../tools/tempest.js)
+  spec — in the binary: `isekai status`, the board
 - [`memory-tiers.md`](memory-tiers.md) — the three memories every creature has (short · long ·
   shared), the files-are-truth boundary, relation-ranked recall, and the path to a DB tier —
-  **implemented** at [`../tools/memory.js`](../tools/memory.js)
+  in the binary: `memory/`, `isekai memory`
 - [`agent-loop.md`](agent-loop.md) — the six-beat loop every Court Body runs (perceive → recall →
   plan → act → verify → record): budgets as readings, four step classes with the human gate,
-  journaled resume, one-hop escalation — **implemented** at [`../tools/loop.js`](../tools/loop.js)
+  journaled resume, one-hop escalation — in the binary: `loop/`
 - [`toolbox.md`](toolbox.md) — the two-level toolbox: a priced registry of Minds, commands, tools,
   Bodies and externals; level 1 injects only the manifest that fits the turn and the budget, level 2
-  loads a body on the creature's own decision — **implemented** at [`../tools/toolbox.js`](../tools/toolbox.js)
+  loads a body on the creature's own decision — in the binary: `toolbox/`, `isekai toolbox`
 - [`binary.md`](binary.md) — the `isekai` Go binary: the law as a harness — native ranks and
   Court dispatch, the gate and Vitality in code, the human gate, the wire, and the ontology that
-  passes knowledge along creature relations — **source** at [`../../isekai/`](../../isekai/)
+  passes knowledge along creature relations — the source is this repository
 - [`harness-parity.md`](harness-parity.md) — what Claude Code and OpenCode ship, what the binary
   ships in v0, what it defers, what it refuses, and how each capability meets the law
 - [`config.md`](config.md) — the binary's config: locations, precedence, the full schema with every
@@ -56,13 +41,11 @@ unambiguous enough to build directly.
   components before custom markup, an isekai theme over Bootstrap's tokens, SVG sized by column
 - [`runtime.md`](runtime.md) — the v0.2 design: the container runtime (permissions follow what is at
   risk), enterprise registries, secrets in two steps, the corporate proxy, worlds and dimensions
-- [`agents/great-sage.md`](agents/great-sage.md), [`agents/raphael.md`](agents/raphael.md),
-  [`agents/ciel.md`](agents/ciel.md) — templates for all three "court triad" bodies
-  (perceive / judge / speak); `ciel.md` is complete, the other two have small gaps (see below)
 
-## Known gaps
+## Gaps in the source material
 
-The source photos cut off before capturing:
+The history files were transcribed from a fuller text than survived; what is missing:
+
 - The full text of rules 12–13 (Chapter V — Tracking) — only the tail of 13 survived.
 - The Kijin paragraph in the ascended-races section (High orc and Dark elf are complete; Kijin
   is not).
@@ -70,9 +53,6 @@ The source photos cut off before capturing:
 - Great Sage's own Wire mouth commissions (only its office laws survived).
 - The `.opencode/skills/` seed template that Phase 2b step 3 refers to ("seed template
   below") was never itself photographed — only the reference to it.
-
-Complete: `ciel.md` (all three court-triad members now transcribed in full), and Phase 2a +
-Phase 2b of the `/isekai` command (both phases and the `AGENTS.md` template captured in full).
 
 Don't fill these gaps by inference — if you find the rest of this source, transcribe it
 directly; otherwise leave the gap marked.

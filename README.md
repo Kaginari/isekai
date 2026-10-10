@@ -49,6 +49,7 @@ binary alone on Debian slim (no bubblewrap, git or toolchains); for real work in
 
 **Requirements.** Linux or macOS. `bubblewrap` (`bwrap`) for the sandboxed shell on Linux — without it
 the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--containered`.
+Chromium or Chrome for `ui check`'s screenshots.
 
 **Data boundary.** No telemetry. The binary contacts only the providers you configure (and the
 package or container registries you name); any other network act is `outward` and asks you, and the
@@ -58,8 +59,8 @@ sandboxed shell has no network unless an `outward` act was approved.
 
 ```sh
 cd your-project
-isekai init --level complex      # found a world here — light: the law only · medium: a colony sketched from the tree · complex: the model reads all the code and hires the team
 export ANTHROPIC_API_KEY=…        # or any OpenAI-compatible endpoint (vLLM, Ollama, OpenRouter)
+isekai init --level complex      # found a world here — light: the law only · medium: a colony sketched from the tree · complex: the model reads all the code and hires the team
 isekai                           # the live session — the board opens at http://127.0.0.1:7411
 isekai run "add a health check endpoint and its test"
 ```
@@ -137,7 +138,7 @@ Configuration is YAML (or JSON), layered — each layer overrides the one before
 | project | `.isekai/` in the world | yes |
 | project local | `.isekai/config.local.yaml` | no (machine-only) |
 | environment | `ISEKAI_CONFIG=<file>`, `ISEKAI_CONFIG_CONTENT=<yaml>`, `ISEKAI_MODEL`, `ISEKAI_DISABLE_PROJECT_CONFIG=1` (skip the project layers), `ISEKAI_PROVIDER_<NAME>_API_KEY` (built-in provider names only; a custom provider uses `apiKeyEnv`) | — |
-| flags | `--model`, `--set key=value`, `--approve outward`, `--dry-run`, `--no-<feature>` | — |
+| flags | `--model`, `--set key=value`, `--approve outward`, `--dry-run`, `--no-<feature>` (all of them: `isekai --help`) | — |
 
 `isekai config explain` shows every effective value and the file and line it came from;
 `isekai status` shows every model, the guard, the sandbox and anything switched off.

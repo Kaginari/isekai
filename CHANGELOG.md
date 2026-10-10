@@ -49,8 +49,24 @@ All notable changes to Isekai are recorded here. The format follows
 - **More secrets scrubbed**: names holding `PRIVATE_KEY`, `ACCESS_KEY`, `CREDENTIAL` (so
   `AWS_SECRET_ACCESS_KEY`), and URLs carrying a password (`DATABASE_URL`).
 
+### Changed
+
+- **`init` talks to a person in prose** on a terminal — what was founded and the next step (the
+  model to set, the session to open); the wire lines stay for pipes and `--format`.
+- **`init --level complex` checks the model first**: with none reachable it founds the light world,
+  names the missing key and the rerun, and does not start a founding session it cannot finish.
+
 ### Fixed
 
+- **`--help`, `-h` and `--version` answer at once**, outside a world too, and `<command> --help`
+  shows that command; an unknown command is named unknown before any world lookup.
+- **Hints name the binary's own commands** (`isekai memory index`), not `memory.js`, in a world
+  that does not ship the JS instruments.
+- **The setup form no longer offers to keep a global config that does not exist.**
+- **The README's Quick start sets the key before `init --level complex`**; Chromium is listed for
+  `ui check`; `install.sh` no longer advertises piping into `sh`.
+- **The canon describes this repository**: its index, the toolchain (Go ≥ 1.26), one `cmd/`, and
+  `init` as what creates a world.
 - **Anthropic streams.** A tool with no arguments arrives as `{}`, not as a malformed call;
   redacted thinking keeps its data and replays as it came; a stream cut before `message_stop` is
   an error, never a partial answer taken for a whole one.

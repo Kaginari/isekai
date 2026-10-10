@@ -5,9 +5,10 @@ for harnesses that only *read* it (Claude Code, OpenCode); a model can read a la
 it. Here the law is the harness: the gate, Vitality, the log, the human gate, the instruments and
 the wire are code paths the model cannot route around, and every creature is a native type.
 
-Source: `isekai/` at the repository root (Go module; stdlib plus the Charm libraries for the
-terminal UI, `canon/tui.md`). Build with
-`go build -o bin/isekai ./cmd/isekai` from `isekai/`. Toolchain: Go ≥ 1.23.
+Source: this repository (Go module `github.com/Kaginari/isekai`; the standard library plus the
+Charm libraries and their companions — chroma for highlighting, harmonica, colorprofile — for the
+terminal UI, `tui.md`). Build with `go build -o bin/isekai ./cmd/isekai`. Toolchain: the `go`
+line of `go.mod` (Go ≥ 1.26).
 
 ## Principles of the build
 
@@ -43,7 +44,7 @@ terminal UI, `canon/tui.md`). Build with
 | `board` | the world, seen: an HTTP handler over the same instruments | §The board below |
 | `app` | the one engine behind both binaries: config → world → providers, shelf, MCP, discoveries, hooks; sessions (JSONL), the live session (the TUI on a terminal, the line REPL on a pipe or `--plain`), `run`, `bench`, `selftest`, `init`, `board` | everything above, wired |
 | `tui` | the terminal UI (`canon/tui.md`): the view model (blocks from the loop's events), the Bubble Tea program, the choice block the gate and the `ask` tool answer through | the one siphon that never narrows — the human's |
-| `cmd/isekai` · `cmd/agent-one` | the two distributions: one `main` each, differing only by the name they hand `app.Main` (lexicon, world dir, env prefix, law file follow) | — |
+| `cmd/isekai` | the distribution's `main`: the name it hands `app.Main` decides the lexicon, world dir, env prefix and law file (agent-one is the same engine under another name, built from its own repository) | — |
 
 ## Bash — the model's shell, the world's rules
 

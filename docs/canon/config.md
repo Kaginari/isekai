@@ -25,8 +25,8 @@ once.
 | law document | `.isekai/isekai.md` | `.agent-one/AGENT-ONE.md` | `file.law` |
 
 `XDG_CONFIG_HOME` / `XDG_DATA_HOME` are honored when set. The global dir is created on first
-run; the project dir is never created by the binary — a world is founded by `/isekai`, not by
-a config lookup. In config values, `[dist]` and `[dist-dir]` are substituted by the lexicon and
+run; the project dir is created only by `isekai init`, which founds the world — never by a
+config lookup. In config values, `[dist]` and `[dist-dir]` are substituted by the lexicon and
 a leading `~/` by the home directory.
 
 Words that differ between the vocabularies are accepted in either spelling on input and folded
