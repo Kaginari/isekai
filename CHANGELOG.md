@@ -8,6 +8,17 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The terminal UI has depth.** On a truecolor terminal the frame is layered planes drawn with
+  colour and the block elements: the borders on the terminal's own ground; the conversation, the
+  sidebar and the status bar each a plane of their own tint; the ask and each answer raised as
+  slabs with a spine (magenta, the primary), a lit top face, a shaded edge and a soft drop shadow;
+  tools and Courts as smaller chips in their class's or race's hue; the welcome as the hero slab on
+  a primary → magenta gradient; the sidebar's sections as stacked tiles; the input sunk in a well;
+  toasts, the ask card and the palette floating highest. One tonal scale stepped from the
+  terminal's background, inverted on a light theme (white slabs on a grey ground, soft grey
+  shadows); every text role holds 4.5:1 on every tint. A selection copies text, never the
+  drawing. 256-colour and colourless terminals keep the flat frame.
+
 - **The dashboard is the board's one page, at the root.** `http://127.0.0.1:<port>/` opens the
   cockpit; the tabs are Overview · Console · Neural net · Metrics · Court · Memory · Toolbox ·
   Relations · Tree · Config, and a deep link opens one (`/#memory`, `/#config`, `/#court/<run>`).

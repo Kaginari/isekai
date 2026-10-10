@@ -605,7 +605,7 @@ func TestChoiceFloatsOverDarkenedBackdrop(t *testing.T) {
 			backdrop = l
 		}
 	}
-	if !strings.Contains(backdrop, "38;2;127;138;153") { // the dark theme's dim #7f8a99
+	if !strings.Contains(backdrop, "38;2;156;167;182") { // the dark theme's dim #9ca7b6
 		t.Fatalf("the backdrop must be darkened to dim, got: %q", backdrop)
 	}
 	// the card centres (geometry computed from the same inputs, not string archaeology — the

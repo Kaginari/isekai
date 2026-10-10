@@ -96,6 +96,38 @@ wears the primary; green/amber/red for verdicts; the race lanes for bodies. Dark
 neons softened to read as text; light wears their deep-ink twins; every text role holds 4.5:1 on
 its ground. Nothing glows: chips are a hue over a tint of itself, never a neon slab.
 
+## Depth
+
+On a truecolor terminal the frame is drawn as layered planes (`tui/depth.go`), in colour and the
+block elements alone — no animation, no glyph that is not drawing:
+
+- **One tonal scale.** Every surface is a step off the ground — the terminal's own background, its
+  answer to the background query (VS Code's `#1f1f1f` / `#ffffff` until it answers). Elevation
+  `-1` the input well, `0` the ground (the borders sit on it), `1` the planes (the conversation,
+  the sidebar, the status bar), `2` the cards, `3` the floats. On a dark ground a closer surface is
+  lighter; on a light ground the planes are a soft grey and the cards and floats paper-white over
+  them. Each surface leans a few percent toward the hue that says what it is: the human's ask
+  magenta, the answer the primary, a tool its class, a Court its race's lane, a toast its verdict.
+- **Raised.** A card wears a lit top face (a half row of `▄` a step lighter), a lit left edge `▏`
+  or a coloured spine `▌`, a shaded right edge `▕` and bottom edge `▝▀…`, and casts a shadow one
+  cell right and half a row down, tinted from the plane it falls on — never black; a float's
+  shadow is the deepest. Text sits inside a cell of padding on every side.
+- **Sunk.** The input sits in a well: its top and left edges in shadow, its right and bottom edges
+  lit — the inverse of a card. It costs the conversation two rows.
+- **The blocks.** The ask and each answer are slabs with a spine (a turn's answer pieces join into
+  one slab, a code fence sunk into its own inset inside it); a tool and a Court are smaller chips,
+  their head on the lit band; the welcome is the hero slab, its face drifting from the primary's
+  tint to the magenta's row by row; a gate verdict is a pill with half-block caps. The header is a
+  raised bar on a horizontal drift of the same two tints. The sidebar's sections are stacked tiles
+  — the vitals, the courts, the plan, the files — each its own tint, its title on the lit band (a
+  click on it folds the tile). A toast is a float over the conversation's top-right corner; the ask
+  card floats over the frame sunk flat beneath it; the palette and the popups are floats.
+- **Text first.** Every text role holds 4.5:1 on every tint, dark and light (`TestDepthContrast`).
+  A drag selection copies the text — the spines, bevels and shadows copy as nothing, and a slab's
+  padding is taken off the copy.
+- **Fallbacks.** A 256-colour terminal (its tonal steps would band) and a colourless one draw the
+  flat frame; so does the scrollback a narrow window prints into.
+
 ## Interaction
 
 - **Input** — multiline (`shift+enter` where the terminal reports it apart from `enter` — Bubble
@@ -160,7 +192,8 @@ overdrawn):
   matched letters lit. Enter runs a command that takes nothing at once; one that takes arguments
   lands in the input to be finished. `theme` switches dark and light and reprints the transcript.
 - **Toasts.** A Court landing (✓ done / ✗ failed) and the gate's verdict raise a one-line pill at
-  the live area's top right; it slides in on a spring and leaves after four seconds, three at most.
+  the live area's top right (under the depth a floating card, the highest elevation); it slides in
+  on a spring and leaves after four seconds, three at most.
   The block it echoes is in the scrollback already — a toast is a glance, never the record.
 - **Settings — `/settings`.** A huh form floating over the frame: the theme, who owns the mouse,
   the sidebar — inline selects (`←→` change, `tab` next, `enter` saves, `esc` closes unchanged).
@@ -170,7 +203,8 @@ overdrawn):
 ## Blocks as cards
 
 - **Tool cards** — every line of a tool block carries an edge (`▎`) in its class's colour: read
-  cyan, write violet, outward amber, destructive red — the class is seen before it is read.
+  cyan, write violet, outward amber, destructive red — the class is seen before it is read. Under
+  the depth the edge is the raised chip's spine and the chip is tinted in the same hue.
 - **Diffs in colour** — added and removed lines keep their `+`/`-` and line numbers, their code in
   its language's colours (chroma, per line; catppuccin-mocha dark, github light) over a green or
   red tint to the card's edge; context lines coloured, untinted. Unknown language or no colour: the
