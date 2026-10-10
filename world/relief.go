@@ -96,8 +96,13 @@ func cleanPrefixes(in []string) []string {
 // the marker line a retired seat carries in its own doc: the roster parser's skip-key
 const retiredMark = "- **Retired:** true"
 
-// retireDoc lands the marker; a second call is a no-op (idempotent law).
+// retireDoc lands the council's marker; a second call is a no-op (idempotent law).
 func (w *World) retireDoc(c *Creature, date string) error {
+	return w.retireDocWhy(c, "council relief "+date+": the zone relents (its strain kept landing)")
+}
+
+// retireDocWhy lands the marker with its reason (relief, ascension); idempotent.
+func (w *World) retireDocWhy(c *Creature, why string) error {
 	if c.Doc == "" {
 		return fmt.Errorf("creature %s carries no doc — it never parsed a README", c.Name)
 	}
@@ -113,7 +118,7 @@ func (w *World) retireDoc(c *Creature, date string) error {
 	if !strings.HasSuffix(s, "\n") {
 		s += "\n"
 	}
-	s += retiredMark + " — council relief " + date + ": the zone relents (its strain kept landing)\n"
+	s += retiredMark + " — " + why + "\n"
 	return os.WriteFile(p, []byte(s), 0o644)
 }
 

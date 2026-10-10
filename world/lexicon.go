@@ -118,7 +118,7 @@ func ParseLexicon(data []byte, vocab string) (Lexicon, error) {
 	l.Court = str("unit.court_body", vocab)
 	l.Thoughts = str("heading.thoughts", vocab)
 	l.Territory = str("field.territory", vocab)
-	for _, r := range append(append([]string(nil), Races...), "dark_elf") {
+	for _, r := range append(append([]string(nil), Races...), "high_elf", "high_orc", "dark_elf") {
 		l.Ranks[r] = str("rank."+r, "dir")
 		l.Prefixes[r] = str("rank."+r, "prefix")
 		l.Display[r] = str("rank."+r, vocab)

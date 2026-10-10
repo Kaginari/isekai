@@ -20,12 +20,11 @@ type Rank struct {
 	Authors     bool     // authors changes in its territory (territory is enforced on it)
 	HoldsGate   bool     // gates the authoring ranks below it
 	Sideways    bool     // may dispatch its own rank (orc → orc) and know its layer-mates
-	Body        string   // court | keeper
 	Office      string   // default office: great-sage | raphael | ciel
 	Tools       []string // tool names its shelf is cut to
 	Dir         string   // folder under the world dir; "" for a rank with no creatures on disk
 	Prefix      string   // creature-id prefix, Dir + "-"
-	Base        string   // an ascended rank keeps everything its base held
+	Base        string   // an ascended rank keeps everything its base held (its dir and prefix are its own)
 	Layer       int      // config-declared rung (0 when unset); two ranks share a layer iff equal and nonzero
 	DivineRules []string // an ascended rank's absolute rules; they reach the base rank as coded rules
 	AscendsWhen string   // the metrics condition under which a body of this rank ascends (ASL); "" = never
@@ -81,18 +80,28 @@ var AllTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", 
 
 var baseTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law"}
 
+// The default ascension conditions (config/ranks.go carries the same two strings; a world test
+// keeps them equal). Conservative on purpose: a body ascends only on a long record — twenty
+// reports — nearly all of them landed (a pass rate of 90% or more) and nearly none leaving a
+// hole behind (at most one hole per ten reports). `ranks.high-elf.ascendsWhen` and
+// `ranks.high-orc.ascendsWhen` override them; an empty string turns ascension off.
+const (
+	DefaultAscendElf = "ascend elf when reports >= 20 && passRate >= 90% && holeRate <= 10%"
+	DefaultAscendOrc = "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"
+)
+
 // DefaultRanks is the law's table (isekai.md §The world), dirs and prefixes from the lexicon.
 func DefaultRanks(lex Lexicon) []Rank {
 	d := func(r string) string { return lex.Ranks[r] }
 	p := func(r string) string { return lex.Prefixes[r] }
 	return []Rank{
-		{Name: "elf", ReportsTo: Rimuru, Job: "the shared mind and voice: thinks across domains, routes work to orcs, speaks back up — on an order from above it first writes its plan deck (`plan` tool: one line per slice, each named to the orc whose domain owns it), then dispatches — orcs in parallel (background: true) when the slices are independent", Body: "court", Office: "ciel", Tools: AllTools, Dir: d("elf"), Prefix: p("elf")},
-		{Name: "orc", ReportsTo: "elf", Job: "rules its domain, commands its slimes, holds the gate — the slice's verify is written before its slime is ordered (the gate proves the landing, never after)", HoldsGate: true, Sideways: true, Body: "court", Office: "raphael", Tools: AllTools, Dir: d("orc"), Prefix: p("orc")},
-		{Name: "slime", ReportsTo: "orc", Job: "the ground truth of its zone: authors changes there", Authors: true, Body: "court", Office: "great-sage", Tools: baseTools, Dir: d("slime"), Prefix: p("slime")},
-		{Name: "kijin", ReportsTo: Rimuru, Job: "standing domain lead: owns one subsystem end-to-end across sessions", Authors: true, HoldsGate: true, Body: "keeper", Office: "raphael", Tools: AllTools, Dir: d("kijin"), Prefix: p("kijin")},
-		{Name: "high_elf", ReportsTo: Rimuru, Job: "ascended elf: the cross-domain traits an elf distilled", Body: "court", Office: "ciel", Tools: AllTools, Dir: d("elf"), Prefix: p("elf"), Base: "elf", AscendsWhen: "ascend elf when intelligence >= 70 && reports >= 5"},
-		{Name: "high_orc", ReportsTo: "elf", Job: "ascended orc: the domain traits an orc distilled", HoldsGate: true, Sideways: true, Body: "court", Office: "raphael", Tools: AllTools, Dir: d("orc"), Prefix: p("orc"), Base: "orc", AscendsWhen: "ascend orc when intelligence >= 70 && reports >= 5"},
-		{Name: "dark_elf", ReportsTo: Rimuru, Job: "the auditor: reviews verdicts and the log, never authors", Body: "keeper", Office: "raphael", Tools: []string{"read", "bash", "glob", "grep", "law"}, Dir: d("dark_elf"), Prefix: p("dark_elf")},
+		{Name: "elf", ReportsTo: Rimuru, Job: "the shared mind and voice: thinks across domains, routes work to orcs, speaks back up — on an order from above it first writes its plan deck (`plan` tool: one line per slice, each named to the orc whose domain owns it), then dispatches — orcs in parallel (background: true) when the slices are independent", Office: "ciel", Tools: AllTools, Dir: d("elf"), Prefix: p("elf")},
+		{Name: "orc", ReportsTo: "elf", Job: "rules its domain, commands its slimes, holds the gate — the slice's verify is written before its slime is ordered (the gate proves the landing, never after)", HoldsGate: true, Sideways: true, Office: "raphael", Tools: AllTools, Dir: d("orc"), Prefix: p("orc")},
+		{Name: "slime", ReportsTo: "orc", Job: "the ground truth of its zone: authors changes there", Authors: true, Office: "great-sage", Tools: baseTools, Dir: d("slime"), Prefix: p("slime")},
+		{Name: "kijin", ReportsTo: Rimuru, Job: "standing domain lead: owns one subsystem end-to-end across sessions", Authors: true, HoldsGate: true, Office: "raphael", Tools: AllTools, Dir: d("kijin"), Prefix: p("kijin")},
+		{Name: "high_elf", ReportsTo: Rimuru, Job: "ascended elf: the cross-domain traits an elf distilled", Office: "ciel", Tools: AllTools, Dir: d("high_elf"), Prefix: p("high_elf"), Base: "elf", AscendsWhen: DefaultAscendElf},
+		{Name: "high_orc", ReportsTo: "elf", Job: "ascended orc: the domain traits an orc distilled", HoldsGate: true, Sideways: true, Office: "raphael", Tools: AllTools, Dir: d("high_orc"), Prefix: p("high_orc"), Base: "orc", AscendsWhen: DefaultAscendOrc},
+		{Name: "dark_elf", ReportsTo: Rimuru, Job: "the auditor: reviews verdicts and the log, never authors", Office: "raphael", Tools: []string{"read", "bash", "glob", "grep", "law"}, Dir: d("dark_elf"), Prefix: p("dark_elf")},
 	}
 }
 
@@ -116,7 +125,7 @@ func (rs Ranks) Get(name string) (Rank, bool) {
 }
 
 // Of reads a creature's rank off its id prefix ("" for rimuru or an unknown name). The first
-// rank on a prefix wins (an ascended rank shares its base's).
+// rank on a prefix wins.
 func (rs Ranks) Of(creature string) string {
 	creature = strings.ToLower(creature)
 	for _, r := range rs {
@@ -423,6 +432,55 @@ func (rs Ranks) DirectChild(from, to string) bool {
 		return true // a sideways intead of down, within one layer
 	}
 	return rs.nextHop(from, to) == to
+}
+
+// BelowAs is Below for a dispatcher of rank `upper`: an ascended rank commands what its base
+// commanded (a high orc keeps its slimes), so a rank under the base counts as under it.
+func (rs Ranks) BelowAs(lower, upper string) bool {
+	if rs.Below(lower, upper) {
+		return true
+	}
+	if r, ok := rs.Get(upper); ok && r.Base != "" && lower != upper {
+		return rs.Below(lower, r.Base)
+	}
+	return false
+}
+
+// DirectChildAs is DirectChild for a dispatcher of rank `from`, its base's children included
+// when it is an ascended rank.
+func (rs Ranks) DirectChildAs(from, to string) bool {
+	if rs.DirectChild(from, to) {
+		return true
+	}
+	if r, ok := rs.Get(from); ok && r.Base != "" && to != from {
+		if t, ok := rs.Get(to); ok && t.ReportsTo == r.Base {
+			return true
+		}
+	}
+	return false
+}
+
+// Commands reports whether a body of this rank has anyone to dispatch: rimuru, a sideways rank,
+// or a rank some other rank reports to (its base's children count for an ascended rank). A rank
+// that commands no one is never handed the dispatch tool, whatever its tools list says — the
+// kijin reports to rimuru and no rank reports to it.
+func (rs Ranks) Commands(name string) bool {
+	r, ok := rs.Get(name)
+	if !ok {
+		return false
+	}
+	if r.Name == Rimuru || r.Sideways {
+		return true
+	}
+	for _, o := range rs {
+		if o.Name == name {
+			continue
+		}
+		if o.ReportsTo == name || (r.Base != "" && o.ReportsTo == r.Base) {
+			return true
+		}
+	}
+	return false
 }
 
 // In reports whether the rank name is on the table (rimuru counts).

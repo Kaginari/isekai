@@ -27,12 +27,12 @@ func TestStratTargets(t *testing.T) {
 	dir := fixture(t)
 	w := open(t, dir)
 	thrn := w.Engine("rimuru", Build{Tools: nil})
-	got := w.stratTargets(thrn)
+	got := w.stratTargets(thrn, CourtOptions{StrictFlow: true})
 	if !strings.Contains(got, "elf-core") || strings.Contains(got, "slime-auth") {
 		t.Fatalf("throne may reach only its child rank (elf-core here): %q", got)
 	}
 	elf := w.Engine("elf-core", Build{Tools: nil})
-	got = w.stratTargets(elf)
+	got = w.stratTargets(elf, CourtOptions{StrictFlow: true})
 	if !strings.Contains(got, "orc-security") || strings.Contains(got, "slime-auth") {
 		t.Fatalf("elf-core may reach its orcs, never the slimes directly: %q", got)
 	}

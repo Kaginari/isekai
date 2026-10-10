@@ -291,11 +291,15 @@ ranks:
 	if sb.ReportsTo != "reviewer" || !sb.Authors || sb.Office != "great-sage" || len(sb.Tools) != 4 || sb.Origins["tools"] != "ascends:builder" {
 		t.Errorf("ascended inherits: %+v", sb)
 	}
-	if names["lead"].Body != "keeper" || names["builder"].Body != "court" || names["builder"].Prefix != "builder-" {
-		t.Errorf("defaults: %+v", names["builder"])
+	if names["builder"].Prefix != "builder-" || names["senior-builder"].Dir != "senior-builder" || names["senior-builder"].Prefix != "senior-builder-" {
+		t.Errorf("defaults: an ascended rank keeps a dir and prefix of its own: %+v", names["senior-builder"])
+	}
+	// body is read by nothing: a set value is a hole, never obeyed
+	if !strings.Contains(strings.Join(c.Holes, "\n"), "ranks.lead.body is ignored") {
+		t.Errorf("ranks.lead.body must be named a hole: %v", c.Holes)
 	}
 	tree := c.RankTree()
-	if !strings.Contains(tree, "rimuru [rankSet: replace]") || !strings.Contains(tree, "    reviewer (gate, court)") || !strings.Contains(tree, "      builder (authors, court, office great-sage)") {
+	if !strings.Contains(tree, "rimuru [rankSet: replace]") || !strings.Contains(tree, "    reviewer (gate)") || !strings.Contains(tree, "      builder (authors, office great-sage)") {
 		t.Errorf("tree:\n%s", tree)
 	}
 	if dev := c.Deviations(); len(dev) != 6 {
@@ -317,7 +321,7 @@ ranks:
 	w = newWorld(t, map[string]string{".isekai/config.yaml": "ranks:\n  orc: {layer: 2}\n  high-orc: {ascendsWhen: \"ascend orc when reports >= 3\", divineRules: [go around the backlog]}\n"})
 	c = w.load()
 	tree = c.RankTree()
-	if !strings.Contains(tree, "layer 2") || !strings.Contains(tree, "1 divine rule") || !strings.Contains(tree, "when `ascend orc when reports >= 3`") {
+	if !strings.Contains(tree, "layer 2") || !strings.Contains(tree, "1 divine rule") || !strings.Contains(tree, "ascends orc") || !strings.Contains(tree, "when `reports >= 3`") {
 		t.Errorf("the tree must show layer, divine rules and the crossing:\n%s", tree)
 	}
 	refusals := []struct{ name, yaml, want string }{
@@ -332,7 +336,6 @@ ranks:
 		{"ascendsWhen not ASL", "ranks:\n  high-orc: {ascendsWhen: \"quickly now\"}\n", "opens with"},
 		{"divineRules on a plain rank", "ranks:\n  orc: {divineRules: [never skip the gate]}\n", "ascends from nothing"},
 		{"root configured", "ranks:\n  rimuru: {job: x}\n", "not configured"},
-		{"bad body", "ranks:\n  elf: {body: ghost}\n", "not court or keeper"},
 		{"bad rankSet", "rankSet: merge\n", "not extend or replace"},
 		{"detach slime", "ranks:\n  slime: {reportsTo: rimuru}\n", "no rank above it holds a gate"},
 	}

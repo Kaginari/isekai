@@ -124,7 +124,6 @@ ranks:
     reportsTo: orc                                # an authoring rank needs a gate above it
     job: keeps the world's changelog
     authors: true
-    body: court
     office: ciel
     tools: [read, write, edit, git]
 

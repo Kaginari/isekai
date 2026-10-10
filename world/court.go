@@ -67,6 +67,10 @@ type CourtOptions struct {
 	// stacked on top of it at depth 0, Deliver at depth ≥1.
 	Noted      func(body, report string, failed bool)
 	StrictFlow bool // one hop per layer: a body dispatches only the rank directly below it (no skip-level); neighbors allowed per the rank's Sideways
+	// OpenLineage (tools.dispatch.lineage: false) lifts the creature-level law: by default a body
+	// commissions only creatures whose Reports-to chain reaches it — an orc its own slimes, an
+	// elf its own orcs; open, the rank law alone decides (any orc may order any slime).
+	OpenLineage bool
 	// SalvageTokens caps the journalise turn a Clock-court runs in its grace window — the body is
 	// resumed from its own transcript with "spend this on @U/@F only" so its knowledge lands before
 	// the axe. 0 = the loop default; negative = off, the body dies silent.
@@ -175,7 +179,8 @@ func (w *World) Engine(as string, b Build) *loop.Engine {
 	if cd := w.Ranks.ChainDepth(); max < cd {
 		max = cd
 	}
-	if b.Court.Enabled && contains(names, "dispatch") && b.Depth < max {
+	// a rank that commands no one holds no dispatch, whatever its tools list (Ranks.Commands)
+	if b.Court.Enabled && contains(names, "dispatch") && b.Depth < max && w.Ranks.Commands(rank.Name) {
 		bg, wake := b.backgroundWake(as)
 		shelf.Add(tool.DispatchTool(tool.DispatchOptions{Enabled: true, Depth: b.Depth, MaxDepth: max, Cap: b.Court.Cap, Unsaid: b.Court.Unsaid, Bodies: b.Court.Bodies, Background: bg, BackgroundTimeout: b.Court.BackgroundTimeout, Wake: wake, SessionBackground: b.Court.SessionBackground}, w.Dispatcher(e, b)))
 	}
@@ -236,22 +241,14 @@ func (w *World) Close(e *loop.Engine) {
 // the tree, or sideways for ranks that ride side-to-side). The law's refusal prints it instead
 // of a dead "Law 2" wall: refusal + known-good list in the same breath (07 of the 2026-10-02
 // audit — the "throne flails 3 refused hops" shape).
-func (w *World) stratTargets(parent *loop.Engine) string {
-	me := w.RankOf(parent.As)
+func (w *World) stratTargets(parent *loop.Engine, opt CourtOptions) string {
 	var ok []string
 	for _, c := range append(append([]Creature{}, w.Creatures...), w.Foreign...) {
+		c := c
 		if c.Name == parent.As {
 			continue
 		}
-		if me.Name == Rimuru {
-			if w.Ranks.DirectChild(Rimuru, c.Rank) {
-				ok = append(ok, c.Name)
-			}
-			continue
-		}
-		down := w.Ranks.Below(c.Rank, me.Name) && w.Ranks.DirectChild(me.Name, c.Rank)
-		side := me.Sideways && c.Rank == me.Name
-		if down || side {
+		if w.mayDispatch(parent.As, &c, opt) == nil {
 			ok = append(ok, c.Name)
 		}
 	}
@@ -261,23 +258,95 @@ func (w *World) stratTargets(parent *loop.Engine) string {
 	return strings.Join(ok, ", ")
 }
 
+// lineOf is a creature's Reports-to chain, nearest first, ending at rimuru (or where the chain
+// breaks: a parent off the roster, a doc naming none).
+func (w *World) lineOf(name string) []string {
+	var line []string
+	seen := map[string]bool{name: true}
+	for cur := w.Creature(name); cur != nil && cur.Parent != "" && !seen[cur.Parent]; cur = w.Creature(cur.Parent) {
+		seen[cur.Parent] = true
+		line = append(line, cur.Parent)
+		if cur.Parent == Rimuru {
+			break
+		}
+	}
+	return line
+}
+
+// mayDispatch is the dispatch law for one commission, nil when `from` may order `cr`:
+//
+//  1. rank law (Law 2): work goes down the ranks — or sideways within a Sideways rank; an
+//     ascended rank commands what its base commanded;
+//  2. strict flow (tools.dispatch.strictFlow): one rung at a time — the target's rank sits
+//     directly under the dispatcher's (rimuru: its direct children);
+//  3. lineage (tools.dispatch.lineage, default on): the target's own Reports-to chain reaches
+//     the dispatcher — an orc orders its own slimes, an elf its own orcs; under strict flow the
+//     dispatcher is the target's one hop up. Rimuru tops every chain.
+func (w *World) mayDispatch(from string, cr *Creature, opt CourtOptions) error {
+	me := w.RankOf(from)
+	if me.Name == Rimuru {
+		if opt.StrictFlow && !w.Ranks.DirectChild(Rimuru, cr.Rank) {
+			return fmt.Errorf("%s (%s) may not dispatch %s (%s) under strict layer flow: work crosses one layer at a time — hand it to the rank directly below (%s), and the neighbor knows its own", from, me.Name, cr.Name, cr.Rank, w.firstChildLine(me.Name))
+		}
+		return nil
+	}
+	side := me.Sideways && cr.Rank == me.Name
+	if !side && !w.Ranks.BelowAs(cr.Rank, me.Name) {
+		return fmt.Errorf("%s (%s) may not dispatch %s (%s): work goes down the ranks, never up or sideways (Law 2) — escalate with @? instead", from, me.Name, cr.Name, cr.Rank)
+	}
+	if side {
+		return nil
+	}
+	if opt.StrictFlow && !w.Ranks.DirectChildAs(me.Name, cr.Rank) {
+		return fmt.Errorf("%s (%s) may not dispatch %s (%s) under strict layer flow: work crosses one layer at a time — hand it to the rank directly below (%s), and the neighbor knows its own", from, me.Name, cr.Name, cr.Rank, w.firstChildLine(me.Name))
+	}
+	if opt.OpenLineage {
+		return nil
+	}
+	line := w.lineOf(cr.Name)
+	at := -1
+	for i, p := range line {
+		if p == from {
+			at = i
+			break
+		}
+	}
+	if len(line) == 0 {
+		return fmt.Errorf("%s may not dispatch %s: its doc (%s) names no Reports to, so its line is unknown — only rimuru may commission it until its doc names its one hop up", from, cr.Name, or(cr.Doc, "none"))
+	}
+	if at < 0 {
+		return fmt.Errorf("%s is not in your line: it reports to %s (%s → %s) — %s commissions it; carry the need up with @? so the line above routes it there (tools.dispatch.lineage)", cr.Name, line[0], cr.Name, strings.Join(line, " → "), line[0])
+	}
+	if opt.StrictFlow && at > 0 {
+		return fmt.Errorf("%s reports to %s, not to you: strict flow crosses one rung at a time — commission %s and let it order %s", cr.Name, line[0], line[0], cr.Name)
+	}
+	return nil
+}
+
+// verifyCodedNow reads the creature's doc fresh off disk: a verify line written earlier in this
+// very turn counts at the TDD check (the roster's copy is as old as its last reload).
+func (w *World) verifyCodedNow(cr *Creature) bool {
+	if cr.Doc != "" {
+		if b, err := os.ReadFile(filepath.Join(w.Root, filepath.FromSlash(cr.Doc))); err == nil {
+			fresh := Creature{Verify: VerifyOf(string(b))}
+			return fresh.VerifyCoded()
+		}
+	}
+	return cr.VerifyCoded()
+}
+
 func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 	return func(ctx context.Context, env tool.Env, c tool.Commission) (tool.DispatchReport, error) {
 		body := strings.ToLower(strings.TrimSpace(c.Body))
 		cr := w.Creature(body)
 		if cr == nil {
-			return tool.DispatchReport{}, fmt.Errorf("no body named %q on the roster (%s/{%s}/<name>/) — a Court is minted for a rank, never generic. Dispatchable from here: %s", body, w.Lex.WorldDir, strings.Join(rankDirs(w.Ranks), ","), w.stratTargets(parent))
+			return tool.DispatchReport{}, fmt.Errorf("no body named %q on the roster (%s/{%s}/<name>/) — a Court is minted for a rank, never generic. Dispatchable from here: %s", body, w.Lex.WorldDir, strings.Join(rankDirs(w.Ranks), ","), w.stratTargets(parent, b.Court))
 		}
 		me := w.RankOf(parent.As)
-		if me.Name != Rimuru && !w.Ranks.Below(cr.Rank, me.Name) && !(me.Sideways && cr.Rank == me.Name) {
-			return tool.DispatchReport{}, fmt.Errorf("%s (%s) may not dispatch %s (%s): work goes down the ranks, never up or sideways (Law 2) — escalate with @? instead. Dispatchable from you: %s", parent.As, me.Name, cr.Name, cr.Rank, w.stratTargets(parent))
-		}
-		// strictLayer: the ladder is climbed one rung at a time — a body hands work to the rank
-		// directly (one hop) below it, never skipping a layer; sideways per the rank's Sideways.
-		// rimuru is exempt above (it dispatches the elf; with strictFlow it may reach only its
-		// direct children — enforced here too, never skipped into a domain).
-		if b.Court.StrictFlow && !w.Ranks.DirectChild(me.Name, cr.Rank) {
-			return tool.DispatchReport{}, fmt.Errorf("%s (%s) may not dispatch %s (%s) under strict layer flow: work crosses one layer at a time — hand it to the rank directly below (%s), and the neighbor knows its own", parent.As, me.Name, cr.Name, cr.Rank, w.firstChildLine(me.Name))
+		// the rank law, strict flow and the lineage (mayDispatch); a refusal names who may
+		// lawfully be ordered from here
+		if err := w.mayDispatch(parent.As, cr, b.Court); err != nil {
+			return tool.DispatchReport{}, fmt.Errorf("%v. Dispatchable from you: %s", err, w.stratTargets(parent, b.Court))
 		}
 		// Orc TDD as code (Law 3 + Veldora decree 2026-09-30): a gate holder dispatching an
 		// authoring slime must first have coded that slime's verify lines on its README — the
@@ -286,7 +355,7 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		{
 			targetRank, _ := w.Ranks.Get(cr.Rank)
 			meRank, _ := w.Ranks.Get(me.Name)
-			if targetRank.Authors && meRank.HoldsGate && !cr.VerifyCoded() {
+			if targetRank.Authors && meRank.HoldsGate && !w.verifyCodedNow(cr) {
 				return tool.DispatchReport{}, fmt.Errorf("%s (%s) has no Verify line coded — the orc writes the slime's verdict BEFORE the order (TDD per Law 3, Veldora decree 2026-09-30). Add a non-trivial line in %s (front-matter verify:, or a `- `<cmd>`` bullet under ## Verify), then dispatch again", cr.Name, cr.Rank, cr.Doc)
 			}
 		}
@@ -466,8 +535,21 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		}
 		w.courtGated(parent, body, rep.Wrote)
 		// the tally grows before the return: the ranking body's report is its record, and an
-		// ascension may mint off it
-		w.FoldMetrics(body, string(r.Status), len(r.Holes))
+		// ascension may mint off it. A pass is a landed run the body itself calls DONE: its own
+		// @S FAIL / ESCALATE overrides a clean loop status.
+		status := string(r.Status)
+		if v := verdictOf(r); v != "" && v != "DONE" {
+			status = v
+		}
+		w.FoldMetrics(cr.Name, status, len(r.Holes)) // the roster's name: a short or old name folds into one record
+		if lines := w.ascendLines(); len(lines) > 0 {
+			note := strings.Join(lines, "\n")
+			if rep.ReportPath != "" {
+				rep.Text = note + "\n" + rep.Text // the envelope's digest shows the head: lead with it
+			} else {
+				rep.Text += "\n" + note
+			}
+		}
 		return rep, nil
 	}
 }

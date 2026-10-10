@@ -66,11 +66,11 @@ func TestRankTable(t *testing.T) {
 // two authoring ranks under that, and an auditor beside — config's `rankSet: replace`.
 func customRanks() Ranks {
 	return Ranks{
-		{Name: "lead", ReportsTo: Rimuru, Job: "coordinates", Body: "court", Office: "ciel", Tools: AllTools, Dir: "lead", Prefix: "lead-"},
-		{Name: "keeper", ReportsTo: "lead", Job: "holds the gate", HoldsGate: true, Body: "court", Office: "raphael", Tools: AllTools, Dir: "keeper", Prefix: "keeper-"},
-		{Name: "coder", ReportsTo: "keeper", Job: "authors code", Authors: true, Body: "court", Office: "great-sage", Tools: baseTools, Dir: "coder", Prefix: "coder-"},
-		{Name: "writer", ReportsTo: "keeper", Job: "authors docs", Authors: true, Body: "court", Office: "ciel", Tools: baseTools, Dir: "writer", Prefix: "writer-"},
-		{Name: "auditor", ReportsTo: Rimuru, Job: "reads verdicts", Body: "keeper", Office: "raphael", Tools: []string{"read", "grep", "glob", "law"}, Dir: "auditor", Prefix: "auditor-"},
+		{Name: "lead", ReportsTo: Rimuru, Job: "coordinates", Office: "ciel", Tools: AllTools, Dir: "lead", Prefix: "lead-"},
+		{Name: "keeper", ReportsTo: "lead", Job: "holds the gate", HoldsGate: true, Office: "raphael", Tools: AllTools, Dir: "keeper", Prefix: "keeper-"},
+		{Name: "coder", ReportsTo: "keeper", Job: "authors code", Authors: true, Office: "great-sage", Tools: baseTools, Dir: "coder", Prefix: "coder-"},
+		{Name: "writer", ReportsTo: "keeper", Job: "authors docs", Authors: true, Office: "ciel", Tools: baseTools, Dir: "writer", Prefix: "writer-"},
+		{Name: "auditor", ReportsTo: Rimuru, Job: "reads verdicts", Office: "raphael", Tools: []string{"read", "grep", "glob", "law"}, Dir: "auditor", Prefix: "auditor-"},
 	}
 }
 

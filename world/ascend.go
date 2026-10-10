@@ -1,9 +1,12 @@
 package world
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -13,82 +16,158 @@ import (
 // Ascension is the coded answer to "an orc with experience evolves": a rank declares
 // ascendsWhen (ASL), the world keeps a MetricsStore that every Court report folds into, and
 // after each fold the world evaluates the divine bonds. A base body whose snapshot crosses the
-// condition is ascended: the harness mints the ascended body — its doc lands on disk under the
-// base's dir, the roster gains it — without a prompt, without the body asking. rankSet: replace
-// still governs which ranks exist; ascendsWhen is what config adds to an ascended rank so the
-// world knows the bond is lived, not just declared.
+// condition ascends: the harness mints the ascended body in the ascended rank's own dir under
+// the base's short name (orc-engine → high-orc-engine), carrying the base's doc whole — every
+// trait, territory, verify line and Mind (ISEKAI.md Nature 5: "an ascended creature keeps every
+// trait and territory it held before") — and retires the base's seat, so one body holds the
+// soil and territories stay disjoint. The retired seat keeps its graph memory; creatures that
+// reported to it now report to its ascendant (the roster resolves the succession).
+//
+// Each report folds into an append-only tally (`<worldDir>/instruments/ascension.jsonl`)
+// replayed at Open, so a record earned over many sessions counts. Each ascension is appended
+// to log.md with the reading that earned it; each failure is a hole, logged and surfaced to
+// the dispatcher as `@?`.
 //
 // Nothing here reads a prompt. Evaluation is the ASL condition over the tally, deterministic;
 // the mint and the doc write are the world's own.
 
+// ascensionShelf is the tally's ledger under the world dir.
+const ascensionShelf = "instruments/ascension.jsonl"
+
 // ascender is one resolved divine bond the world watches.
 type ascender struct {
-	To   Rank            // the ascended rank (holds AscendsWhen)
-	ASL  ASL             // its parsed condition
-	Done map[string]bool // bodies already ascended this session — mint once
+	To  Rank // the ascended rank (holds AscendsWhen)
+	ASL ASL  // its parsed condition
 }
 
-// ascendState is World's ascension machinery, guarded by the world lock.
+// ascendState is World's ascension machinery, guarded by its own lock.
 type ascendState struct {
 	mu      sync.Mutex
 	metrics *MetricsStore
 	watch   map[string]ascender // base rank → what ascends from it
-	Events  []AscendEvent       // the ledger of ascensions this session
-	holes   []string            // mint failures, surfaced at Close as an error
+	done    map[string]bool     // base bodies already ascended (replayed from the shelf)
+	Events  []AscendEvent       // the ascensions of this session
+	news    []AscendEvent       // minted, not yet announced to a dispatcher
+	holes   []string            // mint failures, drained by AscendHoles
 }
 
-// AscendEvent is one minted ascension, journaled so the log can say what happened.
+// AscendEvent is one minted ascension.
 type AscendEvent struct {
-	Base  string    // the ranking body (orc-auth)
-	New   string    // the ascended body (high-orc-auth)
-	Rank  string    // the ascended rank (high_orc)
-	When  string    // the ASL condition, as config wrote it
+	Base  string    `json:"base"` // the ranking body (orc-auth)
+	New   string    `json:"new"`  // the ascended body (high-orc-auth)
+	Rank  string    `json:"rank"` // the ascended rank (high_orc)
+	When  string    `json:"when"` // the ASL condition, as config wrote it
 	At    time.Time `json:"at"`
-	Doc   string    // the doc the harness wrote for the new body
-	MetAt string    // the snapshot line that crossed the condition
+	Doc   string    `json:"doc"` // the doc the harness wrote for the new body
+	MetAt string    `json:"met"` // the snapshot line that crossed the condition
 }
 
-// ascendState builds the watch list from the rank table, or nil when no rank ascends.
+// tallyRow is one line of the ascension shelf: a report folded, or an ascension minted.
+type tallyRow struct {
+	Kind   string    `json:"kind"` // report | ascend
+	Body   string    `json:"body"`
+	Status string    `json:"status,omitempty"`
+	Holes  int       `json:"holes,omitempty"`
+	New    string    `json:"new,omitempty"`
+	At     time.Time `json:"at"`
+}
+
+// newAscendState builds the watch list from the rank table, or nil when no rank ascends.
 func newAscendState(rs Ranks) *ascendState {
 	as := rs.Ascensions()
 	if len(as) == 0 {
 		return nil
 	}
-	st := &ascendState{metrics: NewMetricsStore(), watch: map[string]ascender{}}
+	st := &ascendState{metrics: NewMetricsStore(), watch: map[string]ascender{}, done: map[string]bool{}}
 	for _, a := range as {
 		cond, err := ParseASL(a.When)
 		if err != nil { // Validate has already refused this; belt and braces
 			continue
 		}
 		to, _ := rs.Get(a.To)
-		st.watch[a.From] = ascender{To: to, ASL: cond, Done: map[string]bool{}}
+		st.watch[a.From] = ascender{To: to, ASL: cond}
 	}
 	return st
 }
 
-// FoldMetrics counts one Court report and runs the ascension pass. The parent body is who gets
-// the tally (the ranking body is the dispatcher's *target* — but the target filed the report,
-// so its own record grows; ascension reads the target's rank, never the dispatcher's).
+// tallyNote appends one row to the shelf (callers hold ascend.mu, so the file's order is the
+// tally's order).
+func (w *World) tallyNote(r tallyRow) {
+	if r.At.IsZero() {
+		r.At = time.Now().UTC()
+	}
+	b, err := json.Marshal(r)
+	if err != nil {
+		return
+	}
+	p := filepath.Join(w.Dir(), filepath.FromSlash(ascensionShelf))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return
+	}
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.Write(append(b, '\n'))
+}
+
+// loadTally replays the shelf: every report folds again, every ascension marks its base done.
+// An unreadable shelf opens the world with an empty tally, never blocks it.
+func (w *World) loadTally() {
+	if w.ascend == nil {
+		return
+	}
+	f, err := os.Open(filepath.Join(w.Dir(), filepath.FromSlash(ascensionShelf)))
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 16<<20)
+	w.ascend.mu.Lock()
+	defer w.ascend.mu.Unlock()
+	for sc.Scan() {
+		var r tallyRow
+		if json.Unmarshal(sc.Bytes(), &r) != nil || r.Body == "" {
+			continue
+		}
+		switch r.Kind {
+		case "report":
+			w.ascend.metrics.Fold(r.Body, r.Status, r.Holes)
+		case "ascend":
+			w.ascend.done[r.Body] = true
+		}
+	}
+}
+
+// FoldMetrics counts one Court report — on the shelf and in memory — and runs the ascension
+// pass. The tally belongs to the body that filed the report; ascension reads its rank, never
+// the dispatcher's.
 func (w *World) FoldMetrics(body, status string, holes int) {
 	if w.ascend == nil {
 		return
 	}
 	w.ascend.mu.Lock()
 	w.ascend.metrics.Fold(body, status, holes)
+	w.tallyNote(tallyRow{Kind: "report", Body: body, Status: status, Holes: holes})
 	w.ascend.mu.Unlock()
 	w.ascendMaybe(body)
 }
 
-// ascendMaybe evaluates every divine bond against the body's rank. It mints at most one
-// ascension per base body per session; the event is journaled and the roster reloaded.
+// ascendMaybe evaluates the divine bond over the body's rank. A body ascends once: the shelf
+// and the roster (a live creature naming it as its base) both remember.
 func (w *World) ascendMaybe(body string) {
 	if w.ascend == nil {
 		return
 	}
-	w.ascend.mu.Lock()
 	rank := w.RankOf(body).Name
+	if w.successorOf(body) != "" {
+		return
+	}
+	w.ascend.mu.Lock()
 	watcher, ok := w.ascend.watch[rank]
-	if !ok || watcher.Done[body] {
+	if !ok || w.ascend.done[body] {
 		w.ascend.mu.Unlock()
 		return
 	}
@@ -98,107 +177,150 @@ func (w *World) ascendMaybe(body string) {
 		return
 	}
 	// the crossing is real: mark before the write so a reload cannot double-mint
-	watcher.Done[body] = true
-	w.ascend.watch[rank] = watcher
+	w.ascend.done[body] = true
 	w.ascend.mu.Unlock()
 
-	newName, ev, err := w.mintAscended(body, watcher, m)
+	ev, err := w.mintAscended(body, watcher, m)
 	if err != nil {
-		w.ascend.mu.Lock()
-		w.ascend.holes = append(w.ascend.holes, fmt.Sprintf("ascend %s: %v", body, err))
-		w.ascend.mu.Unlock()
+		w.ascendHole(body, watcher, fmt.Sprintf("ascend %s: %v", body, err))
 		return
 	}
 	w.ascend.mu.Lock()
-	ev.At = time.Now()
 	w.ascend.Events = append(w.ascend.Events, ev)
+	w.ascend.news = append(w.ascend.news, ev)
+	w.tallyNote(tallyRow{Kind: "ascend", Body: body, New: ev.New, At: ev.At})
 	w.ascend.mu.Unlock()
-	// the ascended body must be dispatchable on the next commission: re-derive the roster so
-	// creaturesOf reads the minted doc through the ontology, body consistent with the others.
+	if err := w.AppendLog(Entry{At: ev.At, Author: ev.New, Title: fmt.Sprintf("ascension — %s rose as %s", body, ev.New),
+		Task:    "ascendsWhen `" + ev.When + "`",
+		Files:   []string{ev.Doc, w.docOf(body)},
+		Gate:    "n/a (minted by the harness; no body wrote it)",
+		Result:  fmt.Sprintf("%s (%s) holds %s's territory, traits and verify; %s's seat retired", ev.New, ev.Rank, body, body),
+		Learned: []string{"earned: " + ev.MetAt}}); err != nil {
+		w.ascendHole(body, watcher, fmt.Sprintf("ascend %s: log.md: %v", body, err))
+	}
+	// the ascended body must be dispatchable on the next commission and the base must leave
+	// the roster: re-derive it from the docs
 	if err := w.Reload(); err != nil {
-		w.ascend.mu.Lock()
-		w.ascend.holes = append(w.ascend.holes, fmt.Sprintf("reload %s: %v", newName, err))
-		w.ascend.mu.Unlock()
+		w.ascendHole(body, watcher, fmt.Sprintf("reload after %s: %v", ev.New, err))
 	}
 }
 
-// mintAscended names the ascended body, writes its doc beside the base's, and reloads the
-// roster so the new creature is dispatchable. The doc is the harness's own — a record of the
-// ascension, never the base's doc edited.
-func (w *World) mintAscended(base string, a ascender, m Metrics) (string, AscendEvent, error) {
-	baseC := w.Creature(base)
-	if baseC == nil {
-		return "", AscendEvent{}, fmt.Errorf("no creature %q on the roster", base)
+// ascendHole records one failure: drained by AscendHoles for the dispatcher, and appended to
+// log.md so the record names it even when no dispatcher reads it.
+func (w *World) ascendHole(body string, a ascender, msg string) {
+	w.ascend.mu.Lock()
+	w.ascend.holes = append(w.ascend.holes, msg)
+	w.ascend.mu.Unlock()
+	_ = w.AppendLog(Entry{Author: body, Title: "ascension hole — " + body, Task: "ascendsWhen `" + a.ASL.String() + "`",
+		Gate: "n/a (the harness's own act)", Result: "hole: " + msg})
+}
+
+// docOf is a creature's doc path, "" when it is not on the roster.
+func (w *World) docOf(name string) string {
+	if c := w.Creature(name); c != nil {
+		return c.Doc
 	}
-	// the ascended id: the ascended rank's prefix + the base's short name, in its dir
-	short := base
-	for _, p := range []string{baseC.Rank + "-", a.To.Base + "-"} {
-		short = strings.TrimPrefix(short, p)
-	}
-	prefix := a.To.Prefix
-	if prefix == "" && a.To.Base != "" {
-		if br, ok := w.Ranks.Get(a.To.Base); ok {
-			prefix = br.Prefix
+	return ""
+}
+
+// successorOf names the live creature that ascended from `base`, "" when none.
+func (w *World) successorOf(base string) string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, c := range w.Creatures {
+		if c.AscendantOf == base {
+			return c.Name
 		}
 	}
-	newName := prefix + short
+	return ""
+}
+
+// mintAscended writes the ascended body's doc in the ascended rank's own dir — the base's doc
+// carried whole under the new name, with the bond and the reading that earned it — then retires
+// the base's seat. The base retires only once the new doc stands, so a failed mint never
+// orphans the territory.
+func (w *World) mintAscended(base string, a ascender, m Metrics) (AscendEvent, error) {
+	baseC := w.Creature(base)
+	if baseC == nil {
+		return AscendEvent{}, fmt.Errorf("no creature %q on the roster", base)
+	}
+	if baseC.Doc == "" {
+		return AscendEvent{}, fmt.Errorf("%s carries no doc to ascend with", base)
+	}
+	baseRank, _ := w.Ranks.Get(baseC.Rank)
+	if a.To.Dir == "" || a.To.Prefix == "" || a.To.Dir == baseRank.Dir || a.To.Prefix == baseRank.Prefix {
+		return AscendEvent{}, fmt.Errorf("rank %s needs a dir and prefix of its own (ranks.%s.dir / .prefix) — on %s's the ascended name would be the base's", a.To.Name, strings.ReplaceAll(a.To.Name, "_", "-"), baseRank.Name)
+	}
+	short := strings.TrimPrefix(base, baseRank.Prefix)
+	newName := a.To.Prefix + short
 	if w.Creature(newName) != nil {
-		return "", AscendEvent{}, fmt.Errorf("%q is already on the roster", newName)
+		return AscendEvent{}, fmt.Errorf("%q is already on the roster", newName)
 	}
-	dir := a.To.Dir
-	if dir == "" {
-		dir = baseC.Dir
-	}
-	// the folder is the base's short name; in the ascended rank's own dir there is no
-	// collision. When the ascended shares the base's dir, the README would land on the base's
-	// own doc — the stat below refuses rather than overwrite.
-	docRel := filepath.ToSlash(filepath.Join(w.Lex.WorldDir, dir, short, "README.md"))
+	docRel := filepath.ToSlash(filepath.Join(w.Lex.WorldDir, a.To.Dir, short, "README.md"))
 	abs := filepath.Join(w.Root, filepath.FromSlash(docRel))
 	if _, err := os.Stat(abs); err == nil {
-		return "", AscendEvent{}, fmt.Errorf("%s already stands on disk", docRel)
+		return AscendEvent{}, fmt.Errorf("%s already stands on disk", docRel)
+	}
+	text, err := os.ReadFile(filepath.Join(w.Root, filepath.FromSlash(baseC.Doc)))
+	if err != nil {
+		return AscendEvent{}, err
 	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-		return "", AscendEvent{}, err
+		return AscendEvent{}, err
 	}
-	metAt := fmt.Sprintf("reports %d passes %d fails %d holes %d passRate %.0f%%",
-		m.Reports, m.Passes, m.Fails, m.Holes, m.rate(m.Passes))
-	doc := ascendDoc(newName, a.To, base, watcherWhen(a), metAt, rankParentOf(w.Ranks, a.To.Name, base))
-	if err := os.WriteFile(abs, []byte(doc), 0o644); err != nil {
-		return "", AscendEvent{}, err
+	now := time.Now().UTC()
+	date := now.Format("2006-01-02")
+	metAt := fmt.Sprintf("reports %d, passes %d, fails %d, holes %d, passRate %.0f%%, holeRate %.0f%%",
+		m.Reports, m.Passes, m.Fails, m.Holes, m.rate(m.Passes), m.rate(m.Holes))
+	when := a.ASL.String()
+	if err := os.WriteFile(abs, []byte(ascendDoc(string(text), newName, a.To, base, when, metAt, date)), 0o644); err != nil {
+		return AscendEvent{}, err
 	}
-	ev := AscendEvent{Base: base, New: newName, Rank: a.To.Name, When: watcherWhen(a), Doc: docRel, MetAt: metAt}
-	return newName, ev, nil
+	if err := w.retireDocWhy(baseC, "ascended "+date+": the body rose as "+newName+", its territory and traits with it"); err != nil {
+		_ = os.Remove(abs) // the base still holds the soil: the half-minted ascendant goes
+		return AscendEvent{}, fmt.Errorf("retiring %s: %v", base, err)
+	}
+	return AscendEvent{Base: base, New: newName, Rank: a.To.Name, When: when, At: now, Doc: docRel, MetAt: metAt}, nil
 }
 
-// ascendDoc is the body card the harness mints for an ascension — the world's words, carrying
-// the rank, the territory it inherits, the bond to its base, and why it rose.
-func ascendDoc(name string, to Rank, base, when, metAt, parent string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "# %s\n\n", name)
-	fmt.Fprintf(&b, "- **Rank:** %s (ascended %s)\n", to.Name, to.Base)
-	fmt.Fprintf(&b, "- **Territory:** inherits the base's — the ascended keeps everything %s held\n", to.Base)
-	fmt.Fprintf(&b, "- **Ascendant of:** `%s`\n", base)
-	fmt.Fprintf(&b, "- **Purpose:** %s\n", or(to.Job, "the distilled shape of its base's experience"))
-	fmt.Fprintf(&b, "\n## Ascension\n\n")
-	fmt.Fprintf(&b, "- **Condition:** `%s`\n- **Crossed at:** %s\n", when, metAt)
-	if parent != "" {
-		fmt.Fprintf(&b, "\n## Bond\n\n- **Above:** `%s`\n", parent)
+var (
+	reH1     = regexp.MustCompile(`(?m)^#[ \t]+.*$`)
+	reRankLn = regexp.MustCompile(`(?mi)^[ \t]*[-*][ \t]*\*\*rank:?\*\*:?.*$`)
+	reAscOf  = regexp.MustCompile("(?mi)^[ \\t]*[-*][ \\t]*\\*\\*ascendant of:?\\*\\*:?[ \\t]*`?([a-z0-9][a-z0-9_-]*)`?")
+)
+
+// ascendDoc is the ascended body's card: the base's doc carried whole — identity renamed, the
+// rank line naming the ascended rank, the bond to the base — and an Ascension section with the
+// condition and the reading that crossed it.
+func ascendDoc(base, name string, to Rank, from, when, metAt, date string) string {
+	doc := base
+	if loc := reH1.FindStringIndex(doc); loc != nil {
+		doc = doc[:loc[0]] + "# " + name + doc[loc[1]:]
+	} else {
+		doc = "# " + name + "\n\n" + doc
 	}
-	return b.String()
+	bond := fmt.Sprintf("- **Rank:** %s\n- **Ascendant of:** `%s` — ascended %s; its territory, traits and verify carried whole", to.Name, from, date)
+	if loc := reRankLn.FindStringIndex(doc); loc != nil {
+		doc = doc[:loc[0]] + bond + doc[loc[1]:]
+	} else if loc := reH1.FindStringIndex(doc); loc != nil {
+		doc = doc[:loc[1]] + "\n\n" + bond + doc[loc[1]:]
+	}
+	if !strings.HasSuffix(doc, "\n") {
+		doc += "\n"
+	}
+	doc += fmt.Sprintf("\n## Ascension\n\n- **Condition:** `%s`\n- **Crossed at:** %s\n- **Date:** %s\n", when, metAt, date)
+	return doc
 }
 
-// rankParentOf names the ascended body's one-hop-up — the ascended rank's own reportsTo,
-// falling back to the base body it ascended from when config left the rank's parent blank.
-func rankParentOf(rs Ranks, ascendedRank, base string) string {
-	if r, ok := rs.Get(ascendedRank); ok && r.ReportsTo != "" {
-		return r.ReportsTo
+// ascendantOf reads the base a creature's doc says it ascended from ("" for none).
+func ascendantOf(doc string) string {
+	if m := reAscOf.FindStringSubmatch(doc); m != nil {
+		return strings.ToLower(m[1])
 	}
-	return base
+	return ""
 }
 
-func watcherWhen(a ascender) string { return a.ASL.String() }
-
-// Ascensions is the session's ledger of minted ascensions (the log sink reads it).
+// Ascensions is the session's ledger of minted ascensions.
 func (w *World) Ascensions() []AscendEvent {
 	if w.ascend == nil {
 		return nil
@@ -210,7 +332,19 @@ func (w *World) Ascensions() []AscendEvent {
 	return out
 }
 
-// AscendHoles drains the ascension failures so a whole-world error surface can report them.
+// AscendNews drains the ascensions minted since the last call — the dispatcher announces them.
+func (w *World) AscendNews() []AscendEvent {
+	if w.ascend == nil {
+		return nil
+	}
+	w.ascend.mu.Lock()
+	defer w.ascend.mu.Unlock()
+	out := w.ascend.news
+	w.ascend.news = nil
+	return out
+}
+
+// AscendHoles drains the ascension failures — the dispatcher surfaces them as `@?`.
 func (w *World) AscendHoles() []string {
 	if w.ascend == nil {
 		return nil
@@ -219,6 +353,19 @@ func (w *World) AscendHoles() []string {
 	defer w.ascend.mu.Unlock()
 	out := append([]string(nil), w.ascend.holes...)
 	w.ascend.holes = nil
+	return out
+}
+
+// ascendLines renders what the last fold did for the dispatcher's report: each ascension
+// announced, each hole as `@?`.
+func (w *World) ascendLines() []string {
+	var out []string
+	for _, ev := range w.AscendNews() {
+		out = append(out, fmt.Sprintf("[ascension] %s rose as %s (%s): %s — its territory, traits and verify carried whole; %s's seat retired; dispatch %s from now on (log.md)", ev.Base, ev.New, ev.Rank, ev.MetAt, ev.Base, ev.New))
+	}
+	for _, h := range w.AscendHoles() {
+		out = append(out, "@? ascension hole — "+h)
+	}
 	return out
 }
 

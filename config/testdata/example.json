@@ -115,7 +115,6 @@
       "reportsTo": "orc",
       "job": "keeps the world's changelog",
       "authors": true,
-      "body": "court",
       "office": "ciel",
       "tools": ["read", "write", "edit", "git"]
     }

@@ -164,6 +164,27 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **Ascension happens.** The high elf and the high orc ascend by default on a long, clean record —
+  `reports >= 20 && passRate >= 90% && holeRate <= 10%` (`ranks.high-elf.ascendsWhen`,
+  `ranks.high-orc.ascendsWhen`; `""` turns it off). An ascended rank lives in its own dir and
+  prefix (`.isekai/high-orc/<name>/`, `high-orc-<name>`; agent-one `principal-domain-`), so the
+  mint no longer collides with its base. The body rises whole: its doc, territory, traits and
+  verify are carried into the new seat, the base's seat retires, and the creatures that reported to
+  it now report to its ascendant, which commands them. Each ascension is appended to `log.md` with
+  the metrics that earned it and announced on the dispatcher's report; a failed mint is logged and
+  reaches the dispatcher as `@?`. The tally is an append-only ledger
+  (`.isekai/instruments/ascension.jsonl`) replayed at start, so a record counts across sessions,
+  and a body's own `@S FAIL` is never counted as a pass.
+- **Dispatch follows the line.** An orc orders only its own slimes, an elf only its own orcs —
+  the creatures whose `Reports to` chain reaches it; a commission to another line's creature is
+  refused naming the parent that commissions it. `tools.dispatch.lineage: false` restores the
+  rank-only law.
+- **The kijin holds no dispatch.** A rank no other rank reports to (and not sideways) is never
+  handed the dispatch tool, whatever its tools list says.
+- **A rank's job reaches its body.** The `job` line rides the creature card in the system prompt.
+  `ranks.<r>.body` is gone from the rank table — every body runs as a Court — and a configured
+  value is reported as an ignored key.
+
 - **The law reads the same on every host.** `ISEKAI.md` names instruments (the context reading,
   memory, toolbox, the loop) and maps them once to each host — the binary's commands, or the JS
   tools and `/don`·`/mint` of a Claude Code or OpenCode world. Three contradictions resolved: the
@@ -175,6 +196,9 @@ All notable changes to Isekai are recorded here. The format follows
   names the missing key and the rerun, and does not start a founding session it cannot finish.
 
 ### Fixed
+
+- **The orc's verify check reads the slime's doc fresh.** A verify line the orc wrote earlier in
+  the same turn now counts when it dispatches the slime.
 
 - **The dashboard's folder tree loads again.** It read the root level's entries under `nodes`
   while `/api/tree/children` answers `children`, so the tree always said "no tree source".

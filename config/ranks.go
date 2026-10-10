@@ -13,7 +13,7 @@ type RankDef struct {
 	Job         string   `json:"job"`
 	Authors     *bool    `json:"authors"`
 	HoldsGate   *bool    `json:"holdsGate"`
-	Body        string   `json:"body"` // court | keeper
+	Body        string   `json:"body"` // read by nothing: every dispatched body is a Court (a set value is a hole)
 	Office      string   `json:"office"`
 	Tools       []string `json:"tools"` // globs over tool names
 	Model       ModelRef `json:"model"`
@@ -33,7 +33,6 @@ type Rank struct {
 	Job         string
 	Authors     bool
 	HoldsGate   bool
-	Body        string
 	Office      string
 	Tools       []string
 	Model       ModelRef
@@ -51,15 +50,24 @@ type Rank struct {
 // RootRank is the session's rank: the tree's root, never configured.
 const RootRank = "rimuru"
 
+// The default ascension conditions: a long record (twenty reports), nearly all landed (a pass rate
+// of 90% or more), nearly none leaving a hole (at most one per ten reports). world.DefaultRanks
+// carries the same strings; `ranks.high-elf.ascendsWhen` / `ranks.high-orc.ascendsWhen` override
+// them, and an empty string turns ascension off.
+const (
+	DefaultAscendElf = "ascend elf when reports >= 20 && passRate >= 90% && holeRate <= 10%"
+	DefaultAscendOrc = "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"
+)
+
 // builtinRanks is isekai.md §The world as data.
 var builtinRanks = []Rank{
-	{Name: "elf", ReportsTo: "rimuru", Job: "the shared mind and voice: thinks across domains, routes work to orcs, speaks back up", Body: "court", Office: "ciel", Tools: []string{"*"}, Dir: "elf", Prefix: "elf-"},
-	{Name: "orc", ReportsTo: "elf", Job: "rules its domain, holds the gate, commands and validates its slimes", HoldsGate: true, Sideways: true, Body: "court", Office: "raphael", Tools: []string{"*"}, Dir: "orc", Prefix: "orc-"},
-	{Name: "slime", ReportsTo: "orc", Job: "the ground truth of its zone; authors changes there", Authors: true, Body: "court", Office: "great-sage", Tools: []string{"*"}, Dir: "slime", Prefix: "slime-"},
-	{Name: "kijin", ReportsTo: "rimuru", Job: "a standing domain lead owning one subsystem end-to-end across sessions", Authors: true, HoldsGate: true, Body: "keeper", Office: "raphael", Tools: []string{"*"}, Dir: "kijin", Prefix: "kijin-"},
-	{Name: "high-elf", AscendsFrom: "elf", Job: "ascended elf: holds the accumulated cross-domain traits"},
-	{Name: "high-orc", AscendsFrom: "orc", Job: "ascended orc: holds the accumulated domain traits"},
-	{Name: "dark-elf", ReportsTo: "rimuru", Job: "the auditor: reviews gate verdicts and log.md for law violations; never authors", Body: "court", Office: "raphael", Tools: []string{"read", "glob", "grep", "ls", "recall", "onto", "toolbox", "git", "ask"}, Dir: "dark-elf", Prefix: "dark-elf-"},
+	{Name: "elf", ReportsTo: "rimuru", Job: "the shared mind and voice: thinks across domains, routes work to orcs, speaks back up", Office: "ciel", Tools: []string{"*"}, Dir: "elf", Prefix: "elf-"},
+	{Name: "orc", ReportsTo: "elf", Job: "rules its domain, holds the gate, commands and validates its slimes", HoldsGate: true, Sideways: true, Office: "raphael", Tools: []string{"*"}, Dir: "orc", Prefix: "orc-"},
+	{Name: "slime", ReportsTo: "orc", Job: "the ground truth of its zone; authors changes there", Authors: true, Office: "great-sage", Tools: []string{"*"}, Dir: "slime", Prefix: "slime-"},
+	{Name: "kijin", ReportsTo: "rimuru", Job: "a standing domain lead owning one subsystem end-to-end across sessions", Authors: true, HoldsGate: true, Office: "raphael", Tools: []string{"*"}, Dir: "kijin", Prefix: "kijin-"},
+	{Name: "high-elf", AscendsFrom: "elf", Job: "ascended elf: holds the accumulated cross-domain traits", Dir: "high-elf", Prefix: "high-elf-", AscendsWhen: DefaultAscendElf},
+	{Name: "high-orc", AscendsFrom: "orc", Job: "ascended orc: holds the accumulated domain traits", Dir: "high-orc", Prefix: "high-orc-", AscendsWhen: DefaultAscendOrc},
+	{Name: "dark-elf", ReportsTo: "rimuru", Job: "the auditor: reviews gate verdicts and log.md for law violations; never authors", Office: "raphael", Tools: []string{"read", "glob", "grep", "ls", "recall", "onto", "toolbox", "git", "ask"}, Dir: "dark-elf", Prefix: "dark-elf-"},
 }
 
 // RankNames lists the built-in ranks in law order.
@@ -114,7 +122,11 @@ func (c *Config) buildRanks() error {
 		set("job", func() { r.Job = def.Job })
 		set("authors", func() { r.Authors = *def.Authors })
 		set("holdsGate", func() { r.HoldsGate = *def.HoldsGate })
-		set("body", func() { r.Body = def.Body })
+		if _, ok := c.Origins["ranks."+name+".body"]; ok {
+			// a persistent body does not exist: every dispatched body is a Court with a fresh
+			// context, a kijin's included — the field is accepted and named a hole, never obeyed
+			c.Holes = append(c.Holes, fmt.Sprintf("ranks.%s.body is ignored — every dispatched body runs as a Court with a fresh context (%s)", name, c.Where("ranks."+name+".body")))
+		}
 		set("office", func() { r.Office = def.Office })
 		set("tools", func() { r.Tools = def.Tools })
 		set("model", func() { r.Model = def.Model })
@@ -125,9 +137,6 @@ func (c *Config) buildRanks() error {
 		set("layer", func() { r.Layer = def.Layer })
 		set("divineRules", func() { r.DivineRules = def.DivineRules })
 		set("ascendsWhen", func() { r.AscendsWhen = def.AscendsWhen })
-		if def.Body != "" && def.Body != "court" && def.Body != "keeper" {
-			return fmt.Errorf("%s: ranks.%s.body: %q is not court or keeper", c.Where("ranks."+name+".body"), name, def.Body)
-		}
 		// models.ranks.<r> and ranks.<r>.model are one slot.
 		if mr, ok := c.Models.Ranks[name]; ok && def.Model.Model != "" && mr.Model != def.Model.Model {
 			return fmt.Errorf("%s: ranks.%s.model %q conflicts with models.ranks.%s %q (%s) — one slot, one value",
@@ -158,11 +167,8 @@ func (c *Config) buildRanks() error {
 		inherit("authors", func() { r.Authors = base.Authors })
 		inherit("holdsGate", func() { r.HoldsGate = base.HoldsGate })
 		inherit("sideways", func() { r.Sideways = base.Sideways })
-		inherit("body", func() { r.Body = base.Body })
 		inherit("office", func() { r.Office = base.Office })
 		inherit("tools", func() { r.Tools = base.Tools })
-		inherit("dir", func() { r.Dir = base.Dir })
-		inherit("prefix", func() { r.Prefix = base.Prefix })
 		inherit("model", func() { r.Model = base.Model })
 		inherit("layer", func() { r.Layer = base.Layer })
 		for f, dropped := range map[string]bool{"authors": base.Authors && !r.Authors, "holdsGate": base.HoldsGate && !r.HoldsGate, "sideways": base.Sideways && !r.Sideways} {
@@ -171,7 +177,9 @@ func (c *Config) buildRanks() error {
 			}
 		}
 		// divineRules and ascendsWhen are the ascended rank's own — never inherited from a base
-		// (a base does not carry its overload's rules or its evolution condition).
+		// (a base does not carry its overload's rules or its evolution condition). So are dir and
+		// prefix: the ascended body lives in its own dir (default: the rank's name), or its minted
+		// name would be its base's.
 	}
 	// Validations that need every name resolved (ascendsWhen parses and must name its base).
 	for _, name := range order {
@@ -199,9 +207,6 @@ func (c *Config) buildRanks() error {
 	// Defaults for new ranks.
 	for _, name := range order {
 		r := byName[name]
-		if r.Body == "" {
-			r.Body = "court"
-		}
 		if len(r.Tools) == 0 {
 			r.Tools = []string{"*"}
 		}
@@ -250,7 +255,7 @@ func (c *Config) buildRanks() error {
 	return nil
 }
 
-var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "body", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways", "layer", "divineRules", "ascendsWhen"}
+var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways", "layer", "divineRules", "ascendsWhen"}
 
 func (c *Config) rankWhere(name, field string) string { return c.Where("ranks." + name + "." + field) }
 
@@ -325,13 +330,21 @@ func (c *Config) RankTree() string {
 				marks = append(marks, fmt.Sprintf("%d divine rules", len(r.DivineRules)))
 			}
 			if r.AscendsWhen != "" {
-				marks = append(marks, "when `"+r.AscendsWhen+"`")
+				// the condition only: "ascend <base>" is canonical words, and the base is named above
+				cond := r.AscendsWhen
+				if _, after, ok := strings.Cut(cond, " when "); ok {
+					cond = after
+				}
+				marks = append(marks, "when `"+strings.TrimSpace(cond)+"`")
 			}
-			marks = append(marks, r.Body)
 			if r.Office != "" {
 				marks = append(marks, "office "+word(r.Office))
 			}
-			fmt.Fprintf(&b, "%s%s (%s)\n", pad, word(ch), strings.Join(marks, ", "))
+			if len(marks) == 0 {
+				fmt.Fprintf(&b, "%s%s\n", pad, word(ch))
+			} else {
+				fmt.Fprintf(&b, "%s%s (%s)\n", pad, word(ch), strings.Join(marks, ", "))
+			}
 			walk(ch, pad+"  ")
 		}
 	}

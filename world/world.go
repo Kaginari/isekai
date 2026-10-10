@@ -26,9 +26,12 @@ type Creature struct {
 	Doc       string   // relative path of the owning doc
 	Dir       string   // relative path of the creature's directory
 	Territory []string // normalized path prefixes it owns
-	Parent    string   // one hop up (orc for a slime, elf for an orc, rimuru for an elf)
-	Minds     []string // worn minds
-	Verify    []string // shell commands whose exit codes are the traits' reading
+	Parent    string   // one hop up (orc for a slime, elf for an orc, rimuru for an elf); a retired parent's ascendant stands in for it
+	// AscendantOf names the base this body ascended from (its doc's `Ascendant of` line); "" for
+	// a body that never ascended
+	AscendantOf string
+	Minds       []string // worn minds
+	Verify      []string // shell commands whose exit codes are the traits' reading
 }
 
 // Options is what Open needs beyond the root and the lexicon.
@@ -135,6 +138,7 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 	}
 	w.ascend = newAscendState(w.Ranks)
 	w.loadLedgers() // the scars come home before the first body runs (freeze law 2026-10-07)
+	w.loadTally()   // and the ascension record: a body's reports count across sessions
 	lawPath := filepath.Join(abs, lex.WorldDir, lex.Law)
 	if w.Law, err = LoadLaw(lawPath, lex.WorldDir+"/"+lex.Law, lex.Crest); err != nil {
 		w.Notes = append(w.Notes, err.Error())
@@ -290,7 +294,26 @@ func creaturesOf(root string, ow *onto.World, ranks Ranks) []Creature {
 			}
 		}
 		c.Verify = VerifyOf(text)
+		c.AscendantOf = ascendantOf(text)
 		out = append(out, c)
+	}
+	// succession: a creature whose one-hop-up retired by ascending reports to its ascendant —
+	// the base's doc stays as the graph's memory, its line now runs through the risen body
+	succ, live := map[string]string{}, map[string]bool{}
+	for _, c := range out {
+		live[c.Name] = true
+	}
+	for _, c := range out {
+		if c.AscendantOf != "" && !live[c.AscendantOf] {
+			succ[c.AscendantOf] = c.Name
+		}
+	}
+	for i := range out {
+		seen := map[string]bool{}
+		for p := out[i].Parent; succ[p] != "" && !seen[p]; p = out[i].Parent {
+			seen[p] = true
+			out[i].Parent = succ[p]
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out

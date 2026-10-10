@@ -33,15 +33,12 @@ func ranksFor(cfg *config.Config, lex world.Lexicon) world.Ranks {
 	for _, r := range cfg.Ranks() {
 		name := canonRank(r.Name)
 		wr := world.Rank{Name: name, ReportsTo: canonRank(r.ReportsTo), Job: r.Job, Authors: r.Authors, HoldsGate: r.HoldsGate, Sideways: r.Sideways,
-			Body: r.Body, Office: r.Office, Tools: append([]string(nil), r.Tools...), Base: canonRank(r.AscendsFrom), Layer: r.Layer,
+			Office: r.Office, Tools: append([]string(nil), r.Tools...), Base: canonRank(r.AscendsFrom), Layer: r.Layer,
 			DivineRules: append([]string(nil), r.DivineRules...), AscendsWhen: r.AscendsWhen}
 		if d, ok := def[name]; ok && r.Builtin {
 			wr.Dir, wr.Prefix = d.Dir, d.Prefix
 			if wr.ReportsTo == "" {
 				wr.ReportsTo = d.ReportsTo
-			}
-			if wr.Body == "" {
-				wr.Body = d.Body
 			}
 			if wr.Office == "" {
 				wr.Office = d.Office
@@ -53,12 +50,7 @@ func ranksFor(cfg *config.Config, lex world.Lexicon) world.Ranks {
 				wr.Base = d.Base
 			}
 		} else {
-			wr.Dir = r.Dir
-			if wr.Dir == "" && wr.Base != "" {
-				if b, ok := def[wr.Base]; ok {
-					wr.Dir, wr.Prefix = b.Dir, b.Prefix
-				}
-			}
+			wr.Dir = r.Dir // an ascended rank's dir is its own (config defaults it to the rank's name)
 			if wr.Dir == "" {
 				wr.Dir = strings.ReplaceAll(name, "_", "-")
 			}
@@ -66,9 +58,6 @@ func ranksFor(cfg *config.Config, lex world.Lexicon) world.Ranks {
 			if wr.Prefix == "" {
 				wr.Prefix = wr.Dir + "-"
 			}
-		}
-		if wr.Body == "" {
-			wr.Body = "court"
 		}
 		if wr.Office == "" {
 			wr.Office = "great-sage"

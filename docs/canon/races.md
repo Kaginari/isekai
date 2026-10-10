@@ -13,24 +13,30 @@ The examples use this repository's own colony (`.isekai/`): four elves (`elf-eng
 
 ## Two tables, one law
 
-A rank is a row of data, not code (`world/rank.go` `Rank`): `ReportsTo`, `Authors`, `HoldsGate`,
-`Sideways`, `Body`, `Office`, `Tools`, `Dir`/`Prefix`, `Base`, `Layer`, `DivineRules`,
+A rank is a row of data, not code (`world/rank.go` `Rank`): `ReportsTo`, `Job`, `Authors`,
+`HoldsGate`, `Sideways`, `Office`, `Tools`, `Dir`/`Prefix`, `Base`, `Layer`, `DivineRules`,
 `AscendsWhen`. Nothing in the gate, the territory policy or the dispatcher names elf, orc or
 slime; they read these columns.
 
 The binary takes its table from config (`config/ranks.go` `builtinRanks`, folded into world ranks
 by `app/world.go` `ranksFor`); `world.DefaultRanks` is the table a world opened without config
-uses. They agree on the tree and the flags; they differ in three places:
+uses. They agree on the tree, the flags, the ascended ranks' own dirs and the ascension
+conditions; they differ in two places:
 
 | column | the binary (`config/ranks.go`) | `world.DefaultRanks` |
 |---|---|---|
 | `Tools` | `*` for elf, orc, slime, kijin | elf/orc/kijin every tool; slime `read write edit bash glob grep law` (no `dispatch`, no `plan`) |
-| `AscendsWhen` | none on high-elf / high-orc | `ascend <base> when intelligence >= 70 && reports >= 5` |
-| dark-elf | `Body: court`; `read glob grep ls recall onto toolbox git ask` | `Body: keeper`; `read bash glob grep law` |
+| dark-elf | `read glob grep ls recall onto toolbox git ask` | `read bash glob grep law` |
 
-The `Job` line is never put in a prompt; only the minted doc of an ascended body quotes it
-(`world/ascend.go` `ascendDoc`). `Body: keeper` is read by nothing at run time: every dispatched
-body, a kijin's included, is a Court with a fresh context.
+A rank's `Tools` list is the most it may hold, not a promise: a rank that commands no one — no
+rank reports to it (an ascended rank counts its base's children) and it is not `Sideways` — is
+never handed `dispatch` (`Ranks.Commands`, checked in `world/court.go` `Engine`). So the kijin,
+whose table row says `*`, holds no dispatch.
+
+The `Job` line rides the body's creature card in its prompt, in the distribution's word for the
+rank: "Your rank's job (Orc): rules its domain, holds the gate, …" (`world/prompt.go`). There is
+no `Body` column: every dispatched body, a kijin's included, is a Court with a fresh context, so
+config's `ranks.<r>.body` is accepted and reported as a hole ("ignored"), never obeyed.
 
 | rank | reports to | authors | holds gate | sideways |
 |---|---|---|---|---|
@@ -40,6 +46,10 @@ body, a kijin's included, is a Court with a fresh context.
 | kijin | rimuru | yes | yes | — |
 | high_elf | rimuru | as elf | as elf | as elf |
 | high_orc | elf | as orc | yes | yes |
+
+An ascended rank inherits every field of its base except four that are its own: `Dir` and
+`Prefix` (`high-elf/`, `high-orc/`; agent-one `principal-coord/`, `principal-domain/`),
+`DivineRules` and `AscendsWhen`.
 | dark_elf | rimuru | — | — | — |
 
 A rank's `Office` is a fallback nothing dispatched reaches: a Court's office always comes from
@@ -116,7 +126,7 @@ is refused except the law file and `.isekai/dimension.yaml`, with a refusal nami
 to dispatch; with it off, the throne may write unowned soil and a creature's own doc, and is
 refused on a creature's soil otherwise. It dispatches; under `tools.dispatch.strictFlow`
 (default on) only the ranks directly under it — `elf-*`, `kijin-release`, and any high elf or
-dark elf. Dispatches run in the foreground; with `tools.dispatch.background` on, a commission may
+dark elf. Every creature's line reaches the throne, so the lineage law below never binds it. Dispatches run in the foreground; with `tools.dispatch.background` on, a commission may
 ask `background: true` (`sessionBackground` makes it the default) and the report wakes the session.
 
 **One turn.** Perceive and recall as above; the model reads the ask, may write its own plan deck
@@ -150,16 +160,19 @@ default great-sage) and routes the model through `models.offices` / `models.rank
 the unsaid, `@FORGE` for a proven repeating need, and — because it holds `dispatch` — "order work
 one layer down with `@$ <body>: <ask>`"), plus its creature card: name, rank, doc path, territory
 (for `elf-engine`: `loop/ … tool/`, the lane's routing map), one hop up, the Minds worn, its
-verify lines, the Vitality rule, and the divine rules any high elf declares. Its layer is every
+verify lines, the Vitality rule, its rank's job, and the divine rules any high elf declares. Its layer is every
 rank under rimuru, so the card names `elf-canon`, `elf-host`, `elf-world` and `kijin-release` as
 neighbors — knowledge only: an elf is not `Sideways` and may not dispatch them. Its doc is named,
 not inlined; it reads it and dons a Mind (`skill`) on its own decision.
 
 **What it may do.** No authoring flag and no gate: the territory policy does not bind it at the
 step, but its writes meet the gate at turn end, where a path a slime owns fails right-author (an
-elf may not move the slime's doc) or, inside its lane, Vitality. It dispatches orcs: the rank law
-is rank-level (`Ranks.Below`, `DirectChild`), so `elf-engine` may order any orc, and under strict
-flow never a slime directly. It does not dispatch another elf (elf is not `Sideways`).
+elf may not move the slime's doc) or, inside its lane, Vitality. It dispatches its own orcs: the rank law
+(`Ranks.BelowAs`, `DirectChildAs`) says an elf orders orcs, and the lineage law
+(`World.mayDispatch`, `tools.dispatch.lineage`, default on) says which — those whose `Reports to`
+chain reaches it. `elf-engine` may order `orc-engine` and `orc-safety`, never `orc-world`; the
+refusal names the elf that commissions it. Under strict flow it never orders a slime directly. It
+does not dispatch another elf (elf is not `Sideways`).
 
 **One turn.** Its doc's own trait and the `plan` tool's description set the order: write the
 plan deck first — one item per slice, each `who` naming the orc whose domain owns it
@@ -174,8 +187,8 @@ orc report returns; the elf ticks its deck and speaks the lane's verdict back up
 
 ## Orc — the domain and its gate
 
-**Commissioned by** an elf, or sideways by another orc (`Sideways`: `orc-engine` may dispatch
-`orc-safety`). Same commission shape as the elf's.
+**Commissioned by** its elf (the one its `Reports to` names), or sideways by another orc
+(`Sideways`: `orc-engine` may dispatch `orc-safety`). Same commission shape as the elf's.
 
 **Its prompt**: the wire identity with `@$`; its card (`orc-engine`: `loop/ instrument/ provider/
 wire/ compact/`, one hop up `elf-engine`, Minds `orc-gate-verdict, review-core, loop-core`); and
@@ -189,7 +202,8 @@ parent, named so it may reach them sideways through dispatch (`Ranks.NeighborRan
   for (`World.Owner`);
 - **before** it may dispatch a slime, the slime's doc must carry a non-trivial verify line
   (`VerifyCoded`: not empty, `true` or `exit 0`) — the TDD precondition in `World.Dispatcher`,
-  read from the roster as last loaded (every turn-end gate reloads it);
+  read from the slime's doc on disk at the check, so a line the orc wrote earlier in the same
+  turn counts;
 - the verify lines it writes on its slimes' docs are what the gate runs on their writes.
 
 It may not author on a slime's soil and pass: a code change there needs the slime's doc to move,
@@ -198,8 +212,8 @@ its gate only when the slime's Court also writes that doc in its turn, which rec
 court work and subtracts it from the orc's bucket.
 
 **One turn.** Read the slice; ask `onto` who owns each path; write its own deck if the slice is
-several; code each slime's verify; dispatch the slimes (any slime is reachable rank-wise; the
-territory of each keeps them apart); read each report. A report filed by the courier (over 600
+several; code each slime's verify; dispatch its slimes (only those whose `Reports to` names it —
+another orc's slime is refused with that orc's name); read each report. A report filed by the courier (over 600
 bytes) arrives as an envelope — `@R <path>` on `.isekai/instruments/loop/`, `@H fnv64:…`, one
 `@W` per path written, an eight-line digest — and the orc reads the file when its verdict needs
 the flesh. It judges the landing against the verify it wrote and answers `@S` with `@V` verdicts.
@@ -208,7 +222,8 @@ the flesh. It judges the landing against the verify it wrote and answers `@S` wi
 
 ## Slime — the ground truth of a zone
 
-**Commissioned by** its orc (strict flow allows no other rank above to reach it; any orc may).
+**Commissioned by** its own orc — the one its `Reports to` names (strict flow keeps the elf above
+from reaching it; the lineage law keeps every other orc out).
 It runs at depth 3 — the floor of the default chain, so the dispatch tool is not on its shelf
 (`world/court.go` `Engine`: `Depth < max`, where max is `tools.dispatch.maxDepth` floored at
 `Ranks.ChainDepth`, both 3).
@@ -242,13 +257,14 @@ the report drops `Other`, `@T`, `@FORGE`, `@F`, `@V` in that order; never `@S`, 
 owns `.github/`, `.goreleaser.yaml`, `Dockerfile.release`, `install.sh`, `Makefile`,
 `RELEASING.md`, `CHANGELOG.md`.
 
-**Its prompt** carries its card and Minds (`kijin-release-pipeline, slime-go-proving`) like any
-Court; "standing across sessions" lives in its doc's traits, not in the runtime.
+**Its prompt** carries its card, its job and Minds (`kijin-release-pipeline, slime-go-proving`)
+like any Court; "standing across sessions" lives in its doc's traits, not in the runtime.
 
 **What it may do.** It both authors and holds a gate: the policy binds its writes to its
 territory, and the gate runs its verify lines (`bash -n install.sh && go build …`, `gofmt`, the
-`## [Unreleased]` check) on its own writes. It holds `dispatch`, but no rank reports to kijin, so
-it has no lawful target ("none — try @? to escalate").
+`## [Unreleased]` check) on its own writes. No rank reports to kijin, so it commands no one and
+its shelf carries no `dispatch`: the release lane is its own hands' work, and what it cannot
+settle goes up to rimuru as `@?`.
 
 **One turn** is the release lane: change the workflow, the changelog or the installer inside its
 territory, prove it with its verify lines, report. A local `git tag` is a write; what leaves the
@@ -259,9 +275,11 @@ turn `DENIED`.
 ## Born in time — high elf, high orc, dark elf
 
 - **High elf / high orc** run their base's loop: an ascended rank keeps every flag its base held
-  (config refuses dropping one), and its `DivineRules` reach the base rank's prompt as "absolute
-  rules from the ascended above you". A high elf reports to rimuru; a high orc to the elf, so an
-  elf may dispatch it.
+  (config refuses dropping one) and commands what its base commanded — a high orc orders the
+  slimes that reported to the orc it rose from — and its `DivineRules` reach the base rank's
+  prompt as "absolute rules from the ascended above you". A high elf reports to rimuru; a high orc
+  to the elf, so its elf may dispatch it. Its body lives in its own dir (`.isekai/high-orc/engine/`)
+  under the base's short name.
 - **Dark elf** — the auditor, reporting to rimuru. Its shelf carries no `write`, `edit` or
   `dispatch`; a turn that writes nothing meets no gate. It answers with `@V` verdicts on `log.md` and
   the gate's verdicts.
@@ -281,7 +299,8 @@ What the dispatcher does with a report (`world/court.go` `Dispatcher`, `tool/dis
    failed dispatches running escalate the dispatcher's own turn.
 3. Writes the Court reported are recorded against the dispatcher, so its gate does not re-judge
    them (`courtGated`).
-4. The council reads the run (below); the tally that ascension reads grows.
+4. The council reads the run (below); the tally that ascension reads grows, and an ascension or
+   an ascension hole that fold caused rides the report (below).
 
 `@$ <body>: <ask>` lines in a report are orders, never Courts minted mid-turn: a background
 Court's orders go to the order book (`app/court.go` `Finish`), and at the throne's turn boundary
@@ -316,19 +335,45 @@ turn and the dispatcher decides.
 
 ## Ascension
 
-After every Court report the world folds the body's tally — reports, passes (a run status of
-`DONE`), fails, holes — and evaluates each ascended rank's `ascendsWhen` (`world/ascend.go`
-`FoldMetrics`, `world/rank_eval.go`). The language reads `reports`, `passes`, `fails`, `holes`,
-`passRate`, `failRate`, `holeRate` and `intelligence` (pass rate less hole rate, floored at
-zero). A crossing mints the ascended body once per session: a doc written by the harness
-(`# high-orc-engine`, its rank, "Ascendant of", the condition and the reading that crossed it),
-and a roster reload so the next commission can reach it.
+After every Court report the world folds the body's tally — reports, passes, fails, holes — and
+evaluates each ascended rank's `ascendsWhen` (`world/ascend.go` `FoldMetrics`,
+`world/rank_eval.go`). A pass is a run the loop ended `DONE` whose own `@S` is not `FAIL` or
+`ESCALATE`. The language reads `reports`, `passes`, `fails`, `holes`, `passRate`, `failRate`,
+`holeRate` and `intelligence` (pass rate less hole rate, floored at zero).
 
-Three facts bound this: the tally lives in memory and starts empty each session; the binary's
-default table sets no `ascendsWhen` (`ranks.high-orc.ascendsWhen` turns it on); and the minted
-name is the ascended rank's prefix plus the base's short name, so an ascended rank needs its own
-`dir` and `prefix` — on the base's (`orc-`) the minted name is the base's own and the mint
-refuses; the failure is held in `World.AscendHoles`, which no host reads.
+The default band, in both tables (`ranks.high-elf.ascendsWhen`, `ranks.high-orc.ascendsWhen`;
+an empty string turns ascension off):
+
+```
+ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%
+```
+
+— a long record, nearly all landed, at most one hole per ten reports.
+
+The tally is a ledger: each report appends one row to `.isekai/instruments/ascension.jsonl`, and
+`Open` replays it, so a record earned over many sessions counts.
+
+A crossing mints the ascended body once (the shelf's `ascend` row and the risen body on the
+roster both remember):
+
+1. **The body rises whole.** `orc-engine` becomes `high-orc-engine`: its doc is carried into
+   `.isekai/high-orc/engine/README.md` — every trait, territory, verify line and Mind (Nature 5:
+   "an ascended creature keeps every trait and territory it held before") — renamed, its rank line
+   `high_orc`, an `Ascendant of: orc-engine` line, and an Ascension section with the condition and
+   the reading that crossed it.
+2. **The base's seat retires** (`- **Retired:** true — ascended <date>: the body rose as
+   high-orc-engine …`): the roster drops it, the ontology keeps it as memory. One body holds the
+   soil, so territories stay disjoint. A creature whose `Reports to` names the retired seat
+   reports to its ascendant (the roster resolves the succession), so `slime-wire` now answers to
+   `high-orc-engine`, which may order it.
+3. **It is logged** in `log.md` through the append-only writer (Law 4), authored by the risen
+   body: the condition, both docs, and `earned: reports 20, passes 19, …`.
+4. **It is announced**: the dispatcher's report carries `[ascension] orc-engine rose as
+   high-orc-engine …`; the roster is reloaded so the next commission reaches the risen body.
+
+A mint that cannot land (the ascended rank configured onto its base's dir or prefix, a doc
+already standing, a write failing) is a hole: it is appended to `log.md` and rides the report as
+`@? ascension hole — …`. The base is retired only once the new doc stands.
 
 ## One order, down and back
 
@@ -387,15 +432,12 @@ orc answers as manager — `@INSTRUCT`, `@SPLIT`, or `@ESCALATE` up to the elf.
 - **"No change lands without its Orc's pass. The Orc checks…"** — the four checks are code, run
   by the harness at the end of the authoring body's own turn; the orc never runs them as a model.
   Its part is coding the verify lines beforehand (enforced at dispatch) and judging the report.
-- **"Most Elves, Orcs and Slimes run as Court … A Kijin's Body is always a Keeper"** — `Body` is
-  data nothing reads; a kijin is dispatched as a Court with a fresh context like any other.
-- **Ascension "distilled through Memory", logged in `log.md` with the traits that earned it** —
-  ascension is a metrics condition over Court reports, minted by the harness; the event is kept
-  in memory (`World.Ascensions`) and nothing writes it to `log.md`. The binary's default table
-  carries no condition, so nothing ascends until config sets one.
-- **The orc "commands its Slimes"** — the dispatch law is rank-level, not creature-level: any
-  elf may dispatch any orc, any orc any slime (`Ranks.Below`); a creature's `Reports to` line
-  names its escalation hop, and territory keeps the writes apart.
+- **"Most Elves, Orcs and Slimes run as Court … A Kijin's Body is always a Keeper"** — there is
+  no persistent body: every body, a kijin's included, is dispatched as a Court with a fresh
+  context, and the rank table carries no `Body` column (config's `ranks.<r>.body` is a hole).
+- **Ascension "distilled through Memory … with the traits that earned it"** — ascension is a
+  metrics condition over Court reports, minted by the harness; `log.md` records the metrics that
+  earned it, not distilled thoughts.
 - **Rimuru "works through the Elf by default"** — with `law.territory.throneNeverAuthors` on
   (the default) the throne's writes are refused outright, the law file and the dimension manifest
   excepted; working through the elf is the only lawful path, not a preference.

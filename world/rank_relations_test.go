@@ -192,20 +192,17 @@ func TestDivineRulesReachTheBase(t *testing.T) {
 
 func TestAscensionsWalksTheBonds(t *testing.T) {
 	rs := Ranks(DefaultRanks(Isekai()))
-	// the default table wires both divine ascensions coded on the intelligence band
+	// the default table wires both divine ascensions on the conservative record band
 	got := rs.Ascensions()
 	if len(got) != 2 {
-		t.Fatalf("the default table wires high_elf and high_orc on intelligence: %v", got)
+		t.Fatalf("the default table wires high_elf and high_orc: %v", got)
 	}
 	byFrom := map[string]Ascension{}
 	for _, a := range got {
 		byFrom[a.From] = a
 	}
-	if byFrom["elf"].When != "ascend elf when intelligence >= 70 && reports >= 5" {
-		t.Fatalf("high_elf ascendsWhen = %q, want the intelligence band", byFrom["elf"].When)
-	}
-	if byFrom["orc"].When != "ascend orc when intelligence >= 70 && reports >= 5" {
-		t.Fatalf("high_orc ascendsWhen = %q, want the intelligence band", byFrom["orc"].When)
+	if byFrom["elf"].When != DefaultAscendElf || byFrom["orc"].When != DefaultAscendOrc {
+		t.Fatalf("ascendsWhen = %q / %q, want the defaults", byFrom["elf"].When, byFrom["orc"].When)
 	}
 	// a custom ascendsWhen still carries through
 	rs2 := append(Ranks(nil), rs...)

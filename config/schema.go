@@ -227,6 +227,10 @@ type BuiltinTool struct {
 	// 0 keeps the built-in 30m) — without it a background run had no clock at all
 	BackgroundTimeout Duration `json:"backgroundTimeout"`
 	StrictFlow        bool     `json:"strictFlow"` // dispatch: one hop per layer — no skip-level dispatches, neighbors per the rank's Sideways
+	// Lineage (tools.dispatch.lineage, default true): a body commissions only creatures whose
+	// Reports-to chain reaches it — an orc its own slimes, an elf its own orcs. false leaves the
+	// rank law alone in force (any orc may order any slime).
+	Lineage bool `json:"lineage"`
 	// SessionBackground (tools.dispatch.sessionBackground): the session's own dispatches
 	// default to background — the throne stays free, the Court rides on and wakes it with the
 	// report. Only the session (depth 0): a Court's own dispatches stay foreground by canon.

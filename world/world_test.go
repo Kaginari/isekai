@@ -93,7 +93,8 @@ func TestLexicon(t *testing.T) {
 	if a.Token("territory") != "domain" || i.Token("territory") != "territory" || a.Race("zone-auth") != "slime" || i.Race("zone-auth") != "" || i.Race("orc-x") != "orc" {
 		t.Error("tokens and races")
 	}
-	if l := a.Layout(); len(l.Ranks) != 5 || l.Ranks[2].Dir != "zone" || l.Ranks[2].Parent != "orc" || l.Law != "AGENT-ONE.md" {
+	// seven rank dirs: the ascended ranks live in their own (principal-coord, principal-domain)
+	if l := a.Layout(); len(l.Ranks) != 7 || l.Ranks[2].Dir != "zone" || l.Ranks[2].Parent != "orc" || l.Ranks[5].Dir != "principal-domain" || l.Law != "AGENT-ONE.md" {
 		t.Errorf("layout %+v", l)
 	}
 	if l := a.Loop(); l.Human != "Operator" || l.WorldDir != ".agent-one" || l.Body != "ephemeral-subagent" {
@@ -647,7 +648,7 @@ func TestChainDepth(t *testing.T) {
 	if got := customRanks().ChainDepth(); got != 3 {
 		t.Fatalf("custom table lead→keeper→{coder,writer}: %d", got)
 	}
-	shallow := Ranks{{Name: "lead", ReportsTo: Rimuru, Job: "x", Body: "court", Office: "ciel", Tools: AllTools, Dir: "lead", Prefix: "lead-"}}
+	shallow := Ranks{{Name: "lead", ReportsTo: Rimuru, Job: "x", Office: "ciel", Tools: AllTools, Dir: "lead", Prefix: "lead-"}}
 	if got := shallow.ChainDepth(); got != 1 {
 		t.Fatalf("one rank under rimuru: %d", got)
 	}

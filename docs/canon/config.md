@@ -209,7 +209,10 @@ document is JSON here; the same keys in YAML are the same config.
     "webfetch":  { "enabled": true, "maxBytes": 5242880, "timeout": "1m" },
     "websearch": { "enabled": true, "timeout": "1m", "backend": "" },   // backend: a URL with {query} answering SearXNG-style JSON ({results:[{title,url,content}]}); "" = no backend, the tool says so
     "ask":       { "enabled": true },                 // `question` is accepted as an alias
-    "dispatch":  { "enabled": true, "maxDepth": 3, "background": false },
+    "dispatch":  { "enabled": true, "maxDepth": 3, "background": false, "strictFlow": true, "lineage": true },
+                                                      // strictFlow: one rung at a time (no skip-level order)
+                                                      // lineage: a body orders only creatures whose `Reports to` chain reaches it
+                                                      // (an orc its own slimes, an elf its own orcs); false = the rank law alone
     "recall":    { "enabled": true },
     "remember":  { "enabled": true },
     "toolbox":   { "enabled": true },
@@ -513,11 +516,32 @@ resolve to one model the chain holds without tiers.
 
 Ranks are data; the law's table (`isekai.md` §The world) is the default: `elf` → rimuru (routes,
 the voice; neither authors nor gates), `orc` → elf (holds the gate, speaks sideways orc ⇄ orc),
-`slime` → orc (authors), `kijin` → rimuru (keeper; authors and gates its own subsystem),
-`high-elf` / `high-orc` ascend from elf / orc and inherit everything, `dark-elf` → rimuru (the
-auditor: read-only tools, never authors). `ranks.<name>` is `{ reportsTo, job, authors,
-holdsGate, body: court | keeper, office, tools: [globs], model, dir, prefix, ascendsFrom,
-sideways }`; with `rankSet: extend` (the default) a field given overrides the built-in field and
+`slime` → orc (authors), `kijin` → rimuru (authors and gates its own subsystem; commands no one, so it holds no dispatch),
+`high-elf` / `high-orc` ascend from elf / orc, `dark-elf` → rimuru (the auditor: read-only
+tools, never authors). `ranks.<name>` is `{ reportsTo, job, authors, holdsGate, office, tools:
+[globs], model, dir, prefix, ascendsFrom, sideways, layer, divineRules, ascendsWhen }`. `job` is
+one line carried into the body's system prompt. `body` is accepted and reported as a hole: every
+dispatched body runs as a Court with a fresh context. A rank's `tools` is the most it may hold —
+a rank no other rank reports to (and not `sideways`) is never handed `dispatch`.
+
+An ascended rank (`ascendsFrom`) inherits every field of its base it does not set, and may not
+drop `authors`, `holdsGate` or `sideways`; four fields are its own: `dir` and `prefix` (default:
+its name — `high-orc/`, `high-orc-`; agent-one `principal-domain/`), `divineRules` and
+`ascendsWhen`. `ascendsWhen` is an ASL condition, `ascend <base> when <expr>`, over `reports`,
+`passes`, `fails`, `holes`, `passRate`, `failRate`, `holeRate`, `intelligence` (`&&`, `||`, `!`,
+parentheses; a `%` reads a rate). The defaults are
+
+```yaml
+ranks:
+  high-elf: {ascendsWhen: "ascend elf when reports >= 20 && passRate >= 90% && holeRate <= 10%"}
+  high-orc: {ascendsWhen: "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"}
+```
+
+and `ascendsWhen: ""` turns ascension off. The tally behind it is
+`<world>/instruments/ascension.jsonl`, append-only and replayed at open; an ascension carries the
+base's doc into the ascended rank's dir, retires the base's seat and is appended to `log.md`.
+
+With `rankSet: extend` (the default) a field given overrides the built-in field and
 a new name adds a rank; with `rankSet: replace` only the ranks listed exist and the built-in
 table is not loaded. Rimuru is the root and is never configured. The law's shape is checked at
 load (see Validation). `Ranks()` returns the resolved hierarchy with the origin of every field
@@ -711,7 +735,6 @@ ranks:
     reportsTo: orc                                # an authoring rank needs a gate above it
     job: keeps the world's changelog
     authors: true
-    body: court
     office: ciel
     tools: [read, write, edit, git]
 
