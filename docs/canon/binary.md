@@ -34,7 +34,7 @@ line of `go.mod` (Go ≥ 1.26).
 | `instrument` | context occupancy from provider-reported usage, 200k budget / 180k stress zone; `status` board | Nature 9, §Instruments — Rimuru's stress is a reading |
 | `memory` | port of `memory.js`: status, index, recall (meaning + relation rank), remember (`--kind law|colony|territory`) | §Memory tiers — same files, same formats |
 | `toolbox` | port of `toolbox.js`: registry build, `brief` (level-1 `@T` manifest under a budget), `load` (level 2, journaled) | §Minds & Bodies — the toolbox |
-| `wire` | parse and emit the envelope (`@S @F @V @? @U @E`, `@ROOT @SCOPE @ASK @CAP @DUMP`); `@CAP` enforced | Absolute Rule II, Nature 8 |
+| `wire` | parse and emit the envelope (`@S @F @V @? @U @FORGE @E`, `@ROOT @SCOPE @ASK @CAP @DUMP`); `@CAP` enforced | Absolute Rule II, Nature 8 |
 | `world` | world discovery, the law loader (crest always; code sections on demand), ranks and bodies from `.isekai/{elf,orc,slime}/`, `log.md` append-only writer, the Orc gate and the Vitality check, Court dispatch | Natures 1–4, the gate, Laws 2–4 |
 | `onto` | the ontology: schema, graph, reasoning, validation, projection | §The ontology below |
 | `config` | the switchboard (`canon/config.md`): layers, origins, refusals, permission rules, models per office/rank/task, ranks as data | the honesty rule; a disabled law is a finding |
@@ -113,6 +113,7 @@ config disables, never has to discover:
 | `toolbox` | read | search the registry, load a skill/command/tool body (level 2) |
 | `onto` | read | query the creature graph: who owns a path, what a creature may see |
 | `skill` | read | don a Mind by name |
+| `desk` · `plan` | write | the body's working memory (≤5 thoughts) · its plan deck — the todo list written before dispatching, one line per slice with its owner |
 | MCP tools | declared by server, classified like any other | every configured MCP server |
 
 Custom tools from config (`tools.custom`) join the same table on the same terms.

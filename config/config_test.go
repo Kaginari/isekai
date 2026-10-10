@@ -86,6 +86,21 @@ func TestDefaultsAlone(t *testing.T) {
 	}
 }
 
+func TestTerritoryThroneNeverAuthors(t *testing.T) {
+	c := newWorld(t, nil).load()
+	if !c.Law.Territory.Enabled || !c.Law.Territory.ThroneNeverAuthors {
+		t.Fatalf("defaults: %+v", c.Law.Territory)
+	}
+	w := newWorld(t, map[string]string{".isekai/config.yaml": "law:\n  territory: {enabled: false}\n"})
+	c2 := w.load()
+	if c2.Law.Territory.Enabled {
+		t.Fatal("overlay must disable")
+	}
+	if !c2.Law.Territory.ThroneNeverAuthors {
+		t.Error("overlay pins only enabled; default true must survive")
+	}
+}
+
 func TestDefaultsOnly(t *testing.T) {
 	c, err := Defaults("agent-one")
 	if err != nil {
@@ -211,10 +226,10 @@ func TestExampleJSONYAMLEquivalent(t *testing.T) {
 		if r, ok := c.Rank("scribe"); !ok || r.ReportsTo != "orc" || !r.Authors || r.Office != "ciel" {
 			t.Errorf("scribe: %+v", r)
 		}
-		if r, _ := c.Rank("orc"); r.Model.Model != "anthropic/claude-opus-5" {
-			t.Errorf("orc model slot: %+v", r.Model)
+		if r, _ := c.Rank("orc"); r.Model.Model != "" {
+			t.Errorf("the example no longer pins rank models — the office lens decides: %+v", r.Model)
 		}
-		if dev := c.Deviations(); len(dev) != 2 {
+		if dev := c.Deviations(); len(dev) != 1 {
 			t.Errorf("deviations: %v", dev)
 		}
 		if got := c.Rules[1].Text; !strings.HasPrefix(got, "Slimes write") {
@@ -226,7 +241,7 @@ func TestExampleJSONYAMLEquivalent(t *testing.T) {
 		if lo := c.Loosenings(); len(lo) != 1 || !strings.Contains(lo[0], "allow bash:git push*") {
 			t.Errorf("loosenings: %v", lo)
 		}
-		if p, ok := c.PriceFor("anthropic/claude-opus-5"); !ok || p.Cost(1000000, 100000, 0, 0) != 7.5 {
+		if p, ok := c.PriceFor("litellm/kimi-3-conduit"); !ok || p.Cost(1000000, 100000, 0, 0) != 1.4 {
 			t.Errorf("price: %v %v", p, ok)
 		}
 		if _, ok := c.PriceFor("vllm/meta-llama/Llama-3.1-70B-Instruct"); ok {
@@ -287,6 +302,21 @@ func TestEnvProviderKeyLocation(t *testing.T) {
 	}
 }
 
+func TestProviderKeyInlineFallback(t *testing.T) {
+	// env resolves when set; the inline literal is the container-side fallback, never the override
+	p := Provider{APIKeyEnv: "MY_KEY", APIKey: "inline_token"}
+	if v, err := p.ProviderKey(func(string) string { return "env_token" }); err != nil || v != "env_token" {
+		t.Fatalf("env must win: %q %v", v, err)
+	}
+	if v, err := p.ProviderKey(func(string) string { return "" }); err != nil || v != "inline_token" {
+		t.Fatalf("literal follows when env is unset: %q %v", v, err)
+	}
+	p2 := Provider{APIKeyEnv: "MY_KEY"}
+	if _, err := p2.ProviderKey(nil); err == nil {
+		t.Fatal("env-only provider with unset env must still say so")
+	}
+}
+
 func TestParseFlags(t *testing.T) {
 	ov, rest, err := ParseFlags([]string{"--model", "openai/gpt-5", "--no-mcp", "--no-law.crest", "--approve", "outward", "--dry-run", "--max-steps=9", "--set", "law.wire.cap=1", "other", "--json"})
 	if err != nil {
@@ -342,8 +372,8 @@ func TestAgentOne(t *testing.T) {
 	if c.Models.Offices["great-sage"].Model != "anthropic/claude-haiku-4-5" || c.Models.Offices["ciel"].Model != "anthropic/claude-opus-4-5" {
 		t.Errorf("office aliases: %+v", c.Models.Offices)
 	}
-	if m, _ := c.ResolveModel("", "zone", "", ""); m.Slot != "models.ranks.slime" {
-		t.Errorf("rank alias on resolve: %+v", m)
+	if m, _ := c.ResolveModel("", "zone", "great-sage", ""); m.Slot != "models.offices.great-sage" {
+		t.Errorf("rank alias resolves through the office lens — no rank leg on the ladder: %+v", m)
 	}
 	if len(c.RulesFor("zone", "")) != 1 || len(c.RulesFor("slime", "")) != 1 || len(c.RulesFor("orc", "")) != 0 {
 		t.Errorf("scope aliases")
@@ -450,6 +480,48 @@ func TestSectionFiles(t *testing.T) {
 	os.WriteFile(filepath.Join(world, "guard.yaml"), []byte("enabled: false\n"), 0o644)
 	if _, err := LoadWith(Options{Dist: "isekai", Root: root, Home: home, Env: func(string) string { return "" }}); err == nil || !strings.Contains(err.Error(), "one file per section") {
 		t.Fatalf("guard.yaml beside guards.yaml is ambiguous: %v", err)
+	}
+}
+
+// The local layer mirrors one-file-per-section: <section>.local.yaml beside (or instead of)
+// config.local.yaml holds one section's value, comes after config.local.yaml in the layer
+// (so it wins there) and keeps its own file:line for explain. A name that is no section is
+// left alone; two local files for one section fail like two section files would.
+func TestLocalSectionFiles(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	world := filepath.Join(root, ".isekai")
+	os.MkdirAll(world, 0o755)
+	os.WriteFile(filepath.Join(world, "config.yaml"), []byte("models: {default: anthropic/a}\n"), 0o644)
+	os.WriteFile(filepath.Join(world, "config.local.yaml"), []byte("models: {default: openai/local-file}\n"), 0o644)
+	os.WriteFile(filepath.Join(world, "models.local.yaml"), []byte("default: openai/local-section\n"), 0o644)
+	os.WriteFile(filepath.Join(world, "permissions.local.yaml"), []byte("rules: [{match: \"bash:git push*\", action: deny}]\n"), 0o644)
+	os.WriteFile(filepath.Join(world, "notes.local.yaml"), []byte("anything: at all\n"), 0o644)
+	env := func(k string) string {
+		if k == "HOME" {
+			return home
+		}
+		return ""
+	}
+	c, err := LoadWith(Options{Dist: "isekai", Root: root, Home: home, Env: env})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Models.Default.Model != "openai/local-section" {
+		t.Fatalf("a local section file wins after config.local.yaml in the local layer: %q", c.Models.Default.Model)
+	}
+	if o, _ := c.Origin("models.default"); o.Layer != "local" || !strings.HasSuffix(o.File, "models.local.yaml") {
+		t.Fatalf("a local section file's values are the local layer's, named by their file: %+v", o)
+	}
+	if o, _ := c.Origin("permissions.rules[0].action"); o.Layer != "local" || !strings.HasSuffix(o.File, "permissions.local.yaml") {
+		t.Fatalf("a machine-only permission rule carries its local file: %+v", o)
+	}
+	if len(c.Permissions.Rules) != 1 || c.Permissions.Rules[0].Match != "bash:git push*" || c.Permissions.Rules[0].Action != "deny" {
+		t.Fatalf("permissions.local.yaml loads: %+v", c.Permissions.Rules)
+	}
+	os.WriteFile(filepath.Join(world, "guard.local.yaml"), []byte("- 'never'\n"), 0o644)
+	os.WriteFile(filepath.Join(world, "guards.local.yaml"), []byte("- 'never either'\n"), 0o644)
+	if _, err := LoadWith(Options{Dist: "isekai", Root: root, Home: home, Env: env}); err == nil || !strings.Contains(err.Error(), "one file per section") {
+		t.Fatalf("guard.local.yaml beside guards.local.yaml is ambiguous: %v", err)
 	}
 }
 

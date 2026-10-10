@@ -1,27 +1,32 @@
 # .isekai/config.yaml — a full project file. The same document in JSON is example.json.
+#
+# The mounts live on the conduit proxy (litellm-docker.config.yaml :4000): glm-5-3-conduit,
+# kimi-3-conduit, nemotron-3-super-120b-conduit. Every lane pinned two deep; no gemma.
 models:
-  default: anthropic/claude-sonnet-5            # the mount: the human's choice, never routed
+  default: litellm/glm-5-3-conduit             # the mount: the human's choice, never routed
   offices:                                      # the court triad; tiers must not descend
-    great-sage: anthropic/claude-haiku-4-5      # agent-one may write analyst:
-    raphael: anthropic/claude-opus-5            # judge:
-    ciel: {model: anthropic/claude-fable-5-1, effort: high, fallback: anthropic/claude-opus-5}  # drafter:
-  ranks:
-    slime: anthropic/claude-sonnet-5
-    kijin: anthropic/claude-opus-5
+    great-sage: litellm/nemotron-3-super-120b-conduit  # analyst:
+    raphael: litellm/kimi-3-conduit                    # judge:
+    ciel: {model: litellm/kimi-3-conduit, effort: high, fallback: litellm/glm-5-3-conduit} # drafter:
   creatures:
-    slime-changelog: anthropic/claude-haiku-4-5  # a genuinely mechanical zone
+    slime-changelog: litellm/nemotron-3-super-120b-conduit  # a genuinely mechanical zone
   tasks:
-    log: anthropic/claude-haiku-4-5
+    log: litellm/nemotron-3-super-120b-conduit
     bench: vllm/meta-llama/Llama-3.1-70B-Instruct
 smallModel: ollama/qwen2.5:7b
 
 providers:
-  anthropic:
+  litellm:
+    type: openai
+    baseURL: http://127.0.0.1:4000/v1
+    apiKeyEnv: LITELLM_API_KEY
+    timeout: 10m
+    toolCalls: native
+    contextWindow: auto                        # read from /v1/models max_model_len
     models:                                     # price: USD per 1M tokens; absent = unpriced
-      claude-haiku-4-5: {tier: 1, contextWindow: 200000, price: {input: 1, output: 5}}
-      claude-sonnet-5: {tier: 2, contextWindow: 200000, price: {input: 2, output: 10}}
-      claude-opus-5: {tier: 3, contextWindow: 200000, price: {input: 5, output: 25}}
-      claude-fable-5-1: {tier: 3, contextWindow: 200000, price: {input: 10, output: 50}}
+      nemotron-3-super-120b-conduit: {tier: 1, contextWindow: 131072, price: {input: 0.2, output: 1}}
+      kimi-3-conduit: {tier: 2, contextWindow: 262144, price: {input: 1, output: 4}}
+      glm-5-3-conduit: {tier: 3, contextWindow: 262144, price: {input: 2, output: 8}}
   ollama: {enabled: true}
   vllm:                                         # a hosted vLLM is an openai-compatible endpoint
     type: openai
@@ -113,7 +118,8 @@ budgets:
 ui: {statusLine: true, announceCourts: true}
 
 ranks:
-  orc: {model: anthropic/claude-opus-5}           # same slot as models.ranks.orc
+  # rank model pins are dead: the ladder routes creature → office → task → default, so
+  # ranks never pitch their own model — the office hat does (a rank's Office field says which).
   scribe:                                         # a new rank, added to the law's table
     reportsTo: orc                                # an authoring rank needs a gate above it
     job: keeps the world's changelog

@@ -211,7 +211,7 @@ models: {default: mock/m, offices: {great-sage: court/c}, tasks: {drain: court/c
 providers:
   mock: {enabled: true, script: .isekai/tmp/s.json}
   court: {type: mock, script: .isekai/tmp/c.json}
-tools: {bash: {sandbox: none}}
+tools: {bash: {sandbox: none}, dispatch: {strictFlow: false}}
 law: {budget: {stressTokens: 3200}}
 compaction: {keepRecentTurns: 1}
 ui: {board: {autostart: false}}
@@ -252,7 +252,7 @@ models: {default: mock/m, offices: {great-sage: court/c}}
 providers:
   mock: {enabled: true, script: .isekai/tmp/s.json}
   court: {type: mock, script: .isekai/tmp/c.json}
-tools: {bash: {sandbox: none}}
+tools: {bash: {sandbox: none}, dispatch: {strictFlow: false}}
 rankSet: replace
 ranks:
   lead:   {reportsTo: rimuru, job: coordinates, body: court, office: ciel}

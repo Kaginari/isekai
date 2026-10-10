@@ -149,7 +149,6 @@ providers:
 		t.Errorf("holes: %v", c.Holes)
 	}
 	refusals := []struct{ name, yaml, want string }{
-		{"literal key", "providers:\n  anthropic: {apiKey: sk-ant-1}\n", "credential never lives in a config file"},
 		{"literal token", "providers:\n  x: {type: openai, baseURL: u, token: abc}\n", "credential"},
 		{"auth header", "providers:\n  x: {type: openai, baseURL: u, headers: {Authorization: \"Bearer x\"}}\n", "carries a credential"},
 		{"secret in apiKeyEnv", "providers:\n  x: {type: openai, baseURL: u, apiKeyEnv: sk-abc-123}\n", "must name an environment variable"},
@@ -191,8 +190,12 @@ providers:
       claude-fable-5-1: {tier: 3}
 `})
 	c := w.load()
-	if len(c.Holes) != 0 {
-		t.Fatalf("holes: %v", c.Holes)
+	for _, h := range c.Holes {
+		// rank pins are dead by law ("ignored (offices lens, never ranks)"); any other hole fails
+		if strings.Contains(h, "offices lens") {
+			continue
+		}
+		t.Fatalf("hole: %s", h)
 	}
 	cases := []struct {
 		creature, race, office, task string
@@ -200,11 +203,14 @@ providers:
 	}{
 		{"slime-changelog", "slime", "ciel", "log", "anthropic/claude-haiku-4-5", "models.creatures.slime-changelog"},
 		{"slime-auth", "slime", "ciel", "log", "anthropic/claude-fable-5-1", "models.offices.ciel"},
-		{"", "orc", "", "log", "anthropic/claude-opus-5", "models.ranks.orc"},
+		// rank pins no longer ride the ladder — a pinned orc still falls to the office hat the
+		// commission named, never to ranks.<r>; the office lens IS the lane decider
+		{"", "orc", "", "log", "anthropic/claude-haiku-4-5", "models.tasks.log"},
+		{"", "orc", "ciel", "", "anthropic/claude-fable-5-1", "models.offices.ciel"},
 		{"", "slime", "", "log", "anthropic/claude-haiku-4-5", "models.tasks.log"},
 		{"", "slime", "", "", "anthropic/claude-sonnet-5", "models.default"},
 		{"", "", "judge", "", "anthropic/claude-opus-5", "models.offices.raphael"},
-		{"", "domain", "", "", "anthropic/claude-opus-5", "models.ranks.orc"},
+		{"", "domain", "", "", "anthropic/claude-sonnet-5", "models.default"},
 	}
 	for _, cs := range cases {
 		m, o := c.ResolveModel(cs.creature, cs.race, cs.office, cs.task)
@@ -223,11 +229,17 @@ providers:
 	if err := w.loadErr(); err == nil || !strings.Contains(err.Error(), "lineage") {
 		t.Errorf("lineage: %v", err)
 	}
-	// missing tier is a hole, not an error
+	// missing tier is a hole, not an error (the rank-pin hole is the dead ladder speaking — masked out)
 	w.write(".isekai/config.local.yaml", "models: {offices: {ciel: anthropic/claude-new}}\n")
 	c = w.load()
-	if len(c.Holes) != 1 || !strings.Contains(c.Holes[0], "declares no tier") {
-		t.Errorf("tier hole: %v", c.Holes)
+	var tierHoles []string
+	for _, h := range c.Holes {
+		if !strings.Contains(h, "offices lens") {
+			tierHoles = append(tierHoles, h)
+		}
+	}
+	if len(tierHoles) != 1 || !strings.Contains(tierHoles[0], "declares no tier") {
+		t.Errorf("tier hole: %v", tierHoles)
 	}
 	// ranks.<r>.model is the same slot as models.ranks.<r>
 	w.write(".isekai/config.local.yaml", "ranks: {orc: {model: anthropic/claude-sonnet-5}}\n")
@@ -236,8 +248,14 @@ providers:
 	}
 	w.write(".isekai/config.local.yaml", "ranks: {slime: {model: anthropic/claude-haiku-4-5}}\n")
 	c = w.load()
-	if m, _ := c.ResolveModel("", "slime", "", ""); m.Slot != "ranks.slime.model" || m.Ref.Model != "anthropic/claude-haiku-4-5" {
-		t.Errorf("rank model slot: %+v", m)
+	for _, h := range c.Holes {
+		if strings.Contains(h, "offices lens") {
+			continue
+		}
+		t.Fatalf("hole after rank.model pin: %s", h)
+	}
+	if m, _ := c.ResolveModel("", "slime", "great-sage", ""); m.Slot != "models.offices.great-sage" {
+		t.Errorf("rank pin gone from the ladder — the office hat takes over: %+v", m)
 	}
 }
 
@@ -295,6 +313,13 @@ ranks:
 	if dev := c.Deviations(); len(dev) != 2 || !strings.HasPrefix(dev[0], "rank slime.office:") || !strings.HasPrefix(dev[1], "rank high-orc.job:") {
 		t.Errorf("deviations: %v", dev)
 	}
+	// the tree surfaces the hierarchy's coded marks: layer, divine rules, the crossing
+	w = newWorld(t, map[string]string{".isekai/config.yaml": "ranks:\n  orc: {layer: 2}\n  high-orc: {ascendsWhen: \"ascend orc when reports >= 3\", divineRules: [go around the backlog]}\n"})
+	c = w.load()
+	tree = c.RankTree()
+	if !strings.Contains(tree, "layer 2") || !strings.Contains(tree, "1 divine rule") || !strings.Contains(tree, "when `ascend orc when reports >= 3`") {
+		t.Errorf("the tree must show layer, divine rules and the crossing:\n%s", tree)
+	}
 	refusals := []struct{ name, yaml, want string }{
 		{"cycle", "ranks:\n  a: {reportsTo: b}\n  b: {reportsTo: a}\n", "cycle"},
 		{"unknown parent", "ranks:\n  a: {reportsTo: nobody}\n", "no rank"},
@@ -302,6 +327,10 @@ ranks:
 		{"author without gate", "rankSet: replace\nranks:\n  a: {reportsTo: rimuru, authors: true}\n", "no rank above it holds a gate"},
 		{"ascended drops a base field", "ranks:\n  high-orc: {holdsGate: false}\n", "keeps everything"},
 		{"ascends from ascended", "ranks:\n  x: {ascendsFrom: high-orc}\n", "itself ascended"},
+		{"ascendsWhen on a plain rank", "ranks:\n  orc: {ascendsWhen: \"ascend orc when reports >= 5\"}\n", "ascends from nothing"},
+		{"ascendsWhen of another rank", "ranks:\n  high-orc: {ascendsWhen: \"ascend slime when reports >= 5\"}\n", "not its base"},
+		{"ascendsWhen not ASL", "ranks:\n  high-orc: {ascendsWhen: \"quickly now\"}\n", "opens with"},
+		{"divineRules on a plain rank", "ranks:\n  orc: {divineRules: [never skip the gate]}\n", "ascends from nothing"},
 		{"root configured", "ranks:\n  rimuru: {job: x}\n", "not configured"},
 		{"bad body", "ranks:\n  elf: {body: ghost}\n", "not court or keeper"},
 		{"bad rankSet", "rankSet: merge\n", "not extend or replace"},

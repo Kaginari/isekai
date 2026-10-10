@@ -31,11 +31,14 @@ type Model struct {
 	Slot     string // models.creatures.<n> | models.offices.<o> | ranks.<r>.model | models.ranks.<r> | models.tasks.<t> | models.default
 }
 
-// ResolveModel picks the model for a call, most specific first: creature → office → rank →
-// task → default. Empty arguments skip their slot. The office accepts either lexicon's word.
+// ResolveModel picks the model for a call, most specific first: creature → office →
+// task → default. Empty arguments skip their slot. A pin set in config FORCES — the creature
+// wins all, and only an unpinned body falls to the office hat the commission names (the
+// lens of the task). Ranks do not ride the ladder: the rank truth is its Office field —
+// the world routes by what a body is doing (its hat), never by its blood. The office accepts
+// either lexicon's word.
 func (c *Config) ResolveModel(creature, race, office, task string) (Model, Origin) {
 	office = canonicalOffice(office)
-	race = canonicalRank(race)
 	try := func(slot string, ref ModelRef) (Model, bool) {
 		if ref.Model == "" {
 			return Model{}, false
@@ -60,16 +63,6 @@ func (c *Config) ResolveModel(creature, race, office, task string) (Model, Origi
 	}
 	if office != "" {
 		if m, ok := try("models.offices."+office, c.Models.Offices[office]); ok {
-			return m, m.Origin
-		}
-	}
-	if race != "" {
-		if r, ok := c.Rank(race); ok && r.Model.Model != "" {
-			if m, ok := try("ranks."+race+".model", r.Model); ok {
-				return m, m.Origin
-			}
-		}
-		if m, ok := try("models.ranks."+race, c.Models.Ranks[race]); ok {
 			return m, m.Origin
 		}
 	}
@@ -111,8 +104,9 @@ func (c *Config) ModelTable() []string {
 		out = append(out, fmt.Sprintf("office %-11s %-32s %s", c.Dist.Word(off), m.Ref.Model, o))
 	}
 	for _, r := range c.ranks {
-		m, o := c.ResolveModel("", r.Name, "", "")
-		out = append(out, fmt.Sprintf("rank   %-11s %-32s %s", c.Dist.Word(r.Name), m.Ref.Model, o))
+		// a rank's lane is its office hat's lane — print what that resolves to, wearing the rank's name
+		m, o := c.ResolveModel("", r.Name, r.Office, "")
+		out = append(out, fmt.Sprintf("rank   %-11s %-32s %s", c.Dist.Word(r.Name)+" → "+c.Dist.Word(r.Office), m.Ref.Model, o))
 	}
 	for _, t := range Tasks {
 		m, o := c.ResolveModel("", "", "", t)
@@ -208,17 +202,15 @@ func (c *Config) checkModels() error {
 			return err
 		}
 	}
+	// rank model pins are accepted but dead: the ladder routes creature → office → task →
+	// default, and a rank's pin would lie about its strength. Parse them for continuity —
+	// the hole names them ignored, never enforced.
 	for _, r := range sortedKeys(c.Models.Ranks) {
-		if _, ok := c.Rank(r); !ok {
-			c.Holes = append(c.Holes, fmt.Sprintf("models.ranks.%s names no rank — %s", r, c.Where("models.ranks."+r)))
-		}
-		if err := check("models.ranks."+r, c.Models.Ranks[r]); err != nil {
-			return err
-		}
+		c.Holes = append(c.Holes, fmt.Sprintf("models.ranks.%s is ignored (offices lens, never ranks) — move the pin to models.offices.<office> %s", r, c.Where("models.ranks."+r)))
 	}
 	for _, r := range c.ranks {
-		if err := check("ranks."+r.Name+".model", r.Model); err != nil {
-			return err
+		if r.Model.Model != "" {
+			c.Holes = append(c.Holes, fmt.Sprintf("ranks.%s.model is ignored (offices lens, never ranks) — move the pin to models.offices.<office>", r.Name))
 		}
 	}
 	for _, t := range sortedKeys(c.Models.Tasks) {
@@ -346,11 +338,16 @@ func looksSecret(v string) bool {
 	return strings.HasPrefix(l, "sk-") || strings.HasPrefix(l, "bearer ") || strings.HasPrefix(l, "sk_")
 }
 
-// secretKey refuses an unknown key that would hold a credential in a file.
+// secretKey refuses an unknown key that would hold a credential in a file — except providers' own
+// designated fields: apiKey holds a literal key because the estates run headless containers with
+// no env to name. Everywhere else the env-name rule stands.
 func secretKey(u unknownKey) error {
 	last := u.path[strings.LastIndex(u.path, ".")+1:]
 	switch strings.ToLower(last) {
 	case "apikey", "api_key", "key", "token", "secret", "password", "auth":
+		if strings.HasPrefix(u.path, "providers.") && (strings.HasSuffix(u.path, ".apiKey") || strings.HasSuffix(u.path, ".apikey") || strings.HasSuffix(u.path, ".api_key")) {
+			return nil
+		}
 		if strings.HasPrefix(u.path, "providers.") || strings.HasPrefix(u.path, "mcp.") {
 			return fmt.Errorf("%s: %s: a credential never lives in a config file — name the env var in apiKeyEnv (or headersEnv)", u.node.Where(), u.path)
 		}
@@ -360,18 +357,22 @@ func secretKey(u unknownKey) error {
 
 // ProviderKey returns the key's value read from the env var apiKeyEnv names; "" when the
 // provider needs none. The value is for the HTTP client only and never for the wire.
+// ProviderKey returns the key's value: the env var apiKeyEnv names when it resolves, else the
+// inline apiKey literal. The value is for the HTTP client only and never for the wire.
 func (p *Provider) ProviderKey(env func(string) string) (string, error) {
 	if p.APIKeyEnv == "" {
-		return "", nil
+		return p.APIKey, nil
 	}
 	if env == nil {
 		env = func(string) string { return "" }
 	}
-	v := env(p.APIKeyEnv)
-	if v == "" {
-		return "", fmt.Errorf("%s is not set (location only: the key never crosses the wire)", p.APIKeyEnv)
+	if v := env(p.APIKeyEnv); v != "" {
+		return v, nil
 	}
-	return v, nil
+	if p.APIKey != "" {
+		return p.APIKey, nil // the literal fallback when the env var stayed unset
+	}
+	return "", fmt.Errorf("%s is not set (location only: the key never crosses the wire)", p.APIKeyEnv)
 }
 
 // ProviderNames lists providers in name order.

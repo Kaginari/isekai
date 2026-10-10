@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +19,76 @@ var officeRoles = map[string]string{"great-sage": "reads", "raphael": "verdicts"
 // Board is what /board draws, read from the same feeds as the web board: the live court, the
 // reasoned ontology, the offices as config resolves them, the usage journal.
 func (h *tuiHost) Board(rng string) tui.BoardView { return h.a.BoardView(rng) }
+
+// Plans is what the rail's plan card draws: every deck under <world>/tmp/plans, in name
+// order, each flagged stale when it was penned before this session's birth — a stale deck is
+// last session's intent left readable (the 'continue on last plan' lifeline), never this
+// session's outstanding work. The boot sweep (LEC-2026-10-04-STALE-PLANS) keeps the live dir
+// to this session's decks; last session's decks merge in from the archive under Archived=true
+// so the rail renders them and 'c' can snap off them (contract: tui/blocks.go:597).
+func (h *tuiHost) Plans() []tui.RailPlan {
+	dir := h.a.planDir()
+	boot := h.a.plansBoot()
+	return railPlans(h.a, dir, boot)
+}
+
+// railPlans renders one plans dir into rail entries: live decks first (in name order), then
+// the archive's decks with Archived=true — deduped against live names, so a deck present in
+// both (sweep deferred its rename that wave) shows once, as live truth.
+func railPlans(a *App, dir string, boot time.Time) []tui.RailPlan {
+	entry := func(dir, file string, archived bool) (tui.RailPlan, bool) {
+		rank := strings.TrimSuffix(filepath.Base(file), ".json")
+		d := planRead(dir, rank)
+		if d.Body == "" {
+			return tui.RailPlan{}, false
+		}
+		if i := strings.IndexByte(rank, '-'); i >= 0 {
+			rank = rank[:i]
+		}
+		// the office the body's turn runs under: a live court answers first, the rank's
+		// default office answers second (slime→great-sage, orc→raphael, elf→ciel)
+		office := ""
+		for _, b := range a.liveBodies() {
+			if b.Name == d.Body && b.Office != "" {
+				office = b.Office
+				break
+			}
+		}
+		if office == "" {
+			if r, ok := a.Cfg.Rank(rank); ok && r.Office != "" {
+				office = r.Office
+			}
+		}
+		rp := tui.RailPlan{Body: d.Body, Rank: rank, Office: office, Stale: planStale(d, boot), Archived: archived}
+		for _, it := range d.Items {
+			rp.Items = append(rp.Items, tui.RailPlanItem{Text: it.Text, Status: it.Status})
+		}
+		return rp, true
+	}
+	live, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	sort.Strings(live)
+	var out []tui.RailPlan
+	seen := map[string]bool{}
+	for _, p := range live {
+		rp, ok := entry(dir, p, false)
+		if !ok {
+			continue
+		}
+		seen[filepath.Base(p)] = true
+		out = append(out, rp)
+	}
+	arch, _ := filepath.Glob(filepath.Join(planArchiveDir(dir), "*.json"))
+	sort.Strings(arch)
+	for _, p := range arch {
+		if seen[filepath.Base(p)] {
+			continue
+		}
+		if rp, ok := entry(planArchiveDir(dir), p, true); ok {
+			out = append(out, rp)
+		}
+	}
+	return out
+}
 
 // BoardView is the board as /board draws it.
 func (a *App) BoardView(rng string) tui.BoardView {

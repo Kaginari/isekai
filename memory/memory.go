@@ -170,6 +170,12 @@ func (w *World) sources() []source {
 		if c.Doc != "" {
 			add("semantic", "creature", c.Doc, c.Name, c.Race)
 		}
+		// creature thoughts: a body's own dated notes are its warmest memory — the kin-first rule
+		// (Nature 4's audit of 2026-10-03: dispatched bodies re-derived context from log.md because
+		// their own thoughts were never indexed)
+		for _, p := range ListMd(filepath.Join(w.Isekai(), c.Race, c.Dir, "thoughts")) {
+			add("procedural", "thoughts", p, c.Name, c.Race)
+		}
 	}
 	for _, p := range ListMd(filepath.Join(w.Isekai(), "canon")) {
 		add("semantic", "canon", p, strings.TrimSuffix(filepath.Base(p), ".md"), "")
@@ -259,7 +265,7 @@ func (w *World) HarvestLong() []*Mem {
 				tag.Mind = s.name
 			case "command":
 				tag.Command = s.name
-			case "creature":
+			case "creature", "thoughts":
 				tag.Creature, tag.Race = s.name, s.race
 			}
 			for _, sec := range SectionMap(text).Sections {
@@ -428,9 +434,17 @@ func (w *World) IndexHoles(idx *Index, why string) []string {
 
 func (w *World) RelationsOf(name string) Relations { return RelationsOf(w.Root, w.Isekai(), name) }
 
-// RelationBoost is the wire's typed bonds applied to memory: small on purpose.
+// RelationBoost is the wire's typed bonds applied to memory: small on purpose. Kin comes first
+// and counts most (Nature 4 — a body's own thoughts outrank the chronicle's: the census drift of
+// 2026-10-03 showed elves rebuilding context from log.md because their own creature docs and
+// thoughts only won when the ask happened to name them).
 func RelationBoost(m *Mem, R Relations) float64 {
 	bst := 0.0
+	if R.Self != "" && m.Creature == R.Self {
+		bst += 0.25 // your own memories, always first
+	} else if R.Race != "" && m.Creature != "" && m.Race == R.Race {
+		bst += 0.10 // your race's memories, second
+	}
 	if R.Self != "rimuru" && Has(m.TF, R.Self) {
 		bst += 0.15
 	}
@@ -959,6 +973,12 @@ func (w *World) Recall(q string, o RecallOpts) (*RecallResult, error) {
 				}
 			}
 			sim, relb, rec := BM25(qtf, m.TF, m.DL, S.AvgDL, S.IDFQ), RelationBoost(m, R), Recency(m.When, now)
+			// the chronicle drags its terms toward the surface by mass — soften its claim so a
+			// body's own doc/thoughts (kin) and task prose win on equal evidence; log entries are
+			// history to consult, not instruction to re-derive
+			if m.Kind == "episodic" && strings.HasSuffix(m.Src, "log.md") {
+				sim *= 0.75
+			}
 			r := Result{Score: ToFixed(sim+relb+rec, 4), Sim: ToFixed(sim, 4), Rel: ToFixed(relb, 2), Rec: ToFixed(rec, 3),
 				Kind: m.Kind, Title: m.Title, Src: m.Src, Sec: m.Sec, When: m.When, Snippet: m.Snip}
 			if r.Sim > 0 {

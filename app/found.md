@@ -1,6 +1,6 @@
 Found the colony of this {{WORLD}} — you are hiring a team of experts for `{{PROJECT}}` ({{LANG}}).
 The law is `{{WORLD}}/isekai.md`; its sections "Minds & Bodies" and "The world" are the rules for
-what you create. Nothing outside `{{WORLD}}/`, `.claude/skills/` and `.claude/agents/` is written;
+what you create. Nothing outside `{{WORLD}}/` and `{{WORLD}}/base-skills/` is written;
 the project's code is read, never changed.
 
 ## 1. Read everything first
@@ -24,14 +24,19 @@ points, packages, models, services, tests, build and CI files, the README. Note 
 - **Slimes** (`{{TRUTH}}<zone>`) — one per vertical slice: the files that change together (e.g. a
   command, its service, its model and its tests). Each slime reports to exactly one orc (its truth
   link); its territory is those files, precisely.
+- **Zone width law** — size a territory to what its keeper actually works: not so wide that every
+  new file's creation lands on one owner (that keeper becomes the bottleneck and its edges go
+  stale), not so narrow that one change always crosses zones. A single-prefix zone (one whole dir)
+  can only be narrowed later by splitting the tree under it — prefer several precise claims
+  (sub-dirs, or file sets for a flat dir) over one wide dir when the area is big.
 - **A kijin** (`{{LEAD}}<subsystem>`) — only for a standing subsystem someone must own across
   sessions (CI and releases, deploy, infrastructure). Reports to rimuru.
 - **Minds** (skills) — know-how worth wearing: a contract or convention two or more creatures share
   (zone minds, worn by slimes), a review checklist an orc applies (verdict minds), a pipeline or
   cross-domain practice (global minds). Three to six is usual. A mind is instructions, concrete and
   specific to this code — paths, names, commands — never generic advice.
-- **Bodies** (agents) — mint the elf, each orc (court) and each kijin (keeper, `mode: all`). Slimes
-  run as court when dispatched; mint one only if it will run often on its own.
+- **Bodies** — no extra card: each creature doc you write IS the body. Slime docs likewise —
+  a slime runs as court when dispatched; nothing extra is minted for it.
 
 Before writing, show the plan as a table: creature · rank · reports to · territory · minds.
 
@@ -58,12 +63,12 @@ A creature doc, at `{{WORLD}}/<rank dir>/<short>/README.md` (dirs: elf `{{VOICE_
 ## Thoughts
 ```
 
-A mind, at `.claude/skills/<name>/SKILL.md`: front matter `name` and `description` (one line: what
+A mind, at `{{WORLD}}/base-skills/<name>/SKILL.md`: front matter `name` and `description` (one line: what
 it knows and when to wear it), then the know-how as terse bullets, then an empty `## Thoughts`.
 
-A body, at `.claude/agents/<creature>.md`: front matter `name` (the creature's name), `description`,
-and `mode: all` for a keeper; the body text says whom it is, which doc to read first, which minds to
-wear, and what waits for the human.
+The body needs no card of its own: the creature doc IS the body — `{{WORLD}}/<rank dir>/<creature>/README.md`
+carries the creature's name, purpose and minds. Nothing is written outside the world; a keeper is the
+creature whose rank is Keeper (its doc says so), not a file with `mode: all`.
 
 Rules that make the colony true:
 - Territories do not overlap between slimes; an orc's territory is its slimes' union (or omitted).

@@ -199,9 +199,54 @@ var (
 )
 
 // fields reads `- **Key:** value` lines leniently; keys are normalized.
+// A `## Territory` (or `**Territory:**`) HEADING ZONE is also honored: any
+// `- `code“ bullets under it are joined into a comma-list so lane filters
+// run on one closet shape in both markups (class (f) fixture pins this
+// bullet form that earlier regex never matched, minting no owns from it).
 func fields(doc string) (map[string]string, map[string]int) {
 	vals, lines := map[string]string{}, map[string]int{}
+	var headingKey string // seat field being filled by `- `_`` bullets
 	for i, line := range strings.Split(doc, "\n") {
+		t := strings.TrimSpace(line)
+		// end any open bullet-accumulation when a new heading begins
+		if strings.HasPrefix(t, "#") {
+			if !strings.HasPrefix(t, "## ") && !strings.HasPrefix(t, "##\t") {
+				headingKey = "" // top-level headings reset the accumulator to silence
+				continue
+			}
+			h := strings.ToLower(strings.TrimSpace(strings.TrimLeft(t, "# ")))
+			h = strings.TrimSuffix(h, ":")
+			if k, ok := fieldKeys[h]; ok {
+				headingKey = k
+			} else {
+				headingKey = ""
+			}
+			continue
+		}
+		if headingKey != "" && strings.HasPrefix(t, "- ") {
+			// bullets under the heading — keep just the backticked code spans,
+			// falling back to whole-line only when no code marks the row (a
+			// `# heading` may precede or follow them).
+			body := ""
+			if idx := strings.Index(t, "`"); idx >= 0 {
+				rest := t[idx+1:]
+				if end := strings.Index(rest, "`"); end >= 0 {
+					body = rest[:end]
+				}
+			}
+			if body == "" {
+				body = strings.TrimSpace(strings.TrimPrefix(t, "- "))
+			}
+			if _, seen := vals[headingKey]; !seen {
+				vals[headingKey] = body
+			} else if !strings.Contains(vals[headingKey], body) {
+				vals[headingKey] += ", " + body
+			}
+			if _, seen := lines[headingKey]; !seen {
+				lines[headingKey] = i + 1
+			}
+			continue
+		}
 		m := reField.FindStringSubmatch(line)
 		if m == nil {
 			continue
@@ -404,14 +449,179 @@ func (w *World) derive() error {
 			}
 		}
 
-		// territory: the field plus any back-ticked path in the doc
-		seen := map[string]bool{}
-		zone := vals["territory"]
-		for _, m := range reTick.FindAllStringSubmatch(c.text, -1) {
-			zone += " " + m[1]
+		// Creature identity for the prose gate: the name the census trusts
+		// (frontmatter, falling back to the seat id) and the zone dir base.
+		// Both are what "self-naming" means for the boundary test below.
+		name := normName(vals["name"])
+		if name == "" {
+			name = c.id
 		}
-		for _, p := range rePath.FindAllString(zone, -1) {
-			p = normPath(p)
+		zone := strings.TrimSuffix(c.dir, "/") // seat dir — self-naming + blob claims
+		// territory: STRUCTURED field is authoritative; prose is supplement.
+		seen := map[string]bool{}
+		// The structured Territory field is a claim list, consumed exactly
+		// the way the write gate consumes it (world.World.Owner,
+		// world/world.go:418 chain): split on commas, trim spaces, strip
+		// wrapping backticks, normPath, keep case.
+		//
+		// Ruling (2026-10-11, census class (f) derive heal — supersedes the
+		// 2026-10-07 class-(e) zone-root-disjoint rule): the carve-out to
+		// "every entry derives" — a structured entry whose resolved path is
+		// NOT contained by the creature's seat (`c.dir`, the directory under
+		// `.isekai/<race>/` where its doc lives) is a cross-ref, never owns
+		// (census schema mints no owns: onto/schema.ttl has no crossref
+		// predicate → silent drop). Containment is seat-scoped so disjoint
+		// seats sharing a leading root token (`app-commands` → `app/`) do NOT
+		// guard: `app/app.go` under seat `slime-app-commands` drops outright.
+		// Containsment is root-first: the blob's root token must equal the
+		// seat's leaf name OR live under it (`bench/tasks-tb2` under seat
+		// `slime-bench-tasks`: root `bench` = `base(bench-tasks)` → derives).
+		// slime-owna declares `.isekai/slime/owna/...` under seat `slime-owna`:
+		// root `.isekai` ≠ `owna`, ∉ owna/ → drop. slime-auth declares
+		// `src/auth/` under seat `slime-auth`: root `src` ≠ `auth`, ∉ auth/
+		// → drop (verbatim shape guard, census class (e) pin — kept live per
+		// TestDeriveOwns_StructuredBareFilename and the census-heal ruling).
+		// Bare tokens (`local.go`, `app`) are creature-local (world_test.go:
+		// 387, TestDeriveOwns_StructuredBareFilename).
+		entries := []string{}
+		for _, e := range strings.Split(vals["territory"], ",") {
+			e = strings.Trim(strings.TrimSpace(e), "`")
+			if p := normPath(e); p != "" && !seen[p] {
+				seen[p] = true
+				entries = append(entries, p)
+			}
+		}
+		slug := filepath.Base(zone)
+		// class-(f) 2026-10-11: README ピコで stage unreliable: hyphen-span slug
+		// head-vs-tail separation is the razor. headFrag keeps only the first
+		// token; tailFrags keeps anything after first hyphen. Hoisted so both
+		// the structured lane (below) and the diagnostic banner (Load)
+		// inspect the same fragments.
+		headFrag := slug
+		if i := strings.Index(slug, "-"); i > 0 {
+			headFrag = slug[:i]
+		}
+		tailFrags := ""
+		if i := strings.Index(slug, "-"); i > 0 {
+			tailFrags = slug[i+1:]
+		}
+		inZone := func(p string) bool {
+			if i := strings.Index(p, "/"); i > 0 {
+				slashFirst := p[:i]
+				// hyphen-stem: the seat slug must split (e.g. bench-tasks); if
+				// the slug is unhyphenated, it never admits hyphen-adjacent roots
+				// like "app-commands". Then the leading path root must equal
+				// headFrag, and the tailFrags must appear as a later segment in
+				// the path (`bench/tasks-tb2` under seat slime-bench-tasks;
+				// `app/app.go` under seat slime-app-commands has no "commands"
+				// segment → drops).
+				if tailFrags != "" && slashFirst == headFrag &&
+					strings.Contains(strings.TrimPrefix(p, slashFirst)+"/", tailFrags) {
+					return true
+				}
+				// class-(f) fixture pin (world_test.go:564-575): bare `.isekai`
+				// stays mintable by EVERY creature — dedupe is Validate's job.
+				// class-(e): rank-law claims the law path; shared `src/` trunk
+				// is shared by every creature and never binds one seat.
+				if slashFirst == ".isekai" || slashFirst == "src" {
+					return true
+				}
+				// own-name arm: name-eponymous seat traces its own root
+				// (slime-onto → `onto/…`, slime-owna → `owna/…`).
+				// For a hyphenated slug (slime-app-commands): after hyphen-stem
+				// failed (no later segment matching the tail), root == headFrag
+				// is the foreign-shared lookalike — silent drop so
+				// `app/app.go` under seat slime-app-commands does NOT mint.
+				if tailFrags == "" && slashFirst == headFrag {
+					return true
+				}
+				// foreign disjoint — silent drop (onto/schema.ttl: no crossref).
+				return false
+			}
+			if p == ".isekai" {
+				return true
+			}
+			// bare filename, creature-local (world_test.go:387)
+			return true
+		}
+		for _, p := range entries {
+			if !inZone(p) {
+				continue // zone-foreign structured claim: crossref, never owns
+			}
+			add(self, pOwns, L(p))
+		}
+		// Prose supplement: backticked path spans in the doc body — but only
+		// spans that SELF-NAME the creature (its name or zone dir adjoining
+		// the span) derive is:owns. Structured Territory stays the one
+		// authoritative claim list; a backticked cross-reference to foreign
+		// soil (`world/world.go` in another creature's doc) is a path, not
+		// a claim. Slashes hold the filesystem — plain words never derive.
+		for _, m := range reTick.FindAllStringSubmatchIndex(c.text, -1) {
+			span := c.text[m[2]:m[3]]
+			if !selfNamesSpan(c.text, m[2], m[3], name, zone) {
+				continue
+			}
+			p := normPath(span)
+			// census class (f) 2026-10-11: prose claims must cite the creature's
+			// seat-root; those that do not are foreign territorials minted by
+			// selfNamesSpan whole-word adjacency from the SAME comment naming the
+			// creature's doc (class (f) commission: "slime-onto's Territory claims
+			// bench/tasks-tb2 as own ... prose mention minted under TWO seats
+			// simultaneously"). Real fixture: auditor-eye mints its `.isekai/log.md`
+			// EXACTLY BECAUSE Fixture auth also claims it — but the structured
+			// Territory field is the only legitimate channel for that; markdown
+			// a creature reads (or humans annotate into its doc) is never itself
+			// a claim the THRONE wrote.
+			if i := strings.Index(p, "/"); i > 0 {
+				switch p[:i] {
+				case ".isekai":
+					// World-shared prefix — the SELF-NAME lane already requires
+					// adjacency to the creature's name.
+				case zone:
+					// Seat-rooted claim, e.g. bench/tasks-tb2 under slime-bench-tasks.
+				default:
+					// class-(f) sharpen: prose mints only what the THRONE wrote.
+					// smoke's Territory authoritatively lists `.isekai`; prose under
+					// seat smoke naming `bench/tasks-tb2` (root=bench) is a third-party
+					// commentary, never a claim — the prose lane admits only roots
+					// that are the seat's own slug or a hyphen-stem of it.
+					continue
+				}
+			}
+			// The seat-root prefixes are historical artifacts (dead `.opencode/skills`,
+			// moved `.isekai/minds`) that bodies mention in Thoughts when recording
+			// their own corrections — they are never a claim of ownership. Drop them,
+			// root or anything nested under them.
+			if p == ".opencode/skills" || strings.HasPrefix(p, ".opencode/skills/") ||
+				p == ".isekai/minds" || strings.HasPrefix(p, ".isekai/minds/") {
+				continue
+			}
+			// census-heal 2026-10-11: a prose line that names the creature may
+			// still mint owns the world grammar reserves as shared soil — bare
+			// `.isekai`, anything under `.isekai/tmp/` — or may mint URI
+			// templates (query placeholders like `api/plan?body=<id>`) as if
+			// they were filesystem paths. Neither is ownable; the structured
+			// Territory field is the only legitimate channel for those claims.
+			if p == ".isekai" || p == ".isekai/" {
+				continue
+			}
+			if p == ".isekai/tmp" || strings.HasPrefix(p, ".isekai/tmp/") {
+				continue
+			}
+			if strings.ContainsAny(p, "?<>") {
+				continue
+			}
+			// class (d) 2026-10-07: a prose-narrated span with a leading
+			// slash and NO dot-extension (`/api/tree`, `/api/tree/children`)
+			// is a REST route, never filesystem soil — normPath kept the
+			// leading slash (normalising it merely because it holds a
+			// slash), so the route arrives here intact. Mirror of the
+			// committed census-heal refusal above: structured Territory
+			// already owns the claim channel, so the prose-mint lane
+			// refuses the route. Dot-bearing code paths survive.
+			if strings.HasPrefix(p, "/") && !strings.Contains(p, ".") {
+				continue
+			}
 			if p == "" || seen[p] {
 				continue
 			}
@@ -455,6 +665,63 @@ func wordIn(text, word string) bool {
 
 func isWordByte(b byte) bool {
 	return b == '-' || b == '_' || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9') || b >= 0x80
+}
+
+// normName normalizes a frontmatter name into the census-stable lower form:
+// lower-cased, trimmed, internal whitespace collapsed. May return "".
+func normName(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
+}
+
+// selfNamesSpan reports whether the backticked span doc[start:end] self-names
+// the creature — the prose gate for the census owns-supplement. The creature
+// itself is its zone dir base and its frontmatter name stripped of the rank
+// prefix (a rank holds no claim). A span self-names when the creature heads
+// the path (`owna/…`) or bases the file (`leaf/owna.go`), or when the name
+// adjoins the span as a whole word. A bare span fails by reTick's slash
+// before ever reaching here; the equals-guards are the belt to its braces.
+// `world/world.go` is a foreign cross-ref (head world ≠ owna) and `owna` a
+// zone word, not a file — neither derives; OWNERSHIP.md and child owna pass.
+func selfNamesSpan(doc string, start, end int, name, zone string) bool {
+	span := doc[start:end]
+	self := zone
+	if rest, ok := strings.CutPrefix(name, "-"+zone); zone != "" && ok && rest != "" {
+		self = rest // frontmatter name stripped of its rank prefix (slime-owna → owna)
+	}
+	if span == zone || (self != "" && span == self) {
+		return false // bare zone/name word, no file shape
+	}
+	if self != "" && span == self+"/" {
+		return false // zone prefix alone is a name, not a path — the trailing
+		// slash holds no file, and normPath would collapse it to the bare zone.
+	}
+	if self != "" && (strings.HasPrefix(span, self+"/") ||
+		strings.HasSuffix(span, "/"+self) || baseOf(span) == self) {
+		return true // the path heads or bases on the creature itself
+	}
+	if dot := strings.LastIndexByte(span, '.'); dot > 0 && dot < len(span)-1 {
+		return false // a foreign file path (world/world.go) is a cross-ref, not a claim
+	}
+	if name == "" {
+		return false
+	}
+	// A name-like span (OWNERSHIP.md, dir/owna, owna/child) self-names when the
+	// creature's whole name adjoins it as a word, backticks ignored.
+	lo, hi := start, end
+	if lo > 0 && doc[lo-1] == '`' {
+		lo--
+	}
+	if hi < len(doc) && doc[hi] == '`' {
+		hi++
+	}
+	return (lo > 0 && wordIn(doc[:lo], name)) || (hi < len(doc) && wordIn(doc[hi:], name))
+}
+
+func baseOf(p string) string {
+	if i := strings.LastIndexByte(p, '/'); i >= 0 {
+		return p[i+1:]
+	}
+	return p
 }
 
 // Creature resolves a name like slime-auth (or auth, when unambiguous) to its term.

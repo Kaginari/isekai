@@ -376,3 +376,201 @@ func TestLayoutCustomRanks(t *testing.T) {
 		t.Error("ClassOf")
 	}
 }
+
+// A structured Territory entry that is a bare filename (no slash) derives an
+// owns triple the gate's way: normPath lowercases it, so the graph holds the
+// lowercase literal; doc case resolves at match time, never in the store.
+// Old-genome property: before the gate-mirror genome-shift (sealed e269a50),
+// territory mining was slash-only rePath prose and a bare filename derived no
+// triple at all — case irrelevant — so this test fails there, guarding the
+// whole class of census holes named by the census commission (beat 6).
+func TestDeriveOwns_StructuredBareFilename(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		".isekai/isekai.md":          "# law\n",
+		".isekai/elf/docs/README.md": "# elf-docs\n\n- **Rank:** Elf\n- **Territory:** `CHANGELOG.md`\n- **Reports to:** rimuru\n\n## Thoughts\n- mined `LICENSE` only for a probe; it is not mine\n",
+	}
+	for p, body := range files {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := w.Graph
+	if !g.Has(Triple{Is("elf-docs"), pOwns, L("changelog.md")}) {
+		t.Error("structured bare filename derives no owns literal")
+	}
+	if g.Has(Triple{Is("elf-docs"), pOwns, L("CHANGELOG.md")}) {
+		t.Error("doc case leaked into the store; the store is normPath's lowercase only")
+	}
+	if g.Has(Triple{Is("elf-docs"), pOwns, L("license")}) {
+		t.Error("negative control derived: a backticked bare word in prose is not a claim")
+	}
+}
+
+// A body that records in its Thoughts how it corrected a mind's seat must not
+// acquire the dead seat prefixes as territory — those are history, never a
+// claim of ownership. Guards the normPath skip in derive (roots and nested).
+func TestDeriveSkipsDeadSeatPrefixes(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		".isekai/isekai.md":            "# law\n",
+		".isekai/slime/auth/README.md": "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** rimuru\n\n## Thoughts\n- moved the ciel mind out of the dead `.opencode/skills` seat into `.isekai/minds`; old home was `.opencode/skills/ciel/SKILL.md`, new seat `.isekai/minds/ciel/SKILL.md`\n",
+	}
+	for p, body := range files {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := w.Graph
+	if !g.Has(Triple{Is("slime-auth"), pOwns, L("src/auth")}) {
+		t.Error("declared territory still derives")
+	}
+	for _, bad := range []string{".opencode/skills", ".opencode/skills/ciel", ".opencode/skills/ciel/skill.md", ".isekai/minds", ".isekai/minds/ciel", ".isekai/minds/ciel/skill.md"} {
+		if g.Has(Triple{Is("slime-auth"), pOwns, L(bad)}) {
+			t.Errorf("dead seat prefix derived as ownership: %s", bad)
+		}
+	}
+	for _, f := range w.Validate() {
+		if strings.Contains(f.String(), "Territory") {
+			t.Errorf("territory finding from dead seat prefixes: %v", f)
+		}
+	}
+}
+
+// TestDeriveOwns_ProseCrossRefsDoNotDerive pins the census prose-supplement
+// gate (orc commission 2026-10-04): a backticked path in a doc body derives
+// is:owns ONLY when the span also self-names the creature (its name or zone
+// dir adjoining the span). Foreign-path cross-references — a doc mentioning
+// another creature's soil — must NOT derive ownership; structured Territory
+// stays the one authoritative claim list. Slashes hold the filesystem; plain
+// words hold the species (reTick comment, world.go:~2020 census head).
+func TestDeriveOwns_ProseCrossRefsDoNotDerive(t *testing.T) {
+	doc := `---
+name: slime-owna
+rank: slime
+---
+
+# slime-owna
+
+zoneDoc zone. Grep surface ` + "`owna/`" + ` (self-naming bare span, no path).
+
+Structured claims:
+
+- **Territory:** ` + "`owna/zone`" + `
+
+Prose supplement, self-naming: the zone file ` + "`owna/leaf.go`" + ` is mine.
+
+Cross-reference, foreign: invariants live in ` + "`world/world.go`" + ` — not mine.
+Plain words, no path: world world.go stays prose — no backticks, no derive.
+Species words: stableIDs owna self naming — no spans, no derive.
+`
+	dir := t.TempDir()
+	docDir := filepath.Join(dir, ".isekai", "slime", "owna")
+	if err := os.MkdirAll(docDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(docDir, "README.md"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := w.Graph
+	if !g.Has(Triple{Is("slime-owna"), pOwns, L("owna/zone")}) {
+		t.Error("structured Territory claim must still derive")
+	}
+	if !g.Has(Triple{Is("slime-owna"), pOwns, L("owna/leaf.go")}) {
+		t.Error("self-naming zone-joined prose claim must still derive")
+	}
+	if g.Has(Triple{Is("slime-owna"), pOwns, L("world/world.go")}) {
+		t.Error("foreign-path cross-reference derived ownership — prose supplement ungated")
+	}
+	if g.Has(Triple{Is("slime-owna"), pOwns, L("world.go")}) {
+		t.Error("plain-word basename derived ownership — slashes hold the filesystem")
+	}
+	if g.Has(Triple{Is("slime-owna"), pOwns, L("owna")}) {
+		t.Error("bare zone-name prefix derived ownership — file-shape rule broken")
+	}
+	for _, f := range w.Validate() {
+		if strings.Contains(f.String(), "Territory") {
+			t.Errorf("territory finding from prose cross-reference: %v", f)
+		}
+	}
+}
+
+// Class-(f) census ruling (rimuru, throne-sealed; heals the class-(e) ruling fb319d1 on its
+// root-COMPATIBLE twin arm): a structured doc's derive zone is its SEAT dir
+// (.isekai/slime/<name>), never a root derived from its Territory entries. Claims
+// outside the seat never derive -> slime-app-commands' root-compat `app/*.go`
+// claims produce no owns triples, hence no co-claim with slime-app-engine and no
+// is:overlap billing (census 55 -> 0). Claims seated under the seat always
+// derive (zone-local pin); `.isekai` blob siblings keep billing overlap because a
+// blob entry's root lands under each seat.
+func TestDeriveOwns_StructuredForeignPathDoesNotDerive_ClassF(t *testing.T) {
+	write := func(dir, seat, body string) {
+		docDir := filepath.Join(dir, ".isekai", "slime", seat)
+		if err := os.MkdirAll(docDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		doc := "---\nname: slime-" + seat + "\nrank: slime\n---\n\n# slime-" + seat + "\n\n## Territory\n" + body
+		if err := os.WriteFile(filepath.Join(docDir, "README.md"), []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := t.TempDir()
+	write(dir, "app-commands", "- `app/app.go`\n- `app/bench.go`\n- `app/serve.go`\n- `app/tui.go`\n- `app/main.go`\n")
+	write(dir, "app-engine", "- `app/engine.go`\n- `app/store.go`\n- `app/tasks.go`\n")
+	write(dir, "onto", "- `.isekai`\n")
+	write(dir, "bench-tasks", "- `bench/tasks-tb2`\n")
+	write(dir, "smoke", "- `.isekai`\n")
+
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := w.Graph
+	if g.Has(Triple{Is("slime-app-commands"), pOwns, L("app/app.go")}) {
+		t.Error("class (f): foreign root-compat claim must NOT derive is:owns")
+	}
+	sawAppOverlap := false
+	for _, f := range w.Validate() {
+		if strings.Contains(f.Msg, "overlapping") && strings.Contains(f.Msg, "slime-app-commands") {
+			sawAppOverlap = true
+		}
+	}
+	if sawAppOverlap {
+		t.Error("class (f): no co-claim across seats -> no is:overlap billing for app-commands")
+	}
+	// class (f) sibling billing: overlap findings are Validate() territory
+	// collisions ("X owns a, overlapping b of Y"); the .isekai-blob nested pair
+	// slime-onto/slime-smoke must keep billing.
+	sawSibling := false
+	for _, f := range w.Validate() {
+		if strings.Contains(f.Msg, "overlapping") && strings.Contains(f.Msg, "slime-onto") && strings.Contains(f.Msg, "slime-smoke") {
+			sawSibling = true
+		}
+	}
+	if !sawSibling {
+		t.Error("class (f) must not drop the .isekai-blob sibling billing (Validate overlap)")
+	}
+	if !g.Has(Triple{Is("slime-bench-tasks"), pOwns, L("bench/tasks-tb2")}) {
+		t.Error("zone-local pin: seat-contained claim MUST still derive is:owns")
+	}
+}

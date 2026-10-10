@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,7 +13,11 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Kaginari/isekai/loop"
+	"github.com/Kaginari/isekai/tool"
 	"github.com/Kaginari/isekai/tui"
+	"github.com/Kaginari/isekai/wire"
+	"github.com/Kaginari/isekai/world"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
@@ -67,6 +72,31 @@ func (s *screen) wait(t testing.TB, want string) {
 	}
 }
 
+// tuiSessionHost is tuiSession keeping the host — tests that drive the host's own seams
+// (Queue, Interrupt) rather than only keys need it.
+func tuiSessionHost(t *testing.T, w *testWorld) (*tuiHost, *teatest.TestModel, *screen) {
+	t.Helper()
+	a := w.open()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	h, err := a.tuiHost(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := tui.New(h, tui.NewTheme(true), h.words)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
+	m.Attach(tm.Send)
+	h.attach(tmSender{tm})
+	sc := &screen{}
+	sc.follow(tm.Output())
+	sc.wait(t, "✦ isekai")
+	t.Cleanup(func() {
+		tm.Send(tui.EvQuit{})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+	})
+	return h, tm, sc
+}
+
 // tuiSession opens the app on a test world and drives its host under teatest.
 func tuiSession(t *testing.T, w *testWorld) (*App, *teatest.TestModel, *screen) {
 	t.Helper()
@@ -100,7 +130,9 @@ func TestTUIJunctionTurn(t *testing.T) {
 		when("there", call("edit", map[string]string{"path": "README.md", "old": "hello", "new": "hello\n\nthe login zone"})),
 		when("edited", text("All **done**: `hi` was said and the file edited.\n\n```go\npackage auth\n```\n")),
 	)
-	w.write(".isekai/config.yaml", mockCfg(".isekai/tmp/s.json", ""))
+	// Law 7 (throne-never-authors) is default-on; this rendering test's mock throne edit of
+	// no-creature soil (README.md) must stay lawful — the fixture opts the flag off.
+	w.write(".isekai/config.yaml", mockCfg(".isekai/tmp/s.json", "law: {territory: {throneNeverAuthors: false}}\n"))
 	_, tm, sc := tuiSession(t, w)
 	tm.Type("say hi")
 	enter(tm)
@@ -109,6 +141,8 @@ func TestTUIJunctionTurn(t *testing.T) {
 	sc.wait(t, "⎿ ok · ")
 	sc.wait(t, "there")
 	sc.wait(t, "● edit  README.md  write")
+	sc.wait(t, " ⎿ ok · ") // the diff is ctrl+o territory now, never ambient
+	tm.Send(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl})
 	sc.wait(t, "+ the login zone")
 	sc.wait(t, "hi was said and the file edited")
 	sc.wait(t, "✓ gate · ")
@@ -141,7 +175,7 @@ func TestTUIApprovalYes(t *testing.T) {
 	_, tm, sc := tuiSession(t, w)
 	tm.Type("push it")
 	enter(tm)
-	sc.wait(t, "❯ 1. Yes")
+	sc.wait(t, "1 · Yes")
 	if s := sc.text(); !strings.Contains(s, "outward  bash  git push origin main") || !strings.Contains(s, "don't ask again for bash:git push*") {
 		t.Fatalf("approval block:\n%s", s)
 	}
@@ -168,7 +202,7 @@ func TestTUIApprovalDontAskAgain(t *testing.T) {
 	_, tm, sc := tuiSession(t, w)
 	tm.Type("push it")
 	enter(tm)
-	sc.wait(t, "❯ 1. Yes")
+	sc.wait(t, "1 · Yes")
 	tm.Type("2")
 	sc.wait(t, "rule bash:git push* → allow written to .isekai/config.local.yaml")
 	sc.wait(t, "pushed twice")
@@ -192,7 +226,7 @@ func TestTUIApprovalNoWithReason(t *testing.T) {
 	_, tm, sc := tuiSession(t, w)
 	tm.Type("push it")
 	enter(tm)
-	sc.wait(t, "❯ 1. Yes")
+	sc.wait(t, "1 · Yes")
 	tm.Type("3")
 	sc.wait(t, "why not?")
 	tm.Type("run the tests first")
@@ -229,7 +263,7 @@ models: {default: mock/m, offices: {great-sage: court/c}}
 providers:
   mock: {enabled: true, script: .isekai/tmp/session.json}
   court: {type: mock, script: .isekai/tmp/court.json}
-tools: {bash: {sandbox: none}, dispatch: {background: true}}
+tools: {bash: {sandbox: none}, dispatch: {background: true, strictFlow: false}}
 ui: {board: {autostart: false}}
 `)
 	_, tm, sc := tuiSession(t, w)
@@ -240,7 +274,7 @@ ui: {board: {autostart: false}}
 	sc.wait(t, "⎿ PASS")
 	sc.wait(t, "● src/auth/login.go:1 fine")
 	sc.wait(t, "∴ colony: courts can run behind")
-	sc.wait(t, "❯ 1. auth")
+	sc.wait(t, "1 · auth")
 	tm.Type("2")
 	sc.wait(t, "The api zone it is.")
 	sc.wait(t, "◆ court slime-api")
@@ -251,10 +285,12 @@ ui: {board: {autostart: false}}
 
 func TestTUIInterruptAndQueue(t *testing.T) {
 	w := newTestWorld(t, "isekai", isekaiCreatures())
+	// "a note" must NEVER appear as a turn prompt in the running "slow" turn (no
+	// mid-turn injection). It runs as its own turn after esc pivots to it.
 	w.script(".isekai/tmp/s.json",
 		when("slow", call("bash", map[string]string{"command": "sleep 5; echo late"})),
 		when("late", text("late came")),
-		when("again", text("second turn fine")),
+		when("a note", text("the note ran as its own turn")),
 	)
 	w.write(".isekai/config.yaml", mockCfg(".isekai/tmp/s.json", ""))
 	_, tm, sc := tuiSession(t, w)
@@ -264,11 +300,53 @@ func TestTUIInterruptAndQueue(t *testing.T) {
 	tm.Type("a note")
 	enter(tm)
 	sc.wait(t, "⏎ queued: a note")
+	// esc pivots: the running turn aborts and the queued line fires as the next turn.
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEsc})
 	sc.wait(t, "■ interrupted")
-	tm.Type("again")
+	sc.wait(t, "the note ran as its own turn")
+	// the FIFO contract: "a note" waited for "slow" to end, then ran as its OWN turn —
+	// never a mid-turn injection into the running turn's messages. Assert via the queue's
+	// observable ordering: the queued echo precedes the interrupt, and the note's turn
+	// output follows it. A regression that injects mid-turn would show the note reaching
+	// the model while "slow" was still running — the mock script has no step answering a
+	// mid-turn "a note", so any injection yields no turn and this wait fails:
+	if !strings.Contains(sc.text(), "⏎ queued: a note") {
+		t.Fatalf("the queued echo vanished:\n%s", sc.text())
+	}
+}
+
+func TestTUIGateCardFreedByInterrupt(t *testing.T) {
+	w := newTestWorld(t, "isekai", isekaiCreatures())
+	// Freeze-law regression (2026-10-07): a gate card left unanswered wedged the whole
+	// world in h.approve's session-ctx select — esc could not free it, queued asks never
+	// drained. The card's wait now selects on the turn ctx too: esc resolves the card as
+	// an interruption-denial AND the queued ask runs as the next turn.
+	w.script(".isekai/tmp/s.json",
+		when("push it", call("bash", map[string]string{"command": "git push origin main"})),
+		when("hello", text("hello back")),
+	)
+	w.write(".isekai/config.yaml", mockCfg(".isekai/tmp/s.json", ""))
+	h, tm, sc := tuiSessionHost(t, w) // keeps the host: the queue entry point rides it directly
+	tm.Type("push it")
 	enter(tm)
-	sc.wait(t, "second turn fine")
+	sc.wait(t, "1 · Yes") // the card is up; nothing answers it
+	// the human's voice arrives the DASHBOARD way while the card holds the gate
+	// (the 2026-10-07 freeze's real buffer: Queue → queuedBuf → drained only at finish)
+	if why := h.Queue("hello"); !strings.Contains(why, "queued") {
+		t.Fatalf("the queue word did not read as queued: %q", why)
+	}
+	if strings.Contains(sc.text(), "hello back") {
+		t.Fatal("the world answered while its card was open — the queue must wait")
+	}
+	// the dashboard's interrupt endpoint (what a human hits while the modal holds the
+	// world) calls exactly this: Interrupt → turn ctx fires → the card's wait resolves
+	h.Interrupt()
+	sc.wait(t, "■ interrupted") // freed — the world was never stuck on a modal
+	sc.wait(t, "hello back")    // and the queued ask ran as the very next turn
+	j := w.journalText(".isekai")
+	if !strings.Contains(j, `"decision":"denied"`) || !strings.Contains(j, "interrupted while waiting") {
+		t.Fatalf("the freed card did not journal as an interruption-denial:\n%s", j)
+	}
 }
 
 func TestWantsTUI(t *testing.T) {
@@ -350,5 +428,227 @@ func TestTUIBoardReadsTheWorld(t *testing.T) {
 	}
 	if len(v.Offices) != 3 || v.Offices[0].Name != "great-sage" || v.Offices[0].Model != "mock/m" || len(v.Offices[0].Ranks) == 0 {
 		t.Fatalf("offices %+v", v.Offices)
+	}
+}
+
+// collector is a test sender that records the events a tuiHost emits.
+type collector struct {
+	mu   sync.Mutex
+	msgs []tea.Msg
+}
+
+func (c *collector) Send(m tea.Msg) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.msgs = append(c.msgs, m)
+}
+
+func (c *collector) events() []tea.Msg {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]tea.Msg(nil), c.msgs...)
+}
+
+func (c *collector) views() (courts []tui.CourtView, states []tui.EvState) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, m := range c.msgs {
+		switch e := m.(type) {
+		case tui.EvCourt:
+			courts = append(courts, e.Court)
+		case tui.EvState:
+			states = append(states, e)
+		}
+	}
+	return
+}
+
+// A body dispatched down the ladder by a drained @$ order never lands a courtReport — its
+// terminal state arrives only through the loop's State hook ("done"). The banner must close
+// there, exactly once, instead of staying "thinking" with a running timer (the stale-court bug
+// Veldora saw: banners reading thinking·44m after the loop journal already said DONE).
+func TestTUICourtBannerClosesOnDoneState(t *testing.T) {
+	w := newTestWorld(t, "isekai", isekaiCreatures())
+	w.write(".isekai/config.yaml", `
+models: {default: mock/m, offices: {great-sage: court/c}}
+providers:
+  mock: {enabled: true}
+  court: {type: mock}
+ui: {board: {autostart: false}}
+`)
+	a := w.open()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h, err := a.tuiHost(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &collector{}
+	h.attach(c)
+
+	// the Court knows the body (as Track would have registered it at dispatch)
+	h.a.Court.Track("slime-ledger", "slime", "great-sage", "court/c", nil, 1)
+
+	h.state("slime-ledger", "thinking") // opens the banner
+	h.state("slime-ledger", "tool")     // mid-run updates ride EvState
+	h.state("slime-ledger", "done")     // the drained body's only terminal signal
+	h.state("slime-ledger", "done")     // idempotent: no second banner, no panic
+
+	courts, states := c.views()
+	var opens, closes int
+	for _, v := range courts {
+		if v.Name != "slime-ledger" {
+			continue
+		}
+		switch v.State {
+		case "thinking":
+			opens++
+		case "done":
+			closes++
+			if v.Elapsed < 0 {
+				t.Fatalf("closing banner carries a negative elapsed: %v", v.Elapsed)
+			}
+		}
+	}
+	if opens != 1 || closes != 1 {
+		t.Fatalf("banners: %d opens, %d closes — want 1/1; all courts: %+v", opens, closes, courts)
+	}
+	for _, s := range states {
+		if s.Body == "slime-ledger" && s.State == "done" {
+			t.Fatalf("a bare done EvState escaped — the banner would stay open: %+v", states)
+		}
+	}
+	h.mu.Lock()
+	seenLeft := h.courtSeen["slime-ledger"]
+	h.mu.Unlock()
+	if seenLeft {
+		t.Fatal("courtSeen still holds the body after done — the banner is still live")
+	}
+}
+
+// A court's dispatch step seeds and lands its Court's card at EVERY depth (Veldora's chain
+// run, 2026-09-28): rimuru → elf-colony → orc-experience closed DOWN the loop, and the orc's
+// card sat in the live area reading DONE long after the body's clock axed it — the host saw
+// the orc's steps only as elf-colony's steps, so the report never reached the card. Now any
+// body's dispatch step end lands the child's card (its parent's log line rides along), and the
+// session's own dispatch steps behave exactly as before.
+func TestTUINestedDispatchStepsLandTheirCourts(t *testing.T) {
+	w := newTestWorld(t, "isekai", isekaiCreatures())
+	w.script(".isekai/tmp/s.json", text("nothing"))
+	w.write(".isekai/config.yaml", mockCfg(".isekai/tmp/s.json", ""))
+	a := w.open()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h, err := a.tuiHost(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &collector{}
+	h.attach(c)
+
+	parent := &loop.Session{Engine: &loop.Engine{As: "elf-colony"}}
+	rimuru := &loop.Session{Engine: &loop.Engine{As: world.Rimuru}}
+	input, _ := json.Marshal(map[string]string{"body": "orc-x", "ask": "verdict on the trials"})
+
+	// a court dispatches: the start seeds the child's ask; the parent's log still steps
+	h.observe(parent, &loop.StepRecord{Tool: "dispatch", Input: input, Status: "running"}, "start")
+	h.mu.Lock()
+	seeded := h.courtAsk["orc-x"]
+	h.mu.Unlock()
+	if seeded != "verdict on the trials" {
+		t.Fatalf("the nested dispatch's start must seed the card's ask, got %q", seeded)
+	}
+	h.a.Court.Track("orc-x", "orc", "raphael", "mock/r", nil, 2)
+	h.state("orc-x", "thinking")
+	h.state("orc-x", "done")
+	// the step end carries the child's wire report: the card gets it
+	h.observe(parent, &loop.StepRecord{Tool: "dispatch", Input: input, Status: "done",
+		Result: tool.Result{Output: "@S DONE\n@F src/x.go:1 ok\n@U colony nested courts land their cards\n@E 20"}}, "end")
+	// a failed dispatch's output is no wire report: no card report, the parent's log still closes
+	h.observe(parent, &loop.StepRecord{Tool: "dispatch", Input: input, Status: "failed",
+		Result: tool.Result{Output: "dispatch orc-x: court ran out of its 15.0-minute budget", Err: true}}, "end")
+
+	// the session's own dispatch step: unchanged shape — no tool block, no body-log lines
+	h.observe(rimuru, &loop.StepRecord{Tool: "dispatch", Input: input, Status: "running"}, "start")
+	h.observe(rimuru, &loop.StepRecord{Tool: "dispatch", Input: input, Status: "done",
+		Result: tool.Result{Output: "@S DONE\n@F src/x.go:1 ok too\n@E 20"}}, "end")
+
+	courts, _ := c.views()
+	var opens, reports int
+	for _, v := range courts {
+		if v.Name != "orc-x" {
+			continue
+		}
+		if v.State == "thinking" {
+			opens++
+			if v.Ask != "verdict on the trials" || v.Model != "mock/r" || v.Rank != "orc" || v.Office != "raphael" {
+				t.Fatalf("the nested card opened unseeded: %+v", v)
+			}
+		}
+		if v.State == "done" && v.Report != nil {
+			reports++
+			if v.Exit != "PASSED" {
+				t.Fatalf("a DONE journal verdict must read PASSED on the card face, got %q", v.Exit)
+			}
+		}
+	}
+	if opens != 1 || reports != 2 {
+		t.Fatalf("opens %d, landed reports %d — want 1 open, 2 reports (parent's + session's): %+v", opens, reports, courts)
+	}
+	var parentLogs, toolBlocks int
+	for _, m := range c.events() {
+		switch e := m.(type) {
+		case tui.EvBodyStep:
+			if e.Body == "elf-colony" && e.End {
+				parentLogs++
+			}
+		case tui.EvToolStart, tui.EvToolEnd:
+			toolBlocks++
+		}
+	}
+	if parentLogs != 2 {
+		t.Fatalf("the parent's own log lost steps to the child's card: %d step ends, want 2 (the reported one and the failed one)", parentLogs)
+	}
+	if toolBlocks != 0 {
+		t.Fatalf("a dispatch step must never draw a generic tool block: %d", toolBlocks)
+	}
+}
+
+// Court-card exit-verdict law (harness leg 2c): a court whose run journal ended FAIL — the
+// wire's @S carries the loop's status — must render "FAIL · Ns" on the card face, styled bad,
+// with lifecycle "done" demoted to the dim ask line. Lifecycle returned ≠ verdict; the desk
+// must never print a bare "done · 2m35s" over a FAILED journal (the 2026-09-28 Law-9 break).
+func TestTUICourtCardRendersExitVerdict(t *testing.T) {
+	theme := tui.NewTheme(true)
+	rep := wire.Report{Status: "FAIL — PASSED", Findings: []string{"src/x.go:1 broke"}}
+	v := tui.CourtView{
+		Name: "orc-trials", Rank: "orc", Office: "raphael", Model: "court/c",
+		State: "done", Exit: exitVerdict(rep), Failed: true,
+		Elapsed: 155 * time.Second, Ask: "rule on the trials",
+		Report: reportView(rep), Word: "court",
+	}
+	if v.Exit != "FAIL" {
+		t.Fatalf("exitVerdict(%q) = %q, want FAIL", rep.Status, v.Exit)
+	}
+	card := ansi.Strip(theme.Court(v, 100))
+	if !strings.Contains(card, "FAIL · 2m35s") {
+		t.Fatalf("the card face must read the journal verdict before the duration; got:\n%s", card)
+	}
+	if strings.Contains(card, "DONE · 2m35s") || strings.Contains(card, "done · 2m35s") {
+		t.Fatalf("lifecycle done leaked onto the face over a FAIL verdict:\n%s", card)
+	}
+	// lifecycle survives demoted: the ask line is the tooltip tier
+	if !strings.Contains(card, "rule on the trials · done") {
+		t.Fatalf("lifecycle word must demote to the ask line; got:\n%s", card)
+	}
+
+	verdicts := map[string]string{
+		"DONE": "PASSED", "ESCALATE": "ESCALATE", "DENIED": "DENIED", "INTERRUPTED": "INTERRUPTED", "FAIL": "FAIL",
+		"": "", "PASSED": "", "SHINY": "", // legacy/junk: no verdict surface
+	}
+	for status, expect := range verdicts {
+		if got := exitVerdict(wire.Report{Status: status}); got != expect {
+			t.Fatalf("exitVerdict(%q) = %q, want %q", status, got, expect)
+		}
 	}
 }

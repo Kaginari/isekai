@@ -4,7 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"runtime/debug"
 	"strings"
+	"time"
+
+	"github.com/Kaginari/isekai/wire"
 )
 
 // Commission is what the dispatch tool hands its runner: a body to mint and the wire
@@ -15,9 +20,12 @@ type Commission struct {
 	Scope  string
 	Root   string
 	Unsaid bool
-	Cap    int
-	Depth  int    // the Court's nesting depth (1 for a body dispatched by the session)
-	Office string // the office the ask names: findings → great-sage, verdict → raphael, draft → ciel
+	// UnsaidExplicit marks a demand made on purpose (the caller passed unsaid:true), vs the
+	// law's ambient default. Only explicit demands make the close-out bounce for a missing @U.
+	UnsaidExplicit bool
+	Cap            int
+	Depth          int    // the Court's nesting depth (1 for a body dispatched by the session)
+	Office         string // the office the ask names: findings → great-sage, verdict → raphael, draft → ciel
 }
 
 // OfficeOf reads the office off an @ASK word (the triad: perceive, judge, speak); "" if none.
@@ -72,6 +80,17 @@ type DispatchReport struct {
 	Holes   []string // the engine's own holes
 	Wrote   []string // paths the Court wrote (gated on its own account)
 	Journal string
+	// ReportPath/ReportBytes/ReportHash are the courier envelope: the harness filed the
+	// report on the instruments shelf, and the dispatcher's context carries the digest
+	// (@R path · size · @H fnv64) with the wrote list (@W) inline. The parent reads the
+	// file when the verdict needs the flesh — relaying prose up the rungs is the tax this
+	// closes.
+	ReportPath  string
+	ReportBytes int
+	ReportHash  string
+	// Forges are the run's drafts: skills or tools the body proved on the wire (@FORGE). They
+	// ride up unminted — the layer curates, the desk mints.
+	Forges []wire.Forge
 }
 
 // Dispatcher runs one commission as a Court Body: a fresh loop with its own context, tools cut
@@ -88,6 +107,14 @@ type DispatchOptions struct {
 	Unsaid     bool     // commission +unsaid by default
 	Bodies     []string // allowed body names; nil = any
 	Background bool     // `background: true` may run the Court asynchronously (tools.dispatch.background)
+	// BackgroundTimeout bounds a background Court's run (0: 30m). The provider's own
+	// timeout bounds each model call; nothing else stopped a background run from
+	// outliving everything around it.
+	BackgroundTimeout time.Duration
+	// SessionBackground: at the session's own depth a commission defaults to background — the
+	// throne stays free; the Court rides on and its report wakes the session. A commission may
+	// still name background:false to ride in the foreground.
+	SessionBackground bool
 	// Wake receives a background Court's report when it lands; nil: background is refused.
 	Wake func(body, report string, failed bool)
 }
@@ -110,7 +137,7 @@ func DispatchTool(opt DispatchOptions, run Dispatcher) *Tool {
 				Body, Ask, Scope, Office string
 				Cap                      int
 				Unsaid                   *bool
-				Background               bool
+				Background               *bool
 			}
 			if err := decode(in, &a); err != nil {
 				return fail("dispatch: %v", err)
@@ -126,6 +153,8 @@ func DispatchTool(opt DispatchOptions, run Dispatcher) *Tool {
 				max = 1
 			}
 			if opt.Depth >= max {
+				// the world floors its own ceiling at the rank chain's length (world.Engine), so this
+				// refusal only answers at the floor rank or under a human-set MaxDepth below it
 				return fail("dispatch: nesting limit reached (depth %d of %d) — a Court at this depth may not dispatch; answer with @? one hop up instead", opt.Depth, max)
 			}
 			if opt.Bodies != nil && !inList(opt.Bodies, a.Body) {
@@ -146,20 +175,68 @@ func DispatchTool(opt DispatchOptions, run Dispatcher) *Tool {
 			}
 			if a.Unsaid != nil {
 				c.Unsaid = *a.Unsaid
+				c.UnsaidExplicit = true // the caller named +unsaid in words — not the ambient law
+			}
+			background := opt.Background && opt.SessionBackground && opt.Depth == 0
+			if a.Background != nil {
+				background = *a.Background
 			}
 			render := func(rep DispatchReport) string {
-				out := strings.TrimSpace(rep.Text)
+				// court-card-exit-verdict law (harness leg 2b): the exit verdict is the run
+				// journal's t:end status (rep.Status), stamped as the payload's first line so
+				// any renderer that reads only the returned string still shows DONE/FAIL/
+				// ESCALATE — never a collapsed lifecycle "done". The body's own @S follows.
+				var b strings.Builder
+				if rep.Status != "" {
+					b.WriteString("@S " + rep.Status + "\n")
+				}
+				text := strings.TrimSpace(rep.Text)
+				if rep.ReportPath != "" {
+					// the courier envelope: the report is filed on the instruments shelf; the
+					// parent's context buys only the digest — @R where it lives, @H its
+					// integrity, @W what the court wrote, a head-digest of the first lines.
+					fmt.Fprintf(&b, "@R %s — the report is filed there (%d bytes); read it when the verdict needs the flesh\n", rep.ReportPath, rep.ReportBytes)
+					fmt.Fprintf(&b, "@H fnv64:%s\n", rep.ReportHash)
+					for _, p := range rep.Wrote {
+						b.WriteString("@W " + p + "\n")
+					}
+					if text != "" {
+						head := text
+						if ls := strings.Split(text, "\n"); len(ls) > 8 {
+							head = strings.Join(ls[:8], "\n") + "\n…"
+						}
+						b.WriteString("digest:\n" + head + "\n")
+					}
+				} else {
+					b.WriteString(text)
+				}
+				out := b.String()
 				if rep.Unsaid == 0 {
 					out += fmt.Sprintf("\n@? dispatch %s: report carries no @U line — nothing unsaid, or the duty failed; ask again with +unsaid", c.Body)
 				}
 				return out
 			}
-			if a.Background {
+			if background {
 				if !opt.Background || opt.Wake == nil {
-					return fail("dispatch: background Courts are off (tools.dispatch.background: false) — dispatch %s in the foreground", c.Body)
+					return fail("dispatch: background Courts are off here (tools.dispatch.background: false, or no inbox delivery wired at depth %d) — dispatch %s in the foreground", opt.Depth, c.Body)
 				}
+				dispatchedAt := time.Now().UnixNano()
+				go spawnWatch(env, c.Body, dispatchedAt, opt.Wake)
 				go func() {
-					rep, err := run(context.Background(), env, c)
+					defer func() {
+						// a background runner panicking must never take the process down
+						if rec := recover(); rec != nil {
+							debug.PrintStack()
+							opt.Wake(c.Body, fmt.Sprintf("@S FAIL\n@? dispatch %s: panic: %v\n@E 0", c.Body, rec), true)
+						}
+					}()
+					t := opt.BackgroundTimeout
+					if t <= 0 {
+						t = 30 * time.Minute
+					}
+					bctx, cancel := context.WithTimeout(context.Background(), t)
+					defer cancel()
+					rep, err := run(bctx, env, c)
 					if err != nil {
 						opt.Wake(c.Body, fmt.Sprintf("@S FAIL\n@? dispatch %s: %v\n@E 0", c.Body, err), true)
 						return
@@ -185,6 +262,45 @@ func oneLineAsk(s string) string {
 		s = s[:80] + "…"
 	}
 	return s
+}
+
+// spawnWatch is the phantom-dispatch guard (audit N5, 2026-10-02 evening): an acked background
+// dispatch once returned ok while the child never minted its journal — the parent closed DONE
+// believing the slice was staffed and the work was nobody's. Within spawnGrace of the ack, the
+// child's journal must exist under <root>/<worldDir>/instruments/loop/<body>-<ts>-<id>.jsonl
+// and have a first event. No journal, no first event → the dispatcher is woken with a
+// spawn-failed FAIL on the wire, naming what to trust instead.
+const spawnGrace = 10 * time.Second
+
+func spawnWatch(env Env, body string, dispatchedAt int64, wake func(body, report string, failed bool)) {
+	if wake == nil || body == "" {
+		return
+	}
+	dir := env.Root + "/" + env.worldDir() + "/instruments/loop"
+	deadline := time.Now().Add(spawnGrace)
+	for time.Now().Before(deadline) {
+		ents, err := os.ReadDir(dir)
+		if err == nil {
+			for _, ent := range ents {
+				if ent.IsDir() || !strings.HasPrefix(ent.Name(), body+"-") || !strings.HasSuffix(ent.Name(), ".jsonl") {
+					continue
+				}
+				info, err := ent.Info()
+				if err != nil {
+					continue
+				}
+				if info.ModTime().UnixNano() < dispatchedAt {
+					continue // a stale journal from an earlier run of the same body
+				}
+				if info.Size() == 0 {
+					continue // created but no first event yet
+				}
+				return // alive and writing
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	wake(body, fmt.Sprintf("@S FAIL\n@? dispatch %s: spawn failed — %s passed and no journal with a first event appeared in %s. The slice was never staffed; re-dispatch or escalate with @?, do not assume the child is alive.\n@E 0", body, dir, spawnGrace), true)
 }
 
 func inList(xs []string, x string) bool {

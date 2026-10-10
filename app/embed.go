@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Kaginari/isekai/board"
 	"github.com/Kaginari/isekai/onto"
 )
 
@@ -27,7 +28,8 @@ func LawText(dist string) string {
 }
 
 // Init seeds a minimal world under root: <dist-dir>/ with the law, an empty log, the
-// instrument dirs and the memory tiers' folders. Idempotent: an existing file is never
+// instrument dirs and the memory tiers' folders, and a portraits/ with the rank PNGs
+// (the tui shows them in the pane as the mascot). Idempotent: an existing file is never
 // touched; nothing outside the world dir is written. It returns what it created.
 func Init(dist, root string) ([]string, error) {
 	d, err := parseDist(dist)
@@ -36,7 +38,7 @@ func Init(dist, root string) ([]string, error) {
 	}
 	base := filepath.Join(root, d.WorldDir)
 	var made []string
-	dirs := []string{"", "instruments", "instruments/loop", "instruments/usage", "instruments/desk", "instruments/toolbox", "memory", "memory/short", "memory/long", "memory/shared", "toolbox", "ontology", "ontology/graph", "tmp"}
+	dirs := []string{"", "instruments", "instruments/loop", "instruments/usage", "instruments/desk", "instruments/toolbox", "memory", "memory/short", "memory/long", "memory/shared", "toolbox", "ontology", "ontology/graph", "tmp", "base-skills", "crafted-skills", "portraits"}
 	for _, sub := range dirs {
 		p := filepath.Join(base, sub)
 		if _, err := os.Stat(p); err == nil {
@@ -61,6 +63,23 @@ func Init(dist, root string) ([]string, error) {
 			continue
 		}
 		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			return made, fmt.Errorf("%s: %w", relOrAbs(root, p), err)
+		}
+		made = append(made, relOrAbs(root, p))
+	}
+	// the rank portraits ride the board's embed; init stages them into the world's
+	// portraits/ so the tui mascot can prefer the pixel source over the hand-drawn sprite,
+	// world-local law: the elf owns portraits/ after init.
+	for _, name := range board.PortraitNames() {
+		p := filepath.Join(base, "portraits", name+".png")
+		if _, err := os.Stat(p); err == nil {
+			continue
+		}
+		b, err := board.Portrait(name)
+		if err != nil {
+			return made, fmt.Errorf("portrait %s: %w", name, err)
+		}
+		if err := os.WriteFile(p, b, 0o644); err != nil {
 			return made, fmt.Errorf("%s: %w", relOrAbs(root, p), err)
 		}
 		made = append(made, relOrAbs(root, p))

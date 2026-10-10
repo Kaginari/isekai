@@ -184,8 +184,24 @@ func sketchColony(root string, d config.Dist) sketch {
 			}
 		}
 		if len(o.Slimes) == 0 {
-			o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(a.name), Parent: "orc-" + o.Short, Territory: []string{a.name + "/"}, Verify: test(a.name),
-				Purpose: "the ground truth of `" + a.name + "/`."})
+			// zone width at birth (the 2026-10-09 law): a big flat dir chunks into bounded
+			// file sets — one keeper holding a whole flat tree puts every new file's
+			// creation on one body, and a single-prefix zone cannot split but by its tree
+			files := dirFiles(filepath.Join(root, a.name), a.name)
+			if len(files) > 8 {
+				for i, n := 0, 0; i < len(files) && n < 6; i, n = i+8, n+1 {
+					end := i + 8
+					if n >= 5 || end > len(files) {
+						end = len(files) // the sixth chunk (or a short tail) absorbs the rest — never slice past len into cap
+					}
+					chunk := files[i:end]
+					o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(a.name) + "-" + string(rune('a'+n)), Parent: "orc-" + o.Short, Territory: chunk, Verify: test(a.name),
+						Purpose: fmt.Sprintf("the ground truth of %d files in `%s/`.", len(chunk), a.name)})
+				}
+			} else {
+				o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(a.name), Parent: "orc-" + o.Short, Territory: []string{a.name + "/"}, Verify: test(a.name),
+					Purpose: "the ground truth of `" + a.name + "/`."})
+			}
 		}
 		s.Orcs = append(s.Orcs, o)
 	}
@@ -207,6 +223,23 @@ func sketchColony(root string, d config.Dist) sketch {
 		}
 	}
 	return s
+}
+
+// dirFiles lists a directory's direct source files as territory entries, sorted — the
+// flat-dir chunker's input.
+func dirFiles(dir, area string) []string {
+	ents, _ := os.ReadDir(dir)
+	var out []string
+	for _, e := range ents {
+		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		if _, ok := sourceExt[filepath.Ext(e.Name())]; ok {
+			out = append(out, area+"/"+e.Name())
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // doc is a creature's README in the shape the ontology reads.

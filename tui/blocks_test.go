@@ -34,7 +34,7 @@ func TestBlocksGolden(t *testing.T) {
 		{"welcome", func(w int) string {
 			return th.Welcome(Welcome{Dist: "isekai", Version: "v0.1.5", World: "/home/monta/kaginari/pfcli", Model: "gemini/gemini-3.8-flash",
 				Offices: []string{"great-sage → gemini/gemini-3.8-flash", "raphael → gemini/gemini-3.8-flash", "ciel → gemini/gemini-3.8-flash"},
-				Board:   "http://127.0.0.1:7777/", Off: 2, Session: "20260926-171200-a1b2c3", Holes: []string{"GEMINI_API_KEY is not set — the mount has no key"}}, w)
+				Off:     2, Session: "20260926-171200-a1b2c3", Holes: []string{"GEMINI_API_KEY is not set — the mount has no key"}}, w)
 		}},
 		{"user", func(w int) string {
 			return th.User("explain the gate in this world and then run the tests under src/auth — take your time, I want the full picture of what the verify beat reads", w)
@@ -82,7 +82,71 @@ func TestBlocksGolden(t *testing.T) {
 			return th.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "mock/m", State: "done", Elapsed: 2 * time.Second, Failed: true,
 				Report: &ReportView{Status: "FAIL — provider: HTTP 503", Holes: []string{"provider: HTTP 503 after 3 retries"}}}, w)
 		}},
+		// the slice-1 pulse states (N15/N16): the row's motion, frozen mid-frame by an explicit
+		// Pulse — the goldens pin the geometry; the colour rides the ANSI shots
+		{"court-pulse-thinking", func(w int) string {
+			return th.Court(CourtView{Name: "elf-isekai", Rank: "elf", Office: "ciel", Model: "mock/m", State: "thinking", Elapsed: 28 * time.Second, Ask: "coordinate the files-panel slices"}, w,
+				Pulse{Lane: th.lane("elf"), Phase: 6})
+		}},
+		{"court-pulse-tool", func(w int) string {
+			return th.Court(CourtView{Name: "slime-auth", Rank: "slime", Office: "great-sage", Model: "mock/m", State: "tool", Elapsed: 12 * time.Second, Ask: "land the token file"}, w,
+				Pulse{Lane: th.lane("slime"), Phase: 3, Tool: "edit", Frames: []string{"⠋", "⠙", "⠹", "⠸"}})
+		}},
+		{"court-pulse-gate", func(w int) string {
+			return th.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "mock/m", State: "waiting on gate", Elapsed: 31 * time.Second, Ask: "verdict on the import"}, w,
+				Pulse{Lane: th.lane("orc"), Phase: 9, Bob: 1.4})
+		}},
+		{"court-pulse-flash", func(w int) string {
+			return th.Court(CourtView{Name: "slime-auth", Rank: "slime", Office: "great-sage", Model: "mock/m", State: "done", Elapsed: 9 * time.Second, Ask: "land the token file",
+				Report: &ReportView{Status: "PASS", Findings: []string{"src/auth/token.go:1 token ttl is 15m"}}}, w,
+				Pulse{Lane: th.lane("slime"), Flash: 0.9})
+		}},
+		{"court-pulse-fail-flash", func(w int) string {
+			return th.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "mock/m", State: "done", Elapsed: 2 * time.Second, Failed: true,
+				Report: &ReportView{Status: "FAIL — provider: HTTP 503", Holes: []string{"provider: HTTP 503 after 3 retries"}}}, w,
+				Pulse{Lane: th.lane("orc"), Flash: 0.6})
+		}},
+		{"court-crest", func(w int) string {
+			ic := th.Icon("isekai", "orc", 0)
+			return th.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "mock/m", State: "thinking", Elapsed: 8 * time.Second, Ask: "verdict on the import: is the payload lawful"}, w,
+				Pulse{Lane: th.lane("orc"), Phase: 4, Crest: [2]string{ic[0], ic[1]}})
+		}},
 		{"gate", func(w int) string { return th.Gate("n/a (no orcs)", ".isekai/log.md", w, "") }},
+		// slice 2: the fixed left rail — vitals, the touch ledger, the roster (ride-width
+		// tripwire and rendering pinned here)
+		// the right rail's cards (third-of-window proportioning; the fixture rides 36 wide)
+		{"rail", func(w int) string {
+			return th.Rail(RailView{World: "isekai", Model: "kimi-3-conduit", CtxPct: 42, CtxKnown: true, CtxMax: "128k", Tokens: 15420, Cost: "$0.0123",
+				Layers: []RailLayer{{Rank: "rimuru", Tokens: 8210, Lane: th.lane("rimuru")}, {Rank: "elf", Tokens: 2301, Lane: th.lane("elf")}, {Rank: "orc", Tokens: 3302, Lane: th.lane("orc")}, {Rank: "slime", Tokens: 1607, Lane: th.lane("slime")}},
+				Files:  []RailFile{{Path: "tui/blocks.go", Body: "slime-tui", Lane: th.lane("slime")}, {Path: "tui/model.go", Body: "rimuru", Lane: th.lane("rimuru")}, {Path: "tui/legacy.go", Body: "mystery"}},
+				Courts: []RailCourt{
+					{Name: "elf-isekai", State: "thinking", Aged: "1m12s", Lane: th.lane("elf")},
+					{Name: "orc-security", State: "done", Done: true, Failed: true},
+					{Name: "slime-auth", State: "done", Done: true, Lane: th.lane("slime")},
+				}}, 36)
+		}},
+		{"rail-plan", func(w int) string {
+			return th.Rail(RailView{World: "isekai", Model: "kimi-3-conduit", CtxPct: 42, CtxKnown: true, Tokens: 15420, Cost: "$0.0123",
+				Plan: &RailPlan{Body: "elf-isekai", Rank: "elf", Lane: th.lane("elf"), Items: []RailPlanItem{
+					{Text: "Coordinate the files-panel slices", Status: "in_progress"},
+					{Text: "Land the token file", Status: "done"},
+					{Text: "Ask orc-db for the store slice", Status: "pending"},
+					{Text: "Key ttl audit", Status: "blocked"},
+				}},
+				Files:  []RailFile{{Path: "tui/blocks.go", Lane: th.lane("slime")}},
+				Courts: []RailCourt{{Name: "elf-isekai", State: "thinking", Aged: "1m12s", Lane: th.lane("elf")}},
+			}, 36)
+		}},
+		{"rail-mascot", func(w int) string {
+			art, _ := Mascot("isekai")
+			return th.Rail(RailView{Mascot: art, World: "isekai", Model: "kimi-3-conduit", CtxPct: 87, CtxKnown: true, Stress: true, Zone: "NEAR", Tokens: 15420,
+				Files:  []RailFile{{Path: "tui/blocks.go", Lane: th.lane("slime")}},
+				Courts: []RailCourt{{Name: "elf-isekai", State: "thinking", Aged: "1m12s", Lane: th.lane("elf")}, {Name: "slime-auth", State: "done", Done: true, Lane: th.lane("slime")}},
+			}, 36)
+		}},
+		{"rail-empty", func(w int) string {
+			return th.Rail(RailView{World: "isekai", Model: "mock/m"}, 36)
+		}},
 		{"gate-fail", func(w int) string {
 			return th.Gate("fail: src/api/rogue.go is outside slime-auth's territory", ".isekai/log.md", w, "")
 		}},
@@ -103,10 +167,10 @@ func TestBlocksGolden(t *testing.T) {
 		}},
 		{"spinner", func(w int) string { return th.Spinner("⠋", "Running bash…", 3*time.Second, 12_345, w) }},
 		{"footer", func(w int) string {
-			return th.Footer(FooterView{Model: "gemini-3.8-flash", Ctx: "ctx 12%", Cost: "$0.0123", Live: 1, World: "~/kaginari/pfcli", Hint: "? for shortcuts"}, w)
+			return th.Footer(FooterView{Model: "gemini-3.8-flash", Ctx: "ctx 12%", Cost: "$0.0123", Live: 1, World: "~/kaginari/pfcli", Hint: "? for shortcuts · ctrl+p plans"}, w)
 		}},
 		{"footer-fresh", func(w int) string {
-			return th.Footer(FooterView{Model: "gemini-3.8-flash", Ctx: "ctx —", Cost: "no calls yet", World: "~/kaginari/pfcli", Hint: "? for shortcuts", Queued: 2}, w)
+			return th.Footer(FooterView{Model: "gemini-3.8-flash", Ctx: "ctx —", Cost: "no calls yet", World: "~/kaginari/pfcli", Hint: "? for shortcuts · ctrl+p plans", Queued: 2}, w)
 		}},
 		{"menu", func(w int) string {
 			return th.Menu([]MenuItem{{"agents", "the live court"}, {"status", "the honesty rule and the instrument board"}, {"send", "/send <body> <text> — a line for a running body"}, {"review", "Review $ARGUMENTS carefully (.claude/commands)"}}, 1, w)
@@ -147,6 +211,28 @@ func TestBlocksGolden(t *testing.T) {
 					t.Errorf("%s differs from its golden:\n--- got ---\n%s\n--- want ---\n%s", name, got, want)
 				}
 			})
+		}
+	}
+}
+
+// The slice-4 crest geometry: a live row shifts its card right of the two-row sprite, and a
+// window too narrow drops the crest whole rather than starving the card.
+func TestCourtCrestGeometry(t *testing.T) {
+	th := NewTheme(true)
+	ic := th.Icon("isekai", "slime", 0)
+	v := CourtView{Name: "slime-auth", Rank: "slime", State: "thinking", Elapsed: 5 * time.Second, Ask: "watch"}
+	live := th.Court(v, 80, Pulse{Lane: th.lane("slime"), Phase: 4, Crest: [2]string{ic[0], ic[1]}})
+	sl := strings.Split(ansi.Strip(live), "\n")
+	if len(sl) != 2 || !strings.Contains(sl[0], "◆ court slime-auth") {
+		t.Fatalf("crested head wrong: %q", ansi.Strip(live))
+	}
+	if !strings.Contains(sl[1], "└ watch") || strings.Contains(sl[1], "◆ court") {
+		t.Fatalf("the ask row must ride beside the crest's second half: %q", sl[1])
+	}
+	narrow := th.Court(v, 30, Pulse{Lane: th.lane("slime"), Phase: 4, Crest: [2]string{ic[0], ic[1]}})
+	for _, l := range strings.Split(ansi.Strip(narrow), "\n") {
+		if ansi.StringWidth(l) > 30 {
+			t.Fatalf("the crest must not push the card past 30: %q", l)
 		}
 	}
 }
@@ -215,5 +301,33 @@ func TestMarkdownFallsBackAndTrims(t *testing.T) {
 	}
 	if th.Markdown("   ", 40) != "" {
 		t.Fatal("blank markdown renders something")
+	}
+}
+
+// The branded glamour config re-paints the stock palette into the world's lanes: headings
+// and strong text wear the gold global lane, links the elf verdant lane, and code blocks
+// rest on the pane's honest background. no-tricks law: this test fails loudly the day
+// someone brands with a colour the world doesn't already carry.
+func TestGlamourBrandRidesThePalette(t *testing.T) {
+	th := NewTheme(true)
+	th.Color = true // the suite runs without a tty; brand asserts still matter
+	sc := th.styleConfig()
+	if got, want := *sc.Heading.Color, hexOf(th.accent.GetForeground()); got != want {
+		t.Fatalf("headings wear %s, want the accent's %s", got, want)
+	}
+	if got, want := *sc.Link.Color, hexOf(th.lane("elf")); got != want {
+		t.Fatalf("links wear %s, want the elf lane %s", got, want)
+	}
+	if got, want := *sc.Code.Color, hexOf(th.lane("slime")); got != want {
+		t.Fatalf("inline code wears %s, want the slime lane %s", got, want)
+	}
+	if sc.CodeBlock.BackgroundColor == nil {
+		t.Fatal("code blocks must rest on the pane's background")
+	}
+	// NO_COLOR drops every escape; a plain run renders plain
+	notty := Theme{Dark: true, Color: false}
+	out := notty.Markdown("**bold**\n[link](https://x)", 40)
+	if strings.Contains(out, "\x1b[") {
+		t.Fatalf("notty markdown leaked colour")
 	}
 }

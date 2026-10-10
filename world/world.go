@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Kaginari/isekai/loop"
 	"github.com/Kaginari/isekai/memory"
@@ -45,6 +46,10 @@ type World struct {
 	Lex          Lexicon
 	Ranks        Ranks
 	Law          *Law
+	// Dimension is the parsed `.isekai/dimension.yaml` (nil when absent or malformed — the
+	// hole sits in Notes). It grounds the git self-init at open: a manifest root outside any
+	// work-tree is versioned once, at birth.
+	Dimension    *Dimension
 	Onto         *onto.World
 	Creatures    []Creature
 	Instructions []Instruction
@@ -57,9 +62,40 @@ type World struct {
 	mu       sync.Mutex
 	sessions map[*loop.Engine]*loop.Session
 	closers  map[*loop.Engine]func()
-	// courtWrote is what the Courts of a dispatcher's engine wrote and gated on their own
-	// account; the dispatcher's end gate leaves those paths alone (never a second gate).
-	courtWrote map[*loop.Engine]map[string]bool
+	// courtWrote is the court-write ledger's SAME-ENGINE LANE: what the Courts of a
+	// dispatcher's engine wrote and gated on their own account, kept as path → {writer, at};
+	// the dispatcher's end gate leaves those paths alone (never a second gate), and the
+	// throne's second pairing arm (gate.go, decree 2026-10-01) reads this lane to attribute
+	// a doc on disk to this session's own courts when the code lands a turn later.
+	courtWrote map[*loop.Engine]map[string]courtWrite
+	// courtWrites is the court-write ledger's CROSS-SESSION LANE (3rd-strike fix,
+	// 2026-10-03): the same record doubled under the session creature's name, world-resident
+	// instead of engine-keyed. Court authoring at turn N survives both the court engine's
+	// and the dispatcher engine's Close, so when the throne lands code on that soil at turn
+	// N+1 the right-author arm can pair code and doc by creature name. Every write mirrors
+	// into courtWrote — gate.go's read stays put (OUT-2); Close clears per-engine state
+	// only and never this lane. Bounded per creature (courtWritesBound entries) because an
+	// unbounded map gains an entry every court turn forever.
+	courtWrites map[string]map[string]courtWrite
+	// ascend is the ascension engine: per-body report metrics and the mint when a condition
+	// crosses. nil when no rank declares ascendsWhen.
+	ascend *ascendState
+	// the council ledger: per-body governance strain — a sum of the runs' sent-backs (failed
+	// acts standing, gate re-asks, wire re-asks) plus one per failed or stalled run, reset by a
+	// clean landing. At law.stress.escalateAt the dispatcher stamps a council warrant into the
+	// report so the body's manager answers; consults bounds the warrants a body may carry.
+	stress   map[string]int
+	consults map[string]int
+	// stressDeaths records which creature last died under the court clock on which lane —
+	// the memo the dispatcher consults before re-dispatching the same body. Genome
+	// mutation is advisory (the memo's next-lane hint is printed into the report), never
+	// silent: Veldora's 2026-10-02 law — the bodies carry the memory, they don't swap DNA alone.
+	stressDeaths map[string]stressEnd
+	// pairMarks + gateStreaks carry the 2026-10-07 session laws: doc-move marks (arm-3
+	// pairing, transactional — the gate spends them) and circuit-breaker streaks (the
+	// same gate failing on the same files for the same body hardens into a spec directive).
+	pairMarks   map[string]time.Time
+	gateStreaks map[string]*gateStreak
 }
 
 // Discover walks up from dir for the first lexicon whose world dir exists. Both `.isekai` and
@@ -90,18 +126,30 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 	if st, err := os.Stat(filepath.Join(abs, lex.WorldDir)); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("no %s/ under %s", lex.WorldDir, abs)
 	}
-	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]bool{}}
+	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]courtWrite{}, courtWrites: map[string]map[string]courtWrite{}, stress: map[string]int{}, consults: map[string]int{}, stressDeaths: map[string]stressEnd{}, pairMarks: map[string]time.Time{}, gateStreaks: map[string]*gateStreak{}}
 	if w.Ranks == nil {
 		w.Ranks = DefaultRanks(lex)
 	}
 	if err := w.Ranks.Validate(); err != nil {
 		return nil, fmt.Errorf("ranks: %v", err)
 	}
+	w.ascend = newAscendState(w.Ranks)
+	w.loadLedgers() // the scars come home before the first body runs (freeze law 2026-10-07)
 	lawPath := filepath.Join(abs, lex.WorldDir, lex.Law)
 	if w.Law, err = LoadLaw(lawPath, lex.WorldDir+"/"+lex.Law, lex.Crest); err != nil {
 		w.Notes = append(w.Notes, err.Error())
 	} else if w.Law.Crest == "" {
 		w.Notes = append(w.Notes, w.Law.Path+" has no crest section")
+	}
+	dimPath := filepath.Join(abs, lex.WorldDir, "dimension.yaml")
+	if _, serr := os.Stat(dimPath); serr == nil {
+		if w.Dimension, err = LoadDimension(dimPath); err != nil {
+			w.Notes = append(w.Notes, err.Error())
+		} else if ran, err := GitSelfInit(abs); err != nil {
+			w.Notes = append(w.Notes, err.Error())
+		} else if ran {
+			w.Notes = append(w.Notes, "dimension self-init: git init -b main at "+abs)
+		}
 	}
 	if opt.Ontology {
 		if err := w.Reload(); err != nil {
@@ -205,6 +253,12 @@ func creaturesOf(root string, ow *onto.World, ranks Ranks) []Creature {
 		if c.Doc != "" {
 			text = memory.RdOr(filepath.Join(root, filepath.FromSlash(c.Doc)))
 		}
+		if docRetired(text) {
+			// the council's relief mark: this seat keeps its graph memory but claims no
+			// soil — the roster drops it, its territory prefixes open again (law known since
+			// the first relief wave: an ended slime is not an invisible slime)
+			continue
+		}
 		if m := reRank.FindStringSubmatch(text); m != nil {
 			want := strings.ToLower(strings.NewReplacer(" ", "_", "-", "_").Replace(strings.TrimSpace(m[1])))
 			for _, r := range ranks {
@@ -275,9 +329,37 @@ func VerifyOf(doc string) []string {
 	return out
 }
 
-// Creature finds a body by id (or by its unprefixed name when unambiguous).
+// Creature finds a body by id (or by its unprefixed name when unambiguous). A seat minted
+// mid-session is not on the in-memory roster: on a miss, the roster is re-derived from the
+// docs once before giving up, so a dispatch for a body born after Open still lands.
 func (w *World) Creature(name string) *Creature {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.creature(name)
+}
+
+// creature is Creature's body, callable only with w.mu held — Prompt locks over the
+// whole prompt build and fans into this through raceLawPath / RankOf.
+func (w *World) creature(name string) *Creature {
 	name = strings.ToLower(strings.TrimSpace(name))
+	if c := w.creatureByName(name); c != nil {
+		return c
+	}
+	ow, err := onto.LoadLayout(w.Root, w.Ranks.Layout(w.Lex))
+	if err != nil {
+		return nil
+	}
+	fresh := creaturesOf(w.Root, ow, w.Ranks)
+	w.Onto = ow
+	for _, c := range fresh {
+		if w.creatureLocked(c.Name) == nil {
+			w.Creatures = append(w.Creatures, c)
+		}
+	}
+	return w.creatureByName(name)
+}
+
+func (w *World) creatureByName(name string) *Creature {
 	var hit *Creature
 	for i := range w.Creatures {
 		c := &w.Creatures[i]
@@ -307,7 +389,15 @@ func oneHopAbove(g *onto.Graph, s, o onto.Term) bool {
 
 // RankOf is a creature's rank row (rimuru's for the session or an unknown name).
 func (w *World) RankOf(name string) Rank {
-	if c := w.Creature(name); c != nil {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.rankOf(name)
+}
+
+// rankOf is RankOf's body with w.mu already held (raceLawPath runs inside
+// Prompt's build-wide lock).
+func (w *World) rankOf(name string) Rank {
+	if c := w.creature(name); c != nil {
 		if r, ok := w.Ranks.Get(c.Rank); ok {
 			return r
 		}
@@ -381,7 +471,31 @@ func (w *World) Owner(rel string) *Creature {
 			return best
 		}
 	}
+	// Seat fallback (darkelf verdict 2026-10-02, arm-2 discrimination follow-up
+	// 2026-10-04): seat docs are the creature's authorship; territory prefixes
+	// never cover the seat — a doc at a creature's Dir matches no territory
+	// prefix (e.g. .isekai/slime/api/README.md, territory src/api/), so without
+	// this pass Owner returns nil and the gate's creatureDoc branch stays dead.
+	for i := range w.Creatures {
+		c := &w.Creatures[i]
+		if c.Doc != "" && normRel(c.Doc) == rel {
+			return c
+		}
+	}
 	return nil
 }
 
 func parentDir(d string) string { return filepath.Dir(d) }
+
+// VerifyCoded reports whether the creature's doc carries at least one verify line beyond the
+// trivial sentinels (`true`, `exit 0`): the orc-TDD dispatch precondition (world/court.go)
+// reads this to prove a verdict is coded BEFORE a slime is ordered.
+func (c *Creature) VerifyCoded() bool {
+	for _, v := range c.Verify {
+		v = strings.TrimSpace(strings.ToLower(v))
+		if v != "" && v != "true" && v != "exit 0" {
+			return true
+		}
+	}
+	return false
+}

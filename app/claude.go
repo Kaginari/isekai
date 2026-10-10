@@ -418,7 +418,7 @@ func (h *lawHost) stop(in ccIn) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	v := h.w.Gate(ctx, opt, "", wrote, nil, false, t.Ask)
+	v := h.w.Gate(ctx, nil, opt, "", wrote, nil, false, t.Ask)
 	holes := append([]string(nil), v.Holes...)
 	if h.cfg.Law.Gate.RightAuthor && h.w.GateHolders() {
 		for _, rel := range wrote {

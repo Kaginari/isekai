@@ -10,10 +10,20 @@ per task, the agent inside it, the task's own tests deciding pass or fail.
 - `fakevllm/` — an OpenAI-compatible stand-in for a hosted vLLM that plays a fixed script, for
   the €0 plumbing test (`FAKE_MODE=right|wrong`).
 - `tasks/` — local tasks (`hello-file`: the plumbing smoke task).
-- `configs/` — the exact agent config each kind of run uses.
+- `configs/` — the exact agent config each kind of run uses (`fake-vllm.yaml` for the smoke,
+  `gateway.yaml` the template a real run renders).
 - `runs.jsonl` — one line per launch, append-only; `RESULTS.md` is generated from it by
-  `record.py`, which also asserts expected rewards (`--expect`).
+  `record.py`, which also asserts expected rewards (`--expect`) and sets launches of one run
+  side by side (`--run`).
 - `smoke.sh` — the €0 smoke run: the fake vLLM scripted right must score 1.0, wrong must score 0.0.
+- `harbor.sh` — the real run: isekai and OpenCode on the same tasks and gateway models, head to
+  head; see [HARBOR.md](HARBOR.md).
+- `harbor/base/` — the shared task-image base: node 22 + opencode baked from the Artifactory npm
+  remote; tb2 wraps lift from it (staged by `tb2-base/build.sh`, never a second FROM against
+  docker.io — the bench net routes through Artifactory only).
+- `tb2-base/` + `tasks-tb2/` — the terminal-bench-2 slice: alexgshaw prebuilts raised with the
+  verifier toolchain (curl, uv, pytest + each task's pins) from Artifactory apt/pypi/CRAN remotes
+  at build time; every task checked honest before a run: nop fails, oracle passes.
 - `jobs/` — Harbor's raw output, not tracked.
 
 Run the runner with the repository mounted at the same absolute path, so the paths Harbor hands
