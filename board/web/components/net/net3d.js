@@ -1,12 +1,15 @@
 // net3d.js — the neural net in depth: a hand-written WebGL2 stage (no library). The tree stands as
-// planes: the throne at the top, each rank a ring below it (a parent sits at the middle of its
-// children's arc), the minds a halo beneath. Nodes are glowing sprites (a core and a soft radial
-// halo, additive on a dark theme so they bloom, alpha-blended on a light one), bonds are
-// screen-space ribbons weighted by the commissions they carried, and particles drift along the
-// bonds the way work travels — down. Drag orbits, the wheel or a pinch zooms, a click focuses (the
-// camera eases to it); a dispatch sends a spark down and a report one back up. It renders only
-// while seen, idles at 30 frames a second, and is still (no particles, no spin) under
-// prefers-reduced-motion. Colours are the css tokens, read through probe elements.
+// layers: the throne at the top, each rank a ring on its own faint plane below it (a parent sits at
+// the middle of its children's arc; each plane is captioned with the lexicon's rank words), the
+// minds a halo beneath. Nodes are glowing sprites (a core and a soft radial halo, additive on a
+// dark theme so they bloom, alpha-blended and smaller on a light one), bonds are screen-space
+// ribbons weighted by the commissions they carried, depth fog sets the near layers forward, and
+// particles drift along the bonds the way work travels — down. Drag orbits, the wheel or a pinch
+// zooms, a click focuses (the camera eases to it), arrows walk the tree (Shift+arrows turn it),
+// "reset view" comes home; a dispatch sends a spark down and a report one back up. It renders only
+// while seen, at 30 frames a second while it breathes, 12 after ten idle seconds, stops turning
+// after an idle minute, and is still (no particles, no spin) under prefers-reduced-motion.
+// Colours are the css tokens, read through probe elements.
 (() => {
   'use strict';
   const TAU = Math.PI * 2;
@@ -45,13 +48,14 @@
   // ---------- shaders ----------
   const POINT_VS = `#version 300 es
   in vec3 aPos; in vec4 aColor; in float aSize; in float aCore;
-  uniform mat4 uVP; uniform float uScale;
+  uniform mat4 uVP; uniform float uScale; uniform vec2 uFog;
   out vec4 vColor; out float vCore;
   void main() {
     vec4 p = uVP * vec4(aPos, 1.0);
     gl_Position = p;
     gl_PointSize = clamp(aSize * uScale / max(p.w, 0.01), 1.0, 512.0);
-    vColor = aColor; vCore = aCore;
+    float fog = clamp((p.w - uFog.x) / max(uFog.y - uFog.x, 0.001), 0.0, 1.0);
+    vColor = vec4(aColor.rgb, aColor.a * (1.0 - 0.62 * fog)); vCore = aCore;
   }`;
   const POINT_FS = `#version 300 es
   precision mediump float;
@@ -71,7 +75,7 @@
   const LINE_VS = `#version 300 es
   in vec2 aCorner;
   in vec3 aA; in vec3 aB; in vec4 aCol; in float aWidth;
-  uniform mat4 uVP; uniform vec2 uView;
+  uniform mat4 uVP; uniform vec2 uView; uniform vec2 uFog;
   out vec4 vColor; out float vSide;
   void main() {
     vec4 pa = uVP * vec4(aA, 1.0), pb = uVP * vec4(aB, 1.0);
@@ -82,8 +86,20 @@
     vec4 p = mix(pa, pb, aCorner.x);
     p.xy += n * aCorner.y * aWidth / uView * p.w;
     gl_Position = p;
-    vColor = aCol; vSide = aCorner.y;
+    float fog = clamp((p.w - uFog.x) / max(uFog.y - uFog.x, 0.001), 0.0, 1.0);
+    vColor = vec4(aCol.rgb, aCol.a * (1.0 - 0.55 * fog)); vSide = aCorner.y;
   }`;
+  // a layer's plane: a faint disc, a little brighter at its rim
+  const DISC_VS = `#version 300 es
+  in vec4 aPos;
+  uniform mat4 uVP;
+  out float vA;
+  void main() { gl_Position = uVP * vec4(aPos.xyz, 1.0); vA = aPos.w; }`;
+  const DISC_FS = `#version 300 es
+  precision mediump float;
+  in float vA; uniform vec4 uCol;
+  out vec4 o;
+  void main() { float a = uCol.a * vA; o = vec4(uCol.rgb * a, a); }`;
   const LINE_FS = `#version 300 es
   precision mediump float;
   in vec4 vColor; in float vSide;
@@ -107,7 +123,6 @@
   const cctx = conv.getContext('2d', { willReadFrequently: true });
   function rgb(css) {
     cctx.clearRect(0, 0, 1, 1);
-    cctx.fillStyle = '#000';
     cctx.fillStyle = css;
     cctx.fillRect(0, 0, 1, 1);
     const d = cctx.getImageData(0, 0, 1, 1).data;
@@ -120,17 +135,39 @@
     canvas.className = 'net-canvas';
     canvas.tabIndex = 0;
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'the net in 3D — drag to orbit, wheel to zoom, click a neuron to focus it; arrow keys turn it, + and - zoom');
+    canvas.setAttribute('aria-label', 'the net in 3D — drag to orbit, wheel to zoom, click a neuron to focus it; arrow keys walk the tree and the camera follows, Enter pins, Shift and the arrows turn it, + and - zoom');
+    canvas.setAttribute('aria-describedby', 'net-keys');
     const overlay = document.createElement('canvas');
     overlay.className = 'net-overlay';
     overlay.setAttribute('aria-hidden', 'true');
     const gl = canvas.getContext('webgl2', { antialias: true, premultipliedAlpha: true, alpha: true });
     if (!gl) return null;
     const octx = overlay.getContext('2d');
-    let P, LP, quad, pbuf, lbuf, vaoP, vaoL;
+    // the view's own tools: home, and a first-use hint until the reader has touched the stage
+    const tools = document.createElement('div');
+    tools.className = 'net-3d-tools';
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button'; resetBtn.className = 'button'; resetBtn.dataset.size = 's'; resetBtn.dataset.variant = 'quiet';
+    resetBtn.textContent = 'reset view';
+    tools.append(resetBtn);
+    const hint = document.createElement('p');
+    hint.className = 'net-3d-hint';
+    hint.textContent = 'drag to orbit · wheel or pinch to zoom · click a neuron to focus · arrows walk the tree';
+    let seen = false;
+    try { seen = localStorage.getItem('dash.net3d.seen') === '1'; } catch (_) { /* private mode */ }
+    hint.hidden = seen;
+    const touched = () => { if (hint.hidden) return; hint.hidden = true; try { localStorage.setItem('dash.net3d.seen', '1'); } catch (_) { /* private mode */ } };
+    let P, LP, DP, quad, pbuf, lbuf, dbuf, vaoP, vaoL, vaoD;
     function init() {
       P = program(gl, POINT_VS, POINT_FS);
       LP = program(gl, LINE_VS, LINE_FS);
+      DP = program(gl, DISC_VS, DISC_FS);
+      dbuf = gl.createBuffer();
+      vaoD = gl.createVertexArray();
+      gl.bindVertexArray(vaoD);
+      gl.bindBuffer(gl.ARRAY_BUFFER, dbuf);
+      gl.enableVertexAttribArray(gl.getAttribLocation(DP, 'aPos')); gl.vertexAttribPointer(gl.getAttribLocation(DP, 'aPos'), 4, gl.FLOAT, false, 16, 0);
+      gl.bindVertexArray(null);
       pbuf = gl.createBuffer(); lbuf = gl.createBuffer(); quad = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, quad);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, -1, 1, -1, 1, 1, 0, -1, 1, 1, 0, 1]), gl.STATIC_DRAW);
@@ -159,8 +196,8 @@
     const st = {
       m: null, nodes: new Map(), edges: [], wears: [], rings: [], focus: '', shown: '', lit: null, live: new Set(), hover: '',
       yaw: 0.7, pitch: 0.42, dist: 10, dist0: 10, target: [0, 0, 0], goal: { target: [0, 0, 0], dist: 10 },
-      run: false, raf: 0, last: 0, t: 0, idleAt: 0, pulses: [], flashes: new Map(), pal: null, dark: true, W: 1, H: 1, dpr: 1, VP: null,
-      slow: 0,
+      run: false, raf: 0, last: 0, t: 0, idleAt: performance.now(), pulses: [], flashes: new Map(), pal: null, dark: true, W: 1, H: 1, dpr: 1, VP: null,
+      slow: 0, busy: new Set(), R: 4, discs: null, font: null,
     };
 
     // ---------- the scene: a radial tidy tree, one plane per layer ----------
@@ -177,7 +214,9 @@
       if (m.throne) place(m.throne.id);
       for (const id of m.order) if (!slot.has(id)) place(id);
       const D = Math.max(1, m.maxDepth), N = Math.max(1, leaves.length);
-      const R = clamp(2 + N * 0.11, 2.6, 6.2), DY = 1.35;
+      // the layers stand apart by about 0.6 of the widest ring, so they read as planes
+      const R = clamp(2 + N * 0.11, 2.6, 6.2), DY = R * 0.6;
+      st.R = R;
       const y0 = (D * DY) / 2 + 0.3;
       st.rings = [];
       for (const id of m.order) {
@@ -187,7 +226,15 @@
         const size = n.throne ? 0.62 : d === 1 ? 0.42 : d === 2 ? 0.34 : 0.27;
         st.nodes.set(id, { id, n, p: [Math.cos(a) * r, y0 - d * DY, Math.sin(a) * r], a, d, size, rank: n.rank || 'plain' });
       }
-      for (let d = 1; d <= m.maxDepth; d++) st.rings.push({ y: y0 - d * DY, r: R * Math.pow(d / D, 0.9) });
+      // each plane's caption: the lexicon's words for the ranks on it, and how many stand there
+      const word = opts.word || ((k, d) => d || k);
+      const caption = d => {
+        const ranks = [];
+        let n = 0;
+        for (const id of m.order) if ((m.depth.get(id) || 0) === d) { n++; const r = m.byId.get(id).rank || ''; if (!ranks.includes(r)) ranks.push(r); }
+        return ranks.map(r => word('rank.' + r, r)).join(' · ').toUpperCase() + '  ' + n;
+      };
+      for (let d = 1; d <= m.maxDepth; d++) st.rings.push({ y: y0 - d * DY, r: R * Math.pow(d / D, 0.9), caption: caption(d) });
       // minds: a halo beneath, each at the middle of its wearers, spread so none overlap
       if (m.minds.length) {
         const my = y0 - (m.maxDepth + 1) * DY, mr = R * 0.78;
@@ -199,19 +246,38 @@
         const gap = TAU / want.length * 0.7;
         for (let i = 1; i < want.length; i++) if (want[i].a - want[i - 1].a < gap) want[i].a = want[i - 1].a + gap;
         want.forEach(w => st.nodes.set(w.n.id, { id: w.n.id, n: w.n, p: [Math.cos(w.a) * mr, my, Math.sin(w.a) * mr], a: w.a, d: -1, size: 0.2, rank: w.n.lane || 'mind:shared' }));
-        st.rings.push({ y: my, r: mr, minds: true });
+        st.rings.push({ y: my, r: mr, minds: true, caption: String(word('minds', 'minds')).toUpperCase() + '  ' + m.minds.length });
       }
       const maxW = Math.max(1, ...m.tree.map(t => t.weight));
       st.edges = m.tree.filter(t => st.nodes.has(t.up) && st.nodes.has(t.down)).map((t, i) => ({ ...t, k: t.weight ? Math.log2(1 + t.weight) / Math.log2(1 + maxW) : 0, seed: (i * 0.6180339) % 1 }));
       st.wears = m.wears.filter(w => st.nodes.has(w.from) && st.nodes.has(w.to));
-      st.dist0 = R * 2.25 + 1.6;
-      // the camera looks at the middle of the whole stack, throne to minds
+      // the camera looks at the middle of the whole stack, throne to minds, from far enough to
+      // see all of it in the stage's shape
       let lo = Infinity, hi = -Infinity;
       for (const q of st.nodes.values()) { lo = Math.min(lo, q.p[1]); hi = Math.max(hi, q.p[1]); }
       st.home = [0, isFinite(lo) ? (lo + hi) / 2 : 0, 0];
+      st.halfH = isFinite(lo) ? (hi - lo) / 2 : 1;
+      fitDist();
       if (!st.focus) { st.goal.dist = st.dist0; st.dist = st.dist0; st.goal.target = st.home.slice(); st.target = st.home.slice(); }
+      // the planes, once per model: a fan of triangles per ring (alpha in w: centre dim, rim brighter)
+      const DV = [], SEG = 64;
+      for (const r of st.rings) for (let i = 0; i < SEG; i++) {
+        const a0 = i / SEG * TAU, a1 = (i + 1) / SEG * TAU, rr = r.r * 1.12;
+        DV.push(0, r.y, 0, 0.35, Math.cos(a0) * rr, r.y, Math.sin(a0) * rr, 1, Math.cos(a1) * rr, r.y, Math.sin(a1) * rr, 1);
+      }
+      st.discs = new Float32Array(DV);
+      gl.bindBuffer(gl.ARRAY_BUFFER, dbuf);
+      gl.bufferData(gl.ARRAY_BUFFER, st.discs, gl.STATIC_DRAW);
+      st.idleAt = performance.now();
       palette();
       kick();
+    }
+    // the home distance: the stack's height and its widest ring both inside the view
+    function fitDist() {
+      const t = Math.tan(0.36), aspect = st.W / Math.max(1, st.H);
+      const v = (st.halfH || 1) * Math.cos(0.42) + st.R * 1.12 * Math.sin(0.42) * 0.6 + 0.3, h = st.R * 1.12 + 0.3;
+      st.dist0 = Math.max(v / t, h / (t * aspect)) + st.R * 0.2;
+      if (!st.focus && !st.zoomed) { st.goal.dist = st.dist0; st.dist = st.dist0; }
     }
     // a bond curves: it leaves its parent level, then falls to the child (a bezier, sampled)
     function bez(A, B, t) {
@@ -237,7 +303,21 @@
       const s = pal.surface;
       st.dark = 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2] < 0.5;
       st.pal = pal;
+      fontCache();
       kick();
+    }
+    // the label fonts and inks, read once (per theme or resize), never per frame
+    function fontCache() {
+      if (!st.pal) return;
+      const fam = getComputedStyle(stage).getPropertyValue('--font-body').trim() || 'system-ui';
+      const px = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const css = c => 'rgb(' + c.map(v => Math.round(v * 255)).join(',') + ')';
+      st.font = {
+        px, fam, ink: css(st.pal.ink), muted: css(st.pal.muted), halo: css(st.pal.surface),
+        throne: '650 ' + px * 1.05 + 'px ' + fam, first: '600 ' + px * 0.8 + 'px ' + fam, rest: px * 0.8 + 'px ' + fam, mind: px * 0.72 + 'px ' + fam,
+        caption: '650 ' + px * 0.62 + 'px ' + fam,
+        widths: new Map(),
+      };
     }
     const mo = new MutationObserver(() => palette());
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-palette'] });
@@ -266,16 +346,18 @@
       st.raf = 0;
       if (!st.run) return;
       const reduced = opts.reduced();
-      const busy = st.drag || st.pulses.length || st.flashes.size || Math.abs(st.dist - st.goal.dist) > 0.01 || Math.hypot(st.target[0] - st.goal.target[0], st.target[1] - st.goal.target[1], st.target[2] - st.goal.target[2]) > 0.01;
+      const busy = st.drag || st.pulses.length || st.flashes.size || st.busy.size || Math.abs(st.dist - st.goal.dist) > 0.01 || Math.hypot(st.target[0] - st.goal.target[0], st.target[1] - st.goal.target[1], st.target[2] - st.goal.target[2]) > 0.01;
       const ambient = !reduced;
-      // the budget: 60 a second while something moves for a reason, 30 while it only breathes
-      const budget = busy ? 15 : 32;
+      // the budget: 60 a second while something moves for a reason, 30 while it only breathes,
+      // 12 once nobody has touched it for ten seconds; the turn stops after an idle minute
+      const idle = now - st.idleAt;
+      const budget = busy ? 15 : idle > 10000 ? 83 : 32;
       if (st.last && now - st.last < budget) { schedule(); return; }
       const dt = st.last ? Math.min(0.1, (now - st.last) / 1000) : 0.016;
       const spent = performance.now();
       st.last = now;
       st.t += dt;
-      if (ambient && !st.drag && !st.focus && now - st.idleAt > 3500) st.yaw += dt * 0.07;
+      if (ambient && !st.drag && !st.focus && idle > 3500 && idle < 60000) st.yaw += dt * 0.07;
       const k = 1 - Math.pow(0.0015, dt);
       st.dist += (st.goal.dist - st.dist) * k;
       for (let i = 0; i < 3; i++) st.target[i] += (st.goal.target[i] - st.target[i]) * k;
@@ -296,6 +378,17 @@
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.enable(gl.BLEND);
       if (dark) gl.blendFunc(gl.ONE, gl.ONE); else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      // fog: the far side of the stack steps back
+      const fog = [Math.max(0.1, st.dist - st.R * 0.6), st.dist + st.R * 1.4];
+      // the planes first, under everything
+      if (st.discs && st.discs.length) {
+        gl.useProgram(DP);
+        gl.uniformMatrix4fv(gl.getUniformLocation(DP, 'uVP'), false, st.VP);
+        const c = pal.muted;
+        gl.uniform4f(gl.getUniformLocation(DP, 'uCol'), c[0], c[1], c[2], (dark ? 0.035 : 0.05) * (focus ? 0.5 : 1));
+        gl.bindVertexArray(vaoD);
+        gl.drawArrays(gl.TRIANGLES, 0, st.discs.length / 4);
+      }
       const dim = id => focus && lit && !lit.nodes.has(id);
       const col = r => pal.rank[r] || pal.muted;
       // ribbons
@@ -325,6 +418,7 @@
       gl.useProgram(LP);
       gl.uniformMatrix4fv(gl.getUniformLocation(LP, 'uVP'), false, st.VP);
       gl.uniform2f(gl.getUniformLocation(LP, 'uView'), cw, ch);
+      gl.uniform2f(gl.getUniformLocation(LP, 'uFog'), fog[0], fog[1]);
       gl.bindBuffer(gl.ARRAY_BUFFER, lbuf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(RB), gl.DYNAMIC_DRAW);
       gl.bindVertexArray(vaoL);
@@ -336,10 +430,12 @@
       const breath = reduced ? 1 : 0.75 + 0.25 * Math.sin(st.t * 2.4);
       for (const q of st.nodes.values()) {
         const c = col(q.rank), d = dim(q.id), on = q.id === focus;
-        const liveN = st.live.has(q.id);
+        const liveN = st.live.has(q.id) || st.busy.has(q.id);
         const a = d ? 0.12 : 1;
+        // on a light ground a halo smears: it is 40% smaller there
+        const haloK = dark ? 1 : 0.6;
         items.push({ z: project(q.p).w, draw: () => {
-          put(q.p, c, (dark ? 0.42 : 0.4) * a * (liveN ? 1.6 * breath : on ? 1.4 : 1), q.size * (liveN ? 4.2 : 3.2), 0);
+          put(q.p, c, (dark ? 0.42 : 0.4) * a * (liveN ? 1.6 * breath : on ? 1.4 : 1), q.size * (liveN ? 4.2 : 3.2) * haloK, 0);
           put(q.p, c, (dark ? 0.95 : 1) * a, q.size, q.n.kind === 'mind' ? 0.5 : 0.62);
         } });
       }
@@ -382,13 +478,14 @@
         if (!q) continue;
         const c = f.tone === 'info' ? pal.accent : f.tone === 'rank' || f.tone === 'down' ? col(q.rank) : pal[f.tone] || col(q.rank);
         const big = f.kind === 'read' ? 0.55 : 1;
-        items.push({ z: -1e9, draw: () => { put(q.p, c, (1 - t) * 0.9 * big, q.size * (2 + 5 * t * big), 0); if (t < 0.4) put(q.p, c, (0.4 - t) * 2, q.size * 1.2, 0.6); } });
+        items.push({ z: -1e9, draw: () => { put(q.p, c, (1 - t) * 0.9 * big, q.size * (2 + 5 * t * big) * (dark ? 1 : 0.6), 0); if (t < 0.4) put(q.p, c, (0.4 - t) * 2, q.size * 1.2, 0.6); } });
       }
       items.sort((a, b) => b.z - a.z);
       for (const it of items) it.draw();
       gl.useProgram(P);
       gl.uniformMatrix4fv(gl.getUniformLocation(P, 'uVP'), false, st.VP);
       gl.uniform1f(gl.getUniformLocation(P, 'uScale'), st.scale);
+      gl.uniform2f(gl.getUniformLocation(P, 'uFog'), fog[0], fog[1]);
       gl.bindBuffer(gl.ARRAY_BUFFER, pbuf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(S), gl.DYNAMIC_DRAW);
       gl.bindVertexArray(vaoP);
@@ -397,33 +494,62 @@
       labels(focus, lit);
     }
 
-    // ---------- labels: the upper layers always, the rest on hover, focus or while live ----------
+    // ---------- labels: the upper layers always, the rest on hover, focus or while live — and
+    // every one once the view holds 24 neurons or fewer; each plane carries its rank caption ----------
     function labels(focus, lit) {
-      const ctx = octx, W = st.W, H = st.H, dpr = st.dpr;
+      const ctx = octx, W = st.W, H = st.H, dpr = st.dpr, F = st.font;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      const cs = getComputedStyle(stage);
-      const fam = cs.getPropertyValue('--font-body') || 'system-ui';
-      const px = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      const ink = 'rgb(' + st.pal.ink.map(v => Math.round(v * 255)).join(',') + ')';
-      const halo = 'rgb(' + st.pal.surface.map(v => Math.round(v * 255)).join(',') + ')';
-      const many = st.nodes.size > 40;
-      const shown = [];
+      if (!F) return;
+      const px = F.px;
+      const width = (text, font) => { const k = font + '|' + text; let w = F.widths.get(k); if (w === undefined) { ctx.font = font; w = ctx.measureText(text).width; F.widths.set(k, w); } return w; };
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      // the planes' captions, at each ring's leftmost point on screen (else its rightmost)
+      ctx.font = F.caption;
+      for (const r of st.rings) {
+        if (!r.caption) continue;
+        let lo = null, hi = null;
+        for (let i = 0; i < 24; i++) {
+          const a = i / 24 * TAU, s = project([Math.cos(a) * r.r * 1.12, r.y, Math.sin(a) * r.r * 1.12]);
+          if (s.w <= 0) continue;
+          if (!lo || s.x < lo.x) lo = s;
+          if (!hi || s.x > hi.x) hi = s;
+        }
+        if (!lo) continue;
+        const w = width(r.caption, F.caption);
+        const left = lo.x - 10 - w > 4;
+        const x = left ? lo.x - 10 : hi.x + 10, y = left ? lo.y : hi.y;
+        if (!left && x + w > W - 4) continue;
+        ctx.globalAlpha = focus ? 0.35 : 0.8;
+        ctx.textAlign = left ? 'right' : 'left';
+        ctx.lineWidth = 3; ctx.strokeStyle = F.halo; ctx.strokeText(r.caption, x, y);
+        ctx.fillStyle = F.muted; ctx.fillText(r.caption, x, y);
+      }
+      ctx.textAlign = 'left';
+      const onScreen = [];
       for (const q of st.nodes.values()) {
-        const on = q.id === focus || (focus && lit && lit.nodes.has(q.id));
-        const always = q.d === 0 || q.d === 1 || (q.d === 2 && !many);
-        if (!(on || st.live.has(q.id) || (!focus && always))) continue;
         const s = project(q.p);
         if (s.w <= 0 || s.x < -40 || s.x > W + 40 || s.y < -20 || s.y > H + 20) continue;
+        onScreen.push({ q, s });
+      }
+      const few = onScreen.length <= 24;
+      const many = st.nodes.size > 40;
+      const shown = [];
+      for (const { q, s } of onScreen) {
+        const on = q.id === focus || (focus && lit && lit.nodes.has(q.id));
+        const always = few || q.d === 0 || q.d === 1 || (q.d === 2 && !many);
+        if (!(on || st.live.has(q.id) || (!focus && always))) continue;
         shown.push({ q, s });
       }
-      shown.sort((a, b) => b.s.w - a.s.w);
+      // the focus first, then the nearest: a farther label gives way where two would overlap
+      shown.sort((a, b) => a.q.id === focus ? -1 : b.q.id === focus ? 1 : a.s.w - b.s.w);
       const taken = [];
       for (const { q, s } of shown) {
-        const n = q.n, big = q.d === 0;
+        const n = q.n;
         const text = n.throne ? (n.label || n.name) : n.kind === 'mind' ? n.name : (n.rank && n.name.startsWith(n.rank + '-') ? n.name.slice(n.rank.length + 1) : n.name);
-        ctx.font = (big ? '650 ' + px * 1.05 : (q.d === 1 ? '600 ' : '') + px * (q.d < 0 ? 0.72 : 0.8)) + 'px ' + fam;
-        const w = ctx.measureText(text).width;
+        const font = q.d === 0 ? F.throne : q.d === 1 ? F.first : q.d < 0 ? F.mind : F.rest;
+        const w = width(text, font);
         const r = q.size * st.scale / s.w / dpr * 0.5;
         const x = s.x + r + 6, y = s.y;
         const box = [x - 2, y - px * 0.6, x + w + 2, y + px * 0.6];
@@ -431,12 +557,11 @@
         taken.push(box);
         const near = clamp(1.4 - (s.w - st.dist * 0.75) / (st.dist0 * 0.9), 0.45, 1);
         ctx.globalAlpha = q.id === focus ? 1 : near;
-        ctx.textBaseline = 'middle';
-        ctx.lineJoin = 'round';
+        ctx.font = font;
         ctx.lineWidth = 3.5;
-        ctx.strokeStyle = halo;
+        ctx.strokeStyle = F.halo;
         ctx.strokeText(text, x, y);
-        ctx.fillStyle = ink;
+        ctx.fillStyle = F.ink;
         ctx.fillText(text, x, y);
       }
       ctx.globalAlpha = 1;
@@ -462,6 +587,7 @@
       canvas.setPointerCapture(ev.pointerId);
       ptrs.set(ev.pointerId, local(ev));
       down = { at: local(ev), moved: false, yaw: st.yaw, pitch: st.pitch };
+      touched();
       if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); }
       st.idleAt = performance.now();
     });
@@ -470,7 +596,7 @@
       if (ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, p);
       if (ptrs.size === 2 && pinch) {
         const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
-        st.goal.dist = clamp(st.goal.dist * pinch / Math.max(1, d), 2, st.dist0 * 2.2); st.dist = st.goal.dist; pinch = d;
+        st.zoomed = true; st.goal.dist = clamp(st.goal.dist * pinch / Math.max(1, d), 2, st.dist0 * 2.2); st.dist = st.goal.dist; pinch = d;
         kick(); return;
       }
       if (down && ptrs.size === 1) {
@@ -495,17 +621,31 @@
     canvas.addEventListener('pointerleave', () => { if (st.hover) { st.hover = ''; opts.onHover(''); } canvas.removeAttribute('data-hot'); });
     canvas.addEventListener('wheel', ev => {
       ev.preventDefault();
+      touched();
+      st.zoomed = true;
       st.goal.dist = clamp(st.goal.dist * Math.exp(ev.deltaY * 0.0012), 2, st.dist0 * 2.2);
       st.idleAt = performance.now(); kick();
     }, { passive: false });
     canvas.addEventListener('keydown', ev => {
+      touched();
+      if (opts.onKey && opts.onKey(ev)) { ev.preventDefault(); st.idleAt = performance.now(); kick(); if (!st.run || opts.reduced()) render(performance.now(), true); return; }
+      if (!ev.shiftKey && /^Arrow/.test(ev.key)) return;
       const turn = { ArrowLeft: -0.2, ArrowRight: 0.2 }[ev.key], tilt = { ArrowUp: -0.12, ArrowDown: 0.12 }[ev.key];
       if (turn) st.yaw += turn;
       else if (tilt) st.pitch = clamp(st.pitch + tilt, -1.25, 1.25);
-      else if (ev.key === '+' || ev.key === '=') st.goal.dist = clamp(st.goal.dist * 0.85, 2, st.dist0 * 2.2);
-      else if (ev.key === '-') st.goal.dist = clamp(st.goal.dist / 0.85, 2, st.dist0 * 2.2);
+      else if (ev.key === '+' || ev.key === '=') { st.zoomed = true; st.goal.dist = clamp(st.goal.dist * 0.85, 2, st.dist0 * 2.2); }
+      else if (ev.key === '-') { st.zoomed = true; st.goal.dist = clamp(st.goal.dist / 0.85, 2, st.dist0 * 2.2); }
       else return;
       ev.preventDefault(); st.idleAt = performance.now(); kick();
+      if (!st.run || opts.reduced()) render(performance.now(), true);
+    });
+    canvas.addEventListener('blur', () => opts.onBlur && opts.onBlur());
+    resetBtn.addEventListener('click', () => {
+      touched();
+      st.yaw = 0.7; st.pitch = 0.42; st.zoomed = false;
+      if (st.focus) opts.onPick('');
+      st.goal.target = (st.home || [0, 0, 0]).slice(); st.goal.dist = st.dist0;
+      st.idleAt = performance.now(); kick();
       if (!st.run || opts.reduced()) render(performance.now(), true);
     });
     canvas.addEventListener('webglcontextlost', ev => { ev.preventDefault(); st.run = false; });
@@ -516,6 +656,8 @@
       st.W = Math.max(1, r.width); st.H = Math.max(1, r.height);
       st.dpr = Math.min(2, devicePixelRatio || 1);
       for (const c of [canvas, overlay]) { c.width = Math.round(st.W * st.dpr); c.height = Math.round(st.H * st.dpr); }
+      fontCache();
+      if (st.m) fitDist();
       if (st.m) { st.last = 0; render(performance.now(), opts.reduced()); }
       kick();
     }
@@ -525,7 +667,7 @@
     function flash(id, tone, kind) { st.flashes.set(id, { at: performance.now(), tone, kind }); kick(); }
 
     return {
-      elements: [canvas, overlay],
+      elements: [canvas, overlay, tools, hint],
       model(m) { scene(m); resize(); },
       focus(id, lit, pinned) {
         st.lit = lit; st.shown = id || '';
@@ -541,6 +683,16 @@
       },
       live(ids) { st.live = ids; kick(); },
       act(id, tone, kind) { if (st.nodes.has(id)) flash(id, tone, kind); },
+      // a burst on a neuron: it breathes like a live one until the burst ends
+      busy(id, on) { if (on) st.busy.add(id); else st.busy.delete(id); kick(); },
+      // the keyboard's cursor: the camera eases to it without pinning it
+      follow(id) {
+        const q = st.nodes.get(id);
+        if (!q) return;
+        st.goal.target = q.p.slice();
+        st.goal.dist = Math.min(st.goal.dist, st.dist0 * 0.85);
+        st.idleAt = performance.now(); kick();
+      },
       signal(kind, hops, id, tone) {
         const pairs = hops.map(h => h.split('>')).filter(([a, b]) => st.nodes.has(a) && st.nodes.has(b));
         const endAt = kind === 'up' ? (pairs.length ? pairs[0][0] : id) : id;
