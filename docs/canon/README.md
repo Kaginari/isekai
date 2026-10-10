@@ -25,6 +25,7 @@ their top.
 - [`agent-loop.md`](agent-loop.md) — the six-beat loop every Court Body runs (perceive → recall →
   plan → act → verify → record): budgets as readings, four step classes with the human gate,
   journaled resume, one-hop escalation — in the binary: `loop/`
+- [`races.md`](races.md) — how each race runs that loop: who commissions it, what it may touch, its turn, its report, stress, relief and ascension, one order traced Rimuru → elf → orc → slime and back
 - [`toolbox.md`](toolbox.md) — the two-level toolbox: a priced registry of Minds, commands, tools,
   Bodies and externals; level 1 injects only the manifest that fits the turn and the budget, level 2
   loads a body on the creature's own decision — in the binary: `toolbox/`, `isekai toolbox`

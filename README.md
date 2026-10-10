@@ -408,7 +408,7 @@ rules:
 Everything is on by default; switching something off is always shown in `status`, never silent.
 `isekai config explain` shows every value with the file and line it came from. The full schema:
 [`docs/canon/config.md`](docs/canon/config.md) · the design: [`docs/canon/binary.md`](docs/canon/binary.md) · the terminal:
-[`docs/canon/tui.md`](docs/canon/tui.md).
+[`docs/canon/tui.md`](docs/canon/tui.md) · each race's loop: [`docs/canon/races.md`](docs/canon/races.md).
 
 ## Web UIs
 
