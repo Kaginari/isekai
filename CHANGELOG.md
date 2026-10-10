@@ -8,6 +8,23 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The 3D net is a brain.** The throne sits at the centre and each rank is a shell further out
+  (elves inner, orcs middle, slimes on the outer cortex); each lane is a region of the brain, tinted
+  by a faint glow and switchable to its four weeks of work (heat) or its runs' pass rate (health).
+  A seeded force layout on two hemispheres keeps a creature near its parent and pulls related
+  creatures together: the colony's new `relates` (code coupling between territories from their
+  imports — Go, Python, JS/TS — and minds both wear, in `board/relate.go`), days worked together and
+  runs commissioned together. The minds are a crown above the throne, their `wears` filaments
+  falling in the mind's colour, glowing, with particles travelling down while the wearer works.
+  Every rank is a lit solid, one instanced draw per shape — a star crystal in orbit rings for the
+  throne, slender bipyramids for elves, hexagonal prisms for orcs, soft wobbling blobs for slimes, a
+  tetrahedron for the kijin, a crown ring on an ascended rank, a torus for a mind — with a key in
+  the lexicon's words. Synapses taper from the parent; a dispatch lights each synapse it crosses
+  as a pulse with a trail and the report comes back, a firing neuron flashes and rings; dendrites,
+  slow motes and a bloom pass give depth. Hovering a relates bond says why it holds, and "replay"
+  scrubs through the last turn's signals. Still under reduced motion, and the idle frame budget
+  holds.
+
 - **The terminal UI has depth.** On a truecolor terminal the frame is layered planes drawn with
   colour and the block elements: the borders on the terminal's own ground; the conversation, the
   sidebar and the status bar each a plane of their own tint; the ask and each answer raised as

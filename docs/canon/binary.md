@@ -587,18 +587,40 @@ only — a passing one flares green, a failure or denial red. Bursts coalesce: w
 under a second and a half apart) a neuron ripples again only when something louder arrives and
 otherwise just breathes, so a twenty-step Court is one breathing neuron. A Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
 else the throne) and its report back up, green for DONE, amber or red otherwise; a running body
-breathes. The **3D** stage (`net3d.js`, WebGL2 written here, no library) stands the same tree as
-layers — the throne on top, each rank a ring on its own faint plane (set apart by about 0.6 of the
-widest ring, captioned with the lexicon's rank words), the minds a halo beneath — with additive
-glow on the dark theme (smaller halos on the light one), depth fog, particles drifting down the
-bonds, a slow idle turn, drag to orbit, wheel or pinch to zoom, click to focus (the camera eases
-there), arrows to walk the tree with the camera following (Enter pins, Shift+arrows turn), and a
-"reset view" button; the camera's home fits the whole stack in the stage, which takes the panel's
-real height. Labels show for the upper layers, on hover and focus, and for every neuron once 24 or
-fewer are in view. It falls back to 2D without WebGL2. Both animate only while the net is seen, at
-a frame budget (the 3D stage drops to 12 frames a second after ten idle seconds and stops turning
-after an idle minute), and stand still under `prefers-reduced-motion`; every colour is a token
-(the canvas reads them through probe elements, its fonts once per theme or size).
+breathes. The **3D** stage (`net3d.js`, WebGL2 written here, no library) draws the same tree as a
+brain. The throne sits at the centre, the thalamus every signal relays through; each rank is a shell
+further out (the first rank inner, the last on the outer "cortex"; a first-rank creature with
+nobody below it, like the kijin, close to the throne), so rank reads as depth from the centre. Each
+lane — a first-rank creature's subtree — is a region of the brain, tinted by a faint glow and
+captioned with its head's name; the tint can instead show each region's work in four weeks
+(heat) or the share of its recent runs that passed (health). Inside a region a seeded force
+layout on two hemispheres holds a creature near its parent and pulls related creatures together:
+the colony's `relates` (`board/relate.go`: source files of one territory importing another's, Go
+through `go/parser`'s imports-only pass and Python and JS/TS by their import lines, plus minds both
+wear; the deepest owner of a path counts, ancestor pairs are the tree's business, each creature
+keeps its strongest four), days worked together and runs commissioned in the same minute. The
+layout is fixed for a world's shape and settles once, outward from the throne. The minds are a
+crown above, each over its wearers, its `wears` filaments falling in the mind's own colour to the
+creatures that wear it. Every rank is its own lit solid, one instanced draw per shape: the throne a
+stellated icosahedron inside two orbit rings, an elf a slender bipyramid, an orc a hexagonal
+prism, a slime a soft wobbling blob, the kijin a tetrahedron, an ascended rank its base with a
+crown ring (the dark elf on six sides), a mind a torus; a key in the corner names them in the
+lexicon's rank words. Synapses taper from the parent to the child; a dispatch travels as a bright
+pulse with a trail that lights each synapse it crosses, the report comes back the same way, a
+firing neuron flashes and rings; particles drift down the tree, and down a mind's filament while
+its wearer works; faint dendrites branch off the outer neurons and slow motes give depth. Hovering
+a relates bond says why it holds (imports, shared minds, days together); "replay" plays the last
+turn's signals again on a scrubber (a turn ends after fifteen quiet seconds; pauses inside it
+shorten to a second and a half). Drag orbits, the wheel or a pinch zooms, a click focuses (the
+camera eases there and the rest of the brain darkens), arrows walk the tree with the camera
+following (Enter pins, Shift+arrows turn), "reset view" comes home to a view that fits the brain
+and its crown. Labels show for the throne, the first rank and the minds, on hover and focus, and
+for every neuron once 24 or fewer are in view. It falls back to 2D without WebGL2 and rebuilds
+after a lost context. Both animate only while the net is seen, at a frame budget (the 3D stage
+drops to 12 frames a second after ten idle seconds and stops turning and spinning after an idle
+minute), and stand still under `prefers-reduced-motion` (no particles, no spin, no settling);
+every colour is a token (the canvas reads them through probe elements, its fonts once per theme or
+size).
 
 The command's own output — the board, each session — is a Charm Log: levelled, coloured, timed.
 

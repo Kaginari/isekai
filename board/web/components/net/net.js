@@ -81,7 +81,7 @@
       cells.set(n.id, v);
       for (const x of v) peak = Math.max(peak, x);
     }
-    return { byId, throne, creatures, minds, kids, parent, depth, order, tree, wears, maxDepth, cells, peak, act, days: (activity && activity.days) || [], word };
+    return { byId, throne, creatures, minds, kids, parent, depth, order, tree, wears, maxDepth, cells, peak, act, days: (activity && activity.days) || [], word, relates: colony.relates || [], recent: (activity && activity.recent) || [] };
   }
 
   // ancestors (the path to the throne) and descendants (the subtree) of a node
