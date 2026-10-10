@@ -234,6 +234,7 @@ type BodyActivity struct {
 
 // RecentRun is one journaled run as the timeline shows it.
 type RecentRun struct {
+	ID     string `json:"id,omitempty"` // the run's journal id: the timeline keys a row by it
 	As     string `json:"as"`
 	Ask    string `json:"ask,omitempty"`
 	Status string `json:"status"`
@@ -296,7 +297,7 @@ func BuildActivity(runs []Run, recs []UsageRecord, now time.Time, days int) Acti
 		if len(ask) > 160 {
 			ask = ask[:160] + "…"
 		}
-		a.Recent = append(a.Recent, RecentRun{As: r.As, Ask: ask, Status: r.Status, At: r.At})
+		a.Recent = append(a.Recent, RecentRun{ID: r.ID, As: r.As, Ask: ask, Status: r.Status, At: r.At})
 	}
 	sort.SliceStable(a.Recent, func(i, j int) bool { return a.Recent[i].At > a.Recent[j].At })
 	if len(a.Recent) > RecentRuns {

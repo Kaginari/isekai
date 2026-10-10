@@ -606,10 +606,26 @@ func (b *Board) apiUsage(w http.ResponseWriter, r *http.Request) {
 
 func (b *Board) apiColony(w http.ResponseWriter, r *http.Request) {
 	c := b.colonyNamed()
+	// every list is a list on the wire, an empty world's included — never null
+	if c.Nodes == nil {
+		c.Nodes = []Node{}
+	}
+	if c.Edges == nil {
+		c.Edges = []Edge{}
+	}
+	for _, l := range []*[]string{&c.Lanes, &c.Findings, &c.Notes} {
+		if *l == nil {
+			*l = []string{}
+		}
+	}
+	labels := b.laneLabels(c)
+	if labels == nil {
+		labels = []laneLabel{}
+	}
 	writeJSON(w, struct {
 		*Colony
 		Labels []laneLabel `json:"labels"`
-	}{c, b.laneLabels(c)})
+	}{c, labels})
 }
 
 // apiActivity is each body's recent work, day by day, for the net's activity tiles and the
