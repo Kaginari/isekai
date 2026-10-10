@@ -1,5 +1,9 @@
 package openai
 
-import "time"
+import (
+	"time"
 
-func init() { backoff = func(int) time.Duration { return time.Millisecond } }
+	"github.com/Kaginari/isekai/provider"
+)
+
+func init() { provider.Backoff = func(int) time.Duration { return time.Millisecond } }

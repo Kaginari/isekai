@@ -33,8 +33,12 @@ type snapshot map[string]stamp
 const SnapshotCap = 200000
 
 func (e *Engine) unwatched(rel string) bool {
-	if rel == ".git" || strings.HasSuffix(rel, "/.git") {
-		return true
+	// git's own store, and dependency trees a package manager rewrites wholesale: walking them
+	// after every write-class step costs seconds and tells the gate nothing
+	for _, d := range []string{".git", "node_modules", ".venv", "__pycache__"} {
+		if rel == d || strings.HasSuffix(rel, "/"+d) {
+			return true
+		}
 	}
 	wd := e.Lexicon.worldDir()
 	for _, p := range []string{"instruments", "tmp", "memory", "toolbox/registry.json", "ontology/graph/unsaid.ttl", "log.md"} {

@@ -255,3 +255,13 @@ func TestCommandForms(t *testing.T) {
 		}
 	}
 }
+
+func TestRelKeepsDotDotNames(t *testing.T) {
+	env := Env{Root: "/w"}
+	if got := env.Rel("/w/..foo"); got != "..foo" {
+		t.Fatalf("a file named ..foo is inside: %q", got)
+	}
+	if got := env.Rel("/x"); got != "/x" {
+		t.Fatalf("outside stays absolute: %q", got)
+	}
+}

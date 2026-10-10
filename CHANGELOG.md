@@ -51,6 +51,17 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **Anthropic streams.** A tool with no arguments arrives as `{}`, not as a malformed call;
+  redacted thinking keeps its data and replays as it came; a stream cut before `message_stop` is
+  an error, never a partial answer taken for a whole one.
+- **429 and 529 are retried on Anthropic too** — one retry policy for both clients (Retry-After,
+  else 1s/2s/4s, three times, never past the context).
+- **A malformed native tool call is named to the model** ("the arguments to read are not valid
+  JSON") instead of running the tool on an input it misreads.
+- **A turn that stops early keeps its writes** — the ones a read-classified command made too — in
+  the transcript the resume and the gate read.
+- **The write watch skips `node_modules`, `.venv` and `__pycache__`**: no more walking a
+  dependency tree after every write.
 - **A deadline is a deadline.** Gate readings, hooks, rule checks, `goal --validate` and custom
   tools kill their whole process group at the timeout and stop waiting on pipes a backgrounded
   child kept open.
