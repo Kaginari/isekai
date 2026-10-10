@@ -175,9 +175,13 @@
     for (const id of m.order) if (!slot.has(id)) place(id);
     const D = m.maxDepth + 1;
     const top = 44;
-    const L = Math.max(leaves.length, m.minds.length * 0.8, 1);
-    const G = clamp((availH - top - 24) / L, L > 40 ? 22 : 32, 42);
-    const H = top + L * G + 16;
+    // the deepest layer wraps into k sub-columns when one column would not fit the height given
+    const room = Math.max(160, availH - top - 16), Gmin = leaves.length > 40 ? 24 : 30;
+    const k = clamp(Math.ceil(leaves.length * Gmin / room), 1, 4);
+    const rows = Math.max(1, Math.ceil(leaves.length / k), Math.ceil(m.minds.length * 22 / Math.max(Gmin, 1) / 1.4));
+    const G = clamp(room / rows, Gmin, 42);
+    const H = top + rows * G + 16;
+    const deep = d => k > 1 && d === m.maxDepth;
     // column widths: the tile, its label, and room for the bonds between
     const want = [];
     for (let d = 0; d < D; d++) want.push(0);
@@ -185,20 +189,34 @@
       const n = m.byId.get(id), d = m.depth.get(id) || 0;
       want[d] = Math.max(want[d], (n.throne ? TT : T) + 8 + measure(label(n), n.throne ? fonts.bold : fonts.label));
     }
+    const sub = want[D - 1], subGap = 22;
+    if (k > 1) want[D - 1] = sub * k + subGap * (k - 1);
     let mindW = 0;
     for (const n of m.minds) mindW = Math.max(mindW, TM + 8 + measure(n.name, fonts.small) + 26);
     const nCols = D + (m.minds.length ? 1 : 0);
-    const minGap = 44;
+    const minGap = k > 1 ? 30 : 44;
     const widths = [...want, ...(m.minds.length ? [mindW] : [])];
     let total = widths.reduce((a, b) => a + b, 0) + minGap * (nCols - 1) + 24;
-    // too wide: shave the widest labels until the columns fit
+    // too wide: the minds' labels give way first (they are the side layer), then the widest
+    if (m.minds.length) { const cut = Math.min(Math.max(0, total - W), Math.max(0, widths[D] - 130)); widths[D] -= cut; total -= cut; }
     let shave = 0;
     while (total > W && shave < 400) { const i = widths.indexOf(Math.max(...widths)); widths[i] -= 8; total -= 8; shave += 8; }
+    const subW = k > 1 ? (widths[D - 1] - subGap * (k - 1)) / k : widths[D - 1];
     const gap = minGap + Math.max(0, (W - total) / Math.max(1, nCols - 1)) * 0.92;
     let x = 12;
     const colX = widths.map(w => { const at = x; x += w + gap; return at; });
-    // a slot's y; parents at their children's middle can sit close to a neighbour: spread them
-    const yOf = id => top + (slot.get(id) + 0.5) * G * (leaves.length / L) + (L - leaves.length) * G / 2;
+    // leaves by slot (row-major across the sub-columns), parents at the middle of their children
+    const ys = new Map();
+    const offY = (rows - Math.ceil(leaves.length / k)) * G / 2;
+    // staggered: sub-column j sits j/k of a row lower, so a bond to it passes between the labels
+    leaves.forEach((id, i) => ys.set(id, top + offY + G / 2 + i * G / k));
+    const yOf = id => {
+      if (ys.has(id)) return ys.get(id);
+      const ks = m.kids.get(id) || [];
+      const y = ks.length ? ks.reduce((a, c) => a + yOf(c), 0) / ks.length : top + G / 2;
+      ys.set(id, y);
+      return y;
+    };
     for (let d = 0; d < D; d++) {
       const ids = m.order.filter(id => (m.depth.get(id) || 0) === d).sort((a, b) => slot.get(a) - slot.get(b));
       const ranks = [];
@@ -208,12 +226,15 @@
       let last = -Infinity;
       for (const id of ids) {
         const n = m.byId.get(id), size = n.throne ? TT : T;
-        let y = yOf(id);
-        if (y - last < size + 6) y = last + size + 6;
-        last = y;
-        const x0 = colX[d] + size / 2;
-        const room = widths[d] - size - 8;
-        pos.set(id, { x: x0, y, size, label: fit(label(n), n.throne ? fonts.bold : fonts.label, room), lx: x0 + size / 2 + 8, d });
+        let y = yOf(id), x0 = colX[d] + size / 2, roomL = widths[d] - size - 8;
+        if (deep(d) && slot.has(id) && Number.isInteger(slot.get(id))) {
+          x0 = colX[d] + (leaves.indexOf(id) % k) * (subW + subGap) + size / 2;
+          roomL = subW - size - 8;
+        } else {
+          if (y - last < size + 6) y = last + size + 6;
+          last = y;
+        }
+        pos.set(id, { x: x0, y, size, label: fit(label(n), n.throne ? fonts.bold : fonts.label, roomL), lx: x0 + size / 2 + 8, d });
       }
     }
     if (m.minds.length) {
@@ -276,10 +297,13 @@
     };
     function draw() {
       if (!st.m || !host.isConnected || host.offsetParent === null) return;
+      const fit3 = opts.fit && opts.fit();
+      if (fit3) stage.style.setProperty('--net-h', Math.max(320, fit3) + 'px'); else stage.style.removeProperty('--net-h');
       if (st.mode === '3d' && st.three) { stage.dataset.mode = '3d'; st.three.resize(); return; }
       stage.dataset.mode = '2d';
       const W = Math.max(300, stage.clientWidth || host.clientWidth);
-      const availH = Math.max(560, innerHeight - 190);
+      const fitH = opts.fit && opts.fit();
+      const availH = fitH ? Math.max(360, fitH) : Math.max(560, innerHeight - 190);
       const f = fonts();
       const L = layout2d(st.m, W, availH, f);
       st.L = L;
@@ -476,18 +500,38 @@
       st.pulses.push({ els, dir: kind, at: performance.now(), per: 620, glow, trail, end: kind === 'up' ? hops[0].split('>')[0] : id, tone: kind === 'up' ? (tone || 'ok') : 'down', lens: els.map(e => e.getTotalLength()) });
       tick();
     }
-    function ping(id, tone) {
+    function ping(id, tone, kind) {
       const el = st.nodeEls.get(id);
       if (!el) return;
       el.setAttribute('data-ping', tone || 'down');
       clearTimeout(el._ping);
-      el._ping = setTimeout(() => el.removeAttribute('data-ping'), 1400);
-      if (!reducedQ.matches && st.sparks) {
+      el._ping = setTimeout(() => el.removeAttribute('data-ping'), kind === 'read' ? 700 : 1400);
+      if (!reducedQ.matches && st.L) {
         const p = st.L.pos.get(id);
-        const r = s('circle', { class: 'net-ripple', 'data-tone': tone === 'down' ? false : tone, cx: p.x, cy: p.y, r: p.size * 0.7 });
-        st.sparks.append(r);
-        setTimeout(() => r.remove(), 1200);
+        if (!p) return;
+        const r = s('circle', { class: 'net-ripple', 'data-tone': tone === 'down' ? false : tone, 'data-kind': kind || false, cx: p.x, cy: p.y, r: p.size * 0.7 });
+        el.append(r);
+        setTimeout(() => r.remove(), 1300);
       }
+    }
+    // an action on a neuron: a tool step, a gate verdict — each class reads its own way, calmly
+    // (read: a soft accent ripple · write: the rank's own pulse · outward/destructive and a waiting
+    // gate: an amber ring · pass: a green flare · fail or denied: a red one). Bursts coalesce: one
+    // ripple per neuron per quarter second unless a louder one arrives.
+    const LOUD = { read: 0, write: 1, gate: 2, outward: 2, destructive: 3, pass: 3, fail: 4 };
+    const TONE = { read: 'info', write: 'rank', gate: 'warn', outward: 'warn', destructive: 'warn', pass: 'ok', fail: 'danger' };
+    const lastAct = new Map();
+    function act(name, kind) {
+      const m = st.m;
+      if (!m || !(kind in LOUD)) return;
+      let id = m.throne ? m.throne.id : '';
+      if (name) for (const [nid, n] of m.byId) if (n.name === name && n.kind !== 'mind') { id = nid; break; }
+      if (!id) return;
+      const now = performance.now(), was = lastAct.get(id);
+      if (was && now - was.at < 250 && LOUD[kind] <= was.loud) return;
+      lastAct.set(id, { at: now, loud: LOUD[kind] });
+      if (st.three) st.three.act(id, TONE[kind], kind);
+      if (st.mode !== '3d' && st.visible) ping(id, TONE[kind], kind);
     }
     function tick() {
       if (st.raf || !st.pulses.length || !st.visible) return;
@@ -564,6 +608,8 @@
       },
       live(names) { st.live = new Set(names); applyLive(); },
       signal,
+      act,
+      hover(id) { preview(id || ''); },
       focus(id) { st.focus = id || ''; applyFocus(); },
       mode,
       can3d,

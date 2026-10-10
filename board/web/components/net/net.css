@@ -1,17 +1,22 @@
 /* @component net — tokens: --surface, --ink, --ink-muted, --line, --accent, --series-1, --series-2, --series-3, --series-4, --series-5, --series-6, --ok, --warn, --danger, --focus, --focus-width, --weight-medium, --weight-bold, --font-code, --font-body, --step--2, --step--1, --space-3xs, --space-xs, --space-s, --space-m, --radius-m, --radius-l, --radius-pill, --hairline, --time, --time-slow, --ease. The world as a neural net: the hierarchy as layers (the throne, then each rank, minds beside), every neuron a rank-coloured tile whose cells are its last four weeks of work, tree bonds weighted by the commissions they carried; hover or focus lights a neuron's path to the throne and its subtree; a Court's dispatch travels down as a pulse and its report returns up. A 3D stage (WebGL2) draws the same tree as glowing planes. */
 @layer components {
   .net { position: relative; inline-size: 100%; --net-node: var(--ink-muted); }
-  .net-layout { display: grid; gap: var(--space-m); grid-template-columns: minmax(0, 1fr); align-items: start; container-type: inline-size; }
+  .net-frame { container-type: inline-size; min-inline-size: 0; }
+  .net-layout { display: grid; gap: var(--space-m); grid-template-columns: minmax(0, 1fr); align-items: start; }
   @container (min-width: 60rem) {
     .net-layout[data-side] { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); }
   }
+  /* in the cockpit the card floats over the net's corner instead of taking a column */
+  .net-layout[data-float] { position: relative; grid-template-columns: minmax(0, 1fr); }
+  .net-layout[data-float] > .net-side { position: absolute; z-index: 2; inset-block-start: 0; inset-inline-end: 0; inline-size: min(22rem, 46%); max-block-size: 100%; overflow: auto; }
+  .net-layout[data-float] .net-hint { display: none; }
   .net-side { display: grid; gap: var(--space-s); align-content: start; min-inline-size: 0; }
   .net-hint { margin: 0; padding: var(--space-s); border: var(--hairline) dashed var(--line); border-radius: var(--radius-m); color: var(--ink-muted); font-size: var(--step--1); }
 
   /* the 2D stage: an svg sized by its column, the 3D stage a canvas pair of the same box */
   .net-stage { position: relative; inline-size: 100%; min-block-size: 12rem; }
   .net-stage svg { display: block; inline-size: 100%; block-size: auto; overflow: visible; font-family: var(--font-body); }
-  .net-stage[data-mode="3d"] { block-size: clamp(24rem, 72vh, 52rem); border-radius: var(--radius-l); overflow: hidden;
+  .net-stage[data-mode="3d"] { block-size: var(--net-h, clamp(24rem, 72vh, 52rem)); border-radius: var(--radius-l); overflow: hidden;
     background: radial-gradient(ellipse at 50% 35%, color-mix(in oklch, var(--accent) 10%, transparent), transparent 70%); }
   .net-canvas, .net-overlay { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; display: block; touch-action: none; }
   .net-canvas { cursor: grab; }
@@ -87,7 +92,8 @@
   .net-node[data-ping] .net-halo { opacity: 0.55; fill: var(--ok); }
   .net-node[data-ping="warn"] .net-halo { fill: var(--warn); }
   .net-node[data-ping="danger"] .net-halo { fill: var(--danger); }
-  .net-node[data-ping="down"] .net-halo { fill: var(--net-node); }
+  .net-node[data-ping="down"] .net-halo, .net-node[data-ping="rank"] .net-halo { fill: var(--net-node); }
+  .net-node[data-ping="info"] .net-halo { fill: var(--accent); opacity: 0.3; }
 
   /* focus: the path to the throne and the subtree stay lit, the rest steps back */
   .net[data-focus] .net-node:not([data-near]) { opacity: 0.16; }
@@ -103,6 +109,9 @@
   .net-spark[data-tone="danger"] { --net-spark: var(--danger); }
   .net-spark[data-glow] { opacity: 0.28; }
   .net-ripple { fill: none; stroke: var(--net-spark, var(--accent)); stroke-width: 2; animation: net-ripple calc(var(--time-slow) * 2.6) var(--ease) forwards; transform-box: fill-box; transform-origin: center; }
+  .net-ripple[data-tone="rank"] { --net-spark: var(--net-node); }
+  .net-ripple[data-tone="info"] { --net-spark: var(--accent); stroke-width: 1; animation-duration: calc(var(--time-slow) * 2); }
+  .net-ripple[data-kind="read"] { opacity: 0.6; }
   .net-ripple[data-tone="ok"] { --net-spark: var(--ok); }
   .net-ripple[data-tone="warn"] { --net-spark: var(--warn); }
   .net-ripple[data-tone="danger"] { --net-spark: var(--danger); }

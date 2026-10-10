@@ -474,12 +474,18 @@ supersedes `tempest.js` once it shows everything tempest shows.
 
 **The dashboard — `/dash`, and `dash`.** Beside the board pages the same server serves a
 dashboard built on the world's own ui system (`board/web/`: tokens, palettes, layout primitives,
-components — held to `ui check` by a test): the session's console (the transcript read like a page,
-tool calls, Courts and verdicts as folded cards, approvals and questions as choice cards, one input:
-Enter sends, ↑ recalls, Esc interrupts, `/` runs a command), the world as a neural net (layers from
-input to crown, bonds as synapses, live bodies glow and their synapses carry a pulse, a click lights
-a node's neighbourhood and opens its knowledge card), metrics (tokens, cost, calls, context, cache;
-by day, model and body) and relations (the bond matrix and its dimensions: by rank, lane and bond).
+components — held to `ui check` by a test). Its overview is a cockpit: the living neural net is the
+hero; the session's console docks beside it (the transcript read like a page, tool calls, Courts
+and verdicts as folded cards, approvals and questions as choice cards, one input: Enter sends, ↑
+recalls, Esc interrupts, `/` runs a command) — a splitter resizes it, a button folds it to a rail,
+both remembered; under the net a timeline lists the Courts and verdicts, newest first (the journals'
+recent runs under what the page saw live; a row focuses its neuron, and a pinned neuron's card
+takes the same band). The header carries the vitals: model, state, context, the plan's progress,
+cost, live bodies, a wait on the human. The folder tree is a drawer over every view (the files
+button, `t`, or Alt+T from the prompt; Esc or a click away closes it); hovering a path lights the
+neuron that owns it. Narrow, the cockpit stacks: net, timeline, console. The net, metrics (tokens,
+cost, calls, context, cache; by day, model and body), relations (the bond matrix and its
+dimensions: by rank, lane and bond) and the tree keep their own full-size views.
 With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
 terminal. `<dist> dash [--open]` runs the session headless with the dashboard as its only ui, and
 approvals are answered in the browser. The board listens on 127.0.0.1 only (with `--containered`
@@ -500,8 +506,10 @@ row per neuron, indented by depth. Each neuron is a rank-coloured tile whose 28 
 four weeks (`/api/activity`: runs from the loop journals, tokens from the usage journal — blank
 where no instrument saw any, never a made-up zero); each tree bond is as thick as the commissions
 it carried. Hover or keyboard focus lights a neuron's path to the throne and its subtree, the rest
-steps back; a click pins it and the side card reads its doc, territory, minds, bonds and work. A
-Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
+steps back; a click pins it and the side card reads its doc, territory, minds, bonds and work. Every action pulses on its own neuron — a session step on the throne, a Court's step on its
+creature: a read is a soft accent ripple, a write the rank's own pulse, an outward or destructive
+act and a waiting gate an amber ring, a passing verdict a green flare, a failure or denial a red
+one (bursts coalesce to one ripple a neuron a quarter second). A Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
 else the throne) and its report back up, green for DONE, amber or red otherwise; a running body
 breathes. The **3D** stage (`net3d.js`, WebGL2 written here, no library) stands the same tree as
 planes — the throne on top, each rank a ring, the minds a halo beneath — with additive glow on the

@@ -282,6 +282,14 @@ func TestTreeUpAddsAMissingThrone(t *testing.T) {
 	}
 }
 
+func TestActivityRecentDropsTheWireHeader(t *testing.T) {
+	runs := []Run{{As: "slime-loop", Ask: "@ROOT /w\n@ASK findings +unsaid\n@CAP 2048\nread the loop README\n", Status: "DONE", At: "2026-09-26T10:00:00Z"}}
+	a := BuildActivity(runs, nil, fixedNow, ActivityDays)
+	if len(a.Recent) != 1 || a.Recent[0].Ask != "read the loop README" {
+		t.Errorf("recent: %+v", a.Recent)
+	}
+}
+
 func TestActivityByDay(t *testing.T) {
 	s := fixtureSources(t, "world")
 	runs, _ := s.Loop()
@@ -305,6 +313,9 @@ func TestActivityByDay(t *testing.T) {
 	}
 	if r := a.Bodies["rimuru"]; r == nil || r.Total != 0 || r.Tokens[i] == 0 {
 		t.Errorf("rimuru spends tokens without a journaled run here: %+v", r)
+	}
+	if len(a.Recent) != 1 || a.Recent[0].As != "slime-auth" || a.Recent[0].Status != "PASS" || a.Recent[0].Ask != "smoke" {
+		t.Errorf("recent: %+v", a.Recent)
 	}
 	if _, ok := a.Bodies["orc-core"]; ok {
 		t.Error("a body the instruments never saw must be absent, not zero")

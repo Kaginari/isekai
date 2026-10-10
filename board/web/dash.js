@@ -68,6 +68,13 @@
     main.dataset.view = v;
     for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
     store.set('view', v);
+    // in the cockpit the focused neuron's card sits in the band under the net, compact; on the
+    // net's own page it takes the side column
+    const kc = document.getElementById('kcard'), slot = document.getElementById('timeline-slot'), side = document.querySelector('.net-side');
+    const nl = document.getElementById('net-layout');
+    if (nl) nl.toggleAttribute('data-side', v !== 'overview');
+    if (kc && slot && side) { (v === 'overview' ? slot : side).append(kc); try { if (colony) knowledge(focus); } catch (_) { /* booting: the net's state is not declared yet */ } }
+    if (v === 'tree' && document.querySelector('.shell[data-drawer]')) document.querySelector('.shell').removeAttribute('data-drawer');
     requestAnimationFrame(() => netDraw());
   }
   for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => view(t.dataset.view));
@@ -256,8 +263,35 @@
     setAsk('waiting');
   }
 
+  // every action pulses on its own neuron: a session step on the throne, a Court's on its creature
+  const CLASSES = ['read', 'write', 'gate', 'outward', 'destructive'];
+  function netEvent(e) {
+    const bad = st => /^(failed|fail|denied|refused)$/.test(String(st || ''));
+    switch (e.type) {
+      case 'tool': {
+        const t = e.tool || {};
+        if (e.phase === 'start') net.act(t.body || '', CLASSES.includes(t.class) ? t.class : 'read');
+        else if (bad(t.status)) net.act(t.body || '', 'fail');
+        break;
+      }
+      case 'bodystep': {
+        const t = e.tool || {};
+        if (!e.end) net.act(e.body, CLASSES.includes(t.class) ? t.class : 'read');
+        else if (bad(t.status)) net.act(e.body, 'fail');
+        break;
+      }
+      case 'state': if (e.state === 'waiting on gate' || e.state === 'gating') net.act(e.body === throneName() ? '' : e.body, 'gate'); break;
+      case 'turndone':
+        if (e.verdict || e.status) timelineAdd({ as: throneName() || 'session', ask: e.verdict ? 'verdict: ' + e.verdict : 'turn', at: new Date().toISOString(), status: /fail/i.test(e.verdict || '') ? 'FAIL' : (e.status || 'DONE') });
+        if (/fail/i.test(e.verdict || '') || /FAIL/.test(e.status || '')) net.act('', 'fail');
+        else if (e.verdict || /^DONE$/i.test(e.status || '')) net.act('', 'pass');
+        break;
+    }
+  }
+  const throneName = () => { const m = net.model(); return m && m.throne ? m.throne.name : ''; };
   function onEvent(e) {
     treeEvent(e);
+    netEvent(e);
     switch (e.type) {
       case 'ask': newTurn(e.text, { 'data-queued': e.queued || false }); if (!e.queued) setAsk('running'); break;
       case 'turnstart': newTurn(e.auto ? '(a report came in) ' + String(e.text || '').slice(0, 200) : e.text); setAsk('running'); break;
@@ -402,6 +436,9 @@
       } else {
         gw.hidden = true;
       }
+      // the throne breathes while the session runs
+      const tn = throneName();
+      if (tn && liveNames.has(tn) !== !!s.running) { if (s.running) liveNames.add(tn); else liveNames.delete(tn); netLive(); }
       if (s.session && form.dataset.state !== 'waiting') setAsk(s.running ? 'running' : 'idle');
       if (!s.session) { field.disabled = sendBtn.disabled = true; }
     }).catch(() => { const p = pill('board offline'); p.id = 'state'; $('#state').replaceWith(p); });
@@ -416,7 +453,12 @@
   const MIND = 'mind';
   const isMind = n => n.kind === MIND;
   const keeper = b => b && (b.mode === 'all' || b.mode === 'primary');
-  const net = window.isekaiNet.create(netBox, { word, onFocus: id => setFocus(id, true) });
+  // in the cockpit the net is the hero: it fits the panel it is given instead of the window
+  const netBody = netBox.closest('.panel-body');
+  const netFit = () => main.dataset.view === 'overview' && innerWidth >= 1024 ? netBody.clientHeight - 40 - ($('.net-legend').offsetHeight || 0) - ($('#net-findings').offsetHeight || 0) : 0;
+  const net = window.isekaiNet.create(netBox, { word, onFocus: id => setFocus(id, true), fit: netFit });
+  let fitT = 0, fitH = 0;
+  new ResizeObserver(() => { const h = netBody.clientHeight; if (Math.abs(h - fitH) < 8) return; fitH = h; clearTimeout(fitT); fitT = setTimeout(netDraw, 120); }).observe(netBody);
   function netDraw() { if (colony) net.redraw(); }
   function netLive() { net.live(liveNames); }
   // the 2D · 3D switch: remembered per reader; a page without WebGL2 stays 2D and says why
@@ -444,12 +486,14 @@
   function knowledge(id) {
     const box = $('#kcard');
     box.replaceChildren();
-    if (!id || !colony) { box.append(el('p', { class: 'net-hint', text: 'Hover a neuron to light its path to the ' + word('rank.rimuru', 'throne') + ' and everything below it; click (or Enter) pins it here. Each tile is four weeks of that ' + word('body', 'body') + "'s work, a cell a day — blank where no instrument saw any." })); return; }
+    const slot = box.parentElement && box.parentElement.id === 'timeline-slot' ? box.parentElement : null;
+    if (slot) slot.hidden = !id;
+    if (!id || !colony) { if (main.dataset.view === 'overview') return; box.append(el('p', { class: 'net-hint', text: 'Hover a neuron to light its path to the ' + word('rank.rimuru', 'throne') + ' and everything below it; click (or Enter) pins it here. Each tile is four weeks of that ' + word('body', 'body') + "'s work, a cell a day — blank where no instrument saw any." })); return; }
     const n = colony.nodes.find(x => x.id === id);
     if (!n) return;
     const m = net.model();
     const rows = [];
-    const row = (k, v) => { if (v) rows.push(el('dt', { text: k }), el('dd', { text: v })); };
+    const row = (k, v) => { if (v) rows.push(el('div', { class: 'kcard-row' }, el('dt', { text: k }), el('dd', { text: v }))); };
     const a = activity && activity.bodies && activity.bodies[n.name];
     if (isMind(n)) {
       row('serves', label2(n.lane));
@@ -474,8 +518,9 @@
     const docPath = n.doc || (n.desk && n.desk.src) || '';
     const doc = el('pre', { class: 'kcard-doc', text: docPath ? 'reading ' + docPath + '…' : 'no doc — the ontology notes it' });
     const plan = el('pre', { class: 'kcard-doc', text: '' });
-    box.append(el('article', { class: 'kcard' },
-      el('div', { class: 'kcard-title' }, n.throne ? (n.label || n.name) : n.name, el('span', { class: 'pill', 'data-tone': 'info', text: isMind(n) ? word('mind', 'mind') : word('rank.' + n.rank, n.rank || 'body') }), liveNames.has(n.name) ? pill('running') : null),
+    box.append(el('article', { class: 'kcard', 'data-compact': main.dataset.view === 'overview' },
+      el('div', { class: 'kcard-title' }, n.throne ? (n.label || n.name) : n.name, el('span', { class: 'pill', 'data-tone': 'info', text: isMind(n) ? word('mind', 'mind') : word('rank.' + n.rank, n.rank || 'body') }), liveNames.has(n.name) ? pill('running') : null,
+        el('button', { class: 'button kcard-close', 'data-size': 's', 'data-variant': 'quiet', type: 'button', text: 'close', 'aria-label': 'clear the focus', onclick: () => setFocus('') })),
       el('dl', {}, rows), doc, isMind(n) ? null : plan));
     if (docPath) fetch('api/doc?path=' + encodeURIComponent(docPath)).then(r => r.ok ? r.text() : Promise.reject(new Error(r.status)))
       .then(t => { doc.textContent = t.split('\n').slice(0, 40).join('\n'); }).catch(() => { doc.textContent = docPath + ' — not readable here'; });
@@ -529,6 +574,7 @@
       $('#net-note').textContent = bodies + ' ' + word('creatures', 'creatures') + ' · ' + minds + ' ' + word('minds', 'minds') + ' · ' + m.tree.length + ' tree bonds · ' + (m.maxDepth + 1) + ' layers · ' + lit;
       findingsList();
       if (focus) knowledge(focus); else knowledge('');
+      timeline();
       relations();
     }).catch(err => { console.error(err); $('#net-note').textContent = 'the ontology is silent'; });
   }
@@ -537,13 +583,138 @@
   function netSignal(e) {
     const was = courtPhase.get(e.name);
     const done = e.state === 'done' || !!e.report || e.failed;
-    if (!done && !was) { courtPhase.set(e.name, 'down'); net.signal('down', e.name); }
+    if (!done && !was) { courtPhase.set(e.name, 'down'); net.signal('down', e.name); timelineAdd({ as: e.name, ask: e.ask, at: new Date().toISOString(), live: true }); }
     if (done && was !== 'up') {
       courtPhase.set(e.name, 'up');
       const st = String((e.report && e.report.Status) || e.exit || '').toUpperCase();
       net.signal('up', e.name, e.failed || /FAIL|DENIED/.test(st) ? 'danger' : /ESCALATE|INTERRUPT/.test(st) || (st && !/DONE|PASS/.test(st)) ? 'warn' : 'ok');
       setTimeout(() => { if (courtPhase.get(e.name) === 'up') courtPhase.delete(e.name); }, 1500);
+      timelineAdd({ as: e.name, ask: e.ask, at: new Date().toISOString(), status: st || (e.failed ? 'FAIL' : 'DONE') });
     }
+  }
+
+  // ---------- the timeline: courts and verdicts, newest first ----------
+  // journaled runs (/api/activity's recent) under what this page saw live (court starts and
+  // reports, the session's verdicts); a row focuses its neuron
+  const liveRows = [];
+  const tone = st => { const x = String(st || '').toUpperCase(); return !x ? 'info' : /^(DONE|PASS)/.test(x) ? 'ok' : /FAIL|DENIED/.test(x) ? 'danger' : /RUNNING/.test(x) ? 'info' : 'warn'; };
+  const rankOfName = name => { const n = colony && colony.nodes.find(x => x.name === name && x.kind !== 'mind'); return n ? n.rank : ''; };
+  function timelineAdd(row) {
+    row.ask = String(row.ask || '').split('\n').filter(l => l.trim() && !/^\s*@/.test(l)).join(' ');
+    const i = liveRows.findIndex(r => r.as === row.as && r.live);
+    if (i >= 0) liveRows.splice(i, 1);
+    liveRows.unshift(row);
+    if (liveRows.length > 40) liveRows.length = 40;
+    timeline();
+  }
+  function timeline() {
+    const box = $('#timeline');
+    if (!box) return;
+    const seen = new Set(liveRows.map(r => r.as + '|' + (r.ask || '')));
+    const rows = [...liveRows, ...((activity && activity.recent) || []).filter(r => !seen.has(r.as + '|' + (r.ask || '')))].slice(0, 40);
+    if (!rows.length) { box.replaceChildren(el('li', {}, el('p', { class: 'timeline-empty', text: 'no journaled run in four weeks — a Court or a turn lands here as it happens' }))); return; }
+    const hm = at => { const d = new Date(at); return isNaN(d) ? '' : (Date.now() - d < 864e5 ? d.toTimeString().slice(0, 5) : d.toISOString().slice(5, 10)); };
+    box.replaceChildren(...rows.map(r => el('li', {}, el('button', { class: 'timeline-item', type: 'button', 'data-rank': rankOfName(r.as) || false, 'data-live': !!r.live,
+      'aria-label': r.as + ' — ' + (r.ask || '') + ' — ' + (r.status || 'running'),
+      onclick: () => { const n = colony && colony.nodes.find(x => x.name === r.as && x.kind !== 'mind'); if (n) { setFocus(n.id); } },
+      onpointerenter: () => { const n = colony && colony.nodes.find(x => x.name === r.as && x.kind !== 'mind'); net.hover(n ? n.id : ''); },
+      onpointerleave: () => net.hover('') },
+      el('span', { class: 'timeline-time', text: hm(r.at) }), el('span', { class: 'timeline-dot' }), el('span', { class: 'timeline-who', text: r.as }),
+      el('span', { class: 'timeline-what', text: r.ask || '' }), el('span', { class: 'timeline-end', 'data-tone': r.live ? 'info' : tone(r.status), text: r.live ? 'running' : (r.status || '—').split(/\s/)[0] })))));
+    $('#timeline-note').textContent = rows.length + ' · courts and verdicts, newest first';
+  }
+  // the instruments moved: tiles, bond weights and the timeline follow (at most every few seconds)
+  let actT = 0;
+  function refreshActivity() {
+    clearTimeout(actT);
+    actT = setTimeout(() => getJSON('api/activity').then(a => { activity = a; if (colony) net.set(colony, a); timeline(); }).catch(() => {}), 2500);
+  }
+
+  // ---------- the cockpit: the console docks, folds and resizes ----------
+  const shellMain = $('#main'), split = $('#dock-split'), dockBtn = $('#dock-toggle');
+  function dock(open, save) {
+    shellMain.dataset.dock = open ? 'open' : 'closed';
+    dockBtn.setAttribute('aria-expanded', String(open));
+    dockBtn.textContent = open ? '⇥' : '⇤';
+    dockBtn.title = open ? 'fold the console to a rail' : 'open the console';
+    if (save) store.set('dock', open ? 'open' : 'closed');
+    requestAnimationFrame(() => netDraw());
+  }
+  function dockWidth(rem, save) {
+    rem = Math.max(20, Math.min(60, rem));
+    shellMain.style.setProperty('--shell-dock', rem.toFixed(1) + 'rem');
+    split.setAttribute('aria-valuenow', String(Math.round(rem)));
+    if (save) store.set('dockw', rem.toFixed(1));
+  }
+  dockBtn.addEventListener('click', () => dock(shellMain.dataset.dock === 'closed', true));
+  if (store.get('dockw')) dockWidth(+store.get('dockw'));
+  dock(store.get('dock') !== 'closed');
+  split.addEventListener('pointerdown', ev => {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const right = shellMain.getBoundingClientRect().right - parseFloat(getComputedStyle(shellMain).paddingRight);
+    split.setPointerCapture(ev.pointerId); split.setAttribute('data-drag', '');
+    const move = e => dockWidth((right - e.clientX) / rem);
+    const up = e => { split.releasePointerCapture(e.pointerId); split.removeAttribute('data-drag'); split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); dockWidth((right - e.clientX) / rem, true); netDraw(); };
+    split.addEventListener('pointermove', move); split.addEventListener('pointerup', up);
+  });
+  split.addEventListener('keydown', ev => {
+    const cur = parseFloat(shellMain.style.getPropertyValue('--shell-dock')) || 30;
+    if (ev.key === 'ArrowLeft') dockWidth(cur + 2, true); else if (ev.key === 'ArrowRight') dockWidth(cur - 2, true); else return;
+    ev.preventDefault();
+  });
+
+  // ---------- the folder tree as a drawer: the files button or `t`, Esc or a click away closes ----------
+  const shellEl = $('.shell'), drawerBtn = $('#drawer-open');
+  let drawerFrom = null;
+  function drawer(open) {
+    if (main.dataset.view === 'tree') open = false;
+    shellEl.toggleAttribute('data-drawer', open);
+    drawerBtn.setAttribute('aria-expanded', String(open));
+    if (open) { drawerFrom = document.activeElement; setTimeout(() => ($('#tree').querySelector('.tree-node') || $('#drawer-close')).focus(), 50); }
+    else { net.hover(''); if (drawerFrom && drawerFrom.focus) drawerFrom.focus(); drawerFrom = null; }
+  }
+  drawerBtn.addEventListener('click', () => drawer(!shellEl.hasAttribute('data-drawer')));
+  $('#drawer-close').addEventListener('click', () => drawer(false));
+  $('#scrim').addEventListener('click', () => drawer(false));
+  document.addEventListener('keydown', ev => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName) || (document.activeElement && document.activeElement.isContentEditable);
+    if (ev.key === 'Escape' && shellEl.hasAttribute('data-drawer')) { ev.preventDefault(); ev.stopImmediatePropagation(); drawer(false); return; }
+    // `t` anywhere but a field; Alt+T even from the prompt
+    const key = ev.code === 'KeyT' || ev.key === 't' || ev.key === 'T';
+    if (key && ((!typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey) || (ev.altKey && !ev.ctrlKey && !ev.metaKey))) { ev.preventDefault(); drawer(!shellEl.hasAttribute('data-drawer')); }
+  }, true);
+  // a path in the tree lights the neuron that owns it (its territory, longest claim wins)
+  function ownerOf(path) {
+    if (!colony || !path) return '';
+    const p = String(path).toLowerCase().replace(/\/+$/, '');
+    let best = '', len = -1, deep = -1;
+    const m = net.model();
+    for (const n of colony.nodes) for (const o of n.owns || []) {
+      const t = String(o).toLowerCase().replace(/\/(\*\*?)?$/, '').replace(/^\.\//, '');
+      const d = (m && m.depth.get(n.id)) || 0;
+      // the longest claim wins; on a tie the deeper creature (the one that does the work) does
+      if (t && (p === t || p.startsWith(t + '/')) && (t.length > len || (t.length === len && d > deep))) { best = n.id; len = t.length; deep = d; }
+    }
+    return best;
+  }
+  const treeEl = $('#tree');
+  treeEl.addEventListener('pointerover', ev => { const row = ev.target.closest('.tree-node'); if (row) net.hover(ownerOf(row.dataset.path)); });
+  treeEl.addEventListener('pointerleave', () => net.hover(''));
+  treeEl.addEventListener('focusin', ev => { const row = ev.target.closest('.tree-node'); if (row) net.hover(ownerOf(row.dataset.path)); });
+
+  // ---------- the plan's progress in the header ----------
+  function planMeter() {
+    getJSON('/api/plan').then(p => {
+      const m = $('#plan'), items = (p && (p.items || p.deck)) || [];
+      if (!items.length) { m.hidden = true; return; }
+      const done = items.filter(i => i.status === 'done').length;
+      const pct = Math.round(100 * done / items.length);
+      m.hidden = false;
+      m.style.setProperty('--meter-value', pct + '%');
+      m.setAttribute('aria-valuenow', String(pct));
+      m.querySelector('.meter-label').textContent = 'plan ' + done + '/' + items.length;
+      m.dataset.level = items.some(i => i.status === 'blocked') ? 'warn' : '';
+    }).catch(() => { $('#plan').hidden = true; });
   }
 
   // ---------- relations: the matrix and its dimensions ----------
@@ -643,7 +814,7 @@
   function courtPoll() {
     return getJSON('api/court').then(c => {
       court = c.bodies || [];
-      for (const b of court) { if (b.state && b.state !== 'done') liveNames.add(b.name); else liveNames.delete(b.name); }
+      for (const b of court) { if (b.state && !/^(done|idle)$/.test(b.state)) liveNames.add(b.name); else liveNames.delete(b.name); }
       netLive();
       bars($('#live-bodies'), court.map(b => ({ k: b.name, v: (b.input || 0) + (b.output || 0) + (b.cacheRead || 0) + (b.cacheWrite || 0), b })),
         r => (r.b.state || '—') + (r.b.contextLimit ? ' · ctx ' + Math.round(100 * r.b.contextTokens / r.b.contextLimit) + '%' : ''));
@@ -655,8 +826,8 @@
   function boardEvents() {
     const es = new EventSource('events');
     const on = (name, f) => es.addEventListener(name, f);
-    on('usage', metrics);
-    on('court', courtPoll);
+    on('usage', () => { metrics(); refreshActivity(); });
+    on('court', () => { courtPoll(); refreshActivity(); });
     on('colony', loadColony);
     on('onto', loadColony);
   }
@@ -730,6 +901,8 @@
     if (!treeBox) return;
     treeIdx = new Map();
     treeFetch('').then(d => {
+      // the endpoint's face is {path, children, truncated} (api_face_test pins it)
+      if (d && !d.nodes && Array.isArray(d.children)) d.nodes = d.children;
       if (!d || !Array.isArray(d.nodes)) { treeBox.replaceChildren(el('p', { class: 'tree-empty', text: 'no tree source' })); return; }
       const ul = el('ul', { class: 'tree-list', role: false });
       let dirs = 0;
@@ -808,6 +981,7 @@
   header(); setInterval(header, 1500);
   loadColony(); metrics(); courtPoll(); treeLoad();
   setInterval(courtPoll, 2000); setInterval(metrics, 15000);
+  planMeter(); setInterval(planMeter, 15000);
   stream(); boardEvents();
-  field.focus();
+  if (innerWidth >= 1024) field.focus({ preventScroll: true });
 })();

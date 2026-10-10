@@ -8,4 +8,5 @@
   }
   .tab:hover { color: var(--ink); }
   .tab[aria-selected="true"] { color: var(--ink); border-block-end-color: var(--accent); }
+  .tabs-end { margin-inline-start: auto; align-self: center; flex: 0 0 auto; }
 }

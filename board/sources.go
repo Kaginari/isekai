@@ -217,6 +217,7 @@ const ActivityDays = 28
 type Activity struct {
 	Days    []string                 `json:"days"`
 	Bodies  map[string]*BodyActivity `json:"bodies"`
+	Recent  []RecentRun              `json:"recent"` // the newest runs in the window, newest first (the cockpit's timeline)
 	Reading string                   `json:"reading"`
 	Lit     bool                     `json:"lit"`
 }
@@ -230,6 +231,17 @@ type BodyActivity struct {
 	Failed int    `json:"failed"` // runs in the window whose end was not DONE/PASS
 	Last   string `json:"last,omitempty"`
 }
+
+// RecentRun is one journaled run as the timeline shows it.
+type RecentRun struct {
+	As     string `json:"as"`
+	Ask    string `json:"ask,omitempty"`
+	Status string `json:"status"`
+	At     string `json:"at"`
+}
+
+// RecentRuns is how many runs the timeline carries.
+const RecentRuns = 40
 
 // BuildActivity folds the journals into days ending at now's UTC day. Runs without a readable
 // start time and records outside the window are left out, never guessed into a day.
@@ -273,6 +285,22 @@ func BuildActivity(runs []Run, recs []UsageRecord, now time.Time, days int) Acti
 		if r.At > x.Last {
 			x.Last = r.At
 		}
+		// a commission opens with its wire header (@ROOT, @ASK, @CAP …): the timeline shows the words
+		var words []string
+		for _, l := range strings.Split(r.Ask, "\n") {
+			if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "@") {
+				words = append(words, l)
+			}
+		}
+		ask := strings.Join(words, " ")
+		if len(ask) > 160 {
+			ask = ask[:160] + "…"
+		}
+		a.Recent = append(a.Recent, RecentRun{As: r.As, Ask: ask, Status: r.Status, At: r.At})
+	}
+	sort.SliceStable(a.Recent, func(i, j int) bool { return a.Recent[i].At > a.Recent[j].At })
+	if len(a.Recent) > RecentRuns {
+		a.Recent = a.Recent[:RecentRuns]
 	}
 	for _, u := range recs {
 		d := day(u.TS)

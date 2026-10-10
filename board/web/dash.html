@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="web/components/toolcard/toolcard.css">
 <link rel="stylesheet" href="web/components/choice/choice.css">
 <link rel="stylesheet" href="web/components/net/net.css">
+<link rel="stylesheet" href="web/components/timeline/timeline.css">
 <link rel="stylesheet" href="web/components/matrix/matrix.css">
 <link rel="stylesheet" href="web/components/kcard/kcard.css">
 <link rel="stylesheet" href="web/components/button/button.css">
@@ -39,6 +40,7 @@
       <span>model <b id="model">—</b></span>
       <span class="pill" id="state">connecting</span>
       <span class="meter" id="ctx" role="meter" aria-label="context used" aria-valuemin="0" aria-valuemax="100"><span class="meter-fill"></span><span class="meter-label">ctx —</span></span>
+      <span class="meter" id="plan" role="meter" aria-label="the plan, items done" aria-valuemin="0" aria-valuemax="100" hidden><span class="meter-fill"></span><span class="meter-label">plan —</span></span>
       <span>cost <b id="cost">—</b></span>
       <span id="live-count" class="pill" hidden></span>
       <span id="gatewait" class="pill" hidden data-live title="a card waits for a human answer — the world is blocked on you"></span>
@@ -55,11 +57,27 @@
     <button class="tab" role="tab" data-view="metrics" aria-selected="false" type="button">Metrics</button>
     <button class="tab" role="tab" data-view="relations" aria-selected="false" type="button">Relations</button>
     <button class="tab" role="tab" data-view="tree" aria-selected="false" type="button">Tree</button>
+    <button class="button tabs-end" data-size="s" data-variant="quiet" type="button" id="drawer-open" aria-controls="tree-panel" aria-expanded="false" title="the folder tree as a drawer (t, or Alt+T from the prompt)">files <kbd class="shell-key">t</kbd></button>
   </nav>
   <main class="shell-main" id="main" data-view="overview">
-    <section class="panel" data-panel="console" aria-labelledby="h-console">
+    <section class="panel" data-panel="net" aria-labelledby="h-net">
+      <header class="panel-head"><h2 class="panel-title" id="h-net">Neural net</h2><span class="panel-note" id="net-note">—</span>
+        <div class="panel-tools"><span class="net-mode" id="net-mode" role="group" aria-label="net view"><button type="button" data-mode="2d" aria-pressed="true">2D</button><button type="button" data-mode="3d" aria-pressed="false">3D</button></span><button class="button" data-size="s" data-variant="quiet" type="button" id="net-clear">Clear focus</button></div></header>
+      <div class="panel-body">
+        <div class="net-frame"><div class="net-layout" data-side id="net-layout">
+          <div class="stack" data-gap="s">
+            <div id="net"></div>
+            <div class="net-legend"><span><i data-bond="reports"></i><span data-word="bond.reports">reports to</span></span><span><i data-bond="verdict"></i><span data-word="bond.verdict">verdict</span></span><span><i data-bond="truth"></i><span data-word="bond.truth">truth</span></span><span><i data-bond="implied"></i>implied</span><span><i data-bond="wears"></i><span data-word="bond.wears">wears</span></span><span title="each tile is four weeks of the body's work, a cell a day; a bond is as thick as the commissions it carried"><b class="net-key"></b>4 weeks of work</span></div>
+            <div id="net-findings"></div>
+          </div>
+          <aside class="net-side" aria-label="the focused neuron"><div id="kcard"></div></aside>
+        </div></div>
+      </div>
+    </section>
+    <div class="shell-split" id="dock-split" role="separator" aria-orientation="vertical" aria-label="resize the console" aria-controls="console-panel" tabindex="0"></div>
+    <section class="panel" data-panel="console" id="console-panel" aria-labelledby="h-console">
       <header class="panel-head"><h2 class="panel-title" id="h-console">Console</h2><span class="panel-note" id="console-note">the session, as in the terminal</span>
-        <div class="panel-tools"><button class="button" data-size="s" data-variant="quiet" type="button" id="fold-all">Fold tools</button></div></header>
+        <div class="panel-tools"><button class="button" data-size="s" data-variant="quiet" type="button" id="fold-all">Fold tools</button><button class="button shell-dock" data-size="s" data-variant="quiet" type="button" id="dock-toggle" aria-expanded="true" aria-controls="console-panel" title="fold the console to a rail">⇥</button></div></header>
       <div class="panel-body" data-flush>
         <div class="console" id="console">
           <div class="console-log" id="log" aria-live="polite"><p class="console-empty" id="log-empty">Ask anything. The transcript reads like a page; tools, subagents and verdicts fold into cards.</p></div>
@@ -74,19 +92,9 @@
         </div>
       </div>
     </section>
-    <section class="panel" data-panel="net" aria-labelledby="h-net">
-      <header class="panel-head"><h2 class="panel-title" id="h-net">Neural net</h2><span class="panel-note" id="net-note">—</span>
-        <div class="panel-tools"><span class="net-mode" id="net-mode" role="group" aria-label="net view"><button type="button" data-mode="2d" aria-pressed="true">2D</button><button type="button" data-mode="3d" aria-pressed="false">3D</button></span><button class="button" data-size="s" data-variant="quiet" type="button" id="net-clear">Clear focus</button></div></header>
-      <div class="panel-body">
-        <div class="net-layout" data-side>
-          <div class="stack" data-gap="s">
-            <div id="net"></div>
-            <div class="net-legend"><span><i data-bond="reports"></i><span data-word="bond.reports">reports to</span></span><span><i data-bond="verdict"></i><span data-word="bond.verdict">verdict</span></span><span><i data-bond="truth"></i><span data-word="bond.truth">truth</span></span><span><i data-bond="implied"></i>implied</span><span><i data-bond="wears"></i><span data-word="bond.wears">wears</span></span><span><b class="net-key"></b>a tile: 4 weeks of work, a cell a day</span><span>bond weight · commissions</span></div>
-            <div id="net-findings"></div>
-          </div>
-          <aside class="net-side" aria-label="the focused neuron"><div id="kcard"></div></aside>
-        </div>
-      </div>
+    <section class="panel" data-panel="timeline" aria-labelledby="h-timeline">
+      <header class="panel-head"><h2 class="panel-title" id="h-timeline">Timeline</h2><span class="panel-note" id="timeline-note">courts and verdicts, newest first</span></header>
+      <div class="panel-body"><div class="stack" data-gap="s"><div id="timeline-slot"></div><ol class="timeline" id="timeline" aria-live="polite"></ol></div></div>
     </section>
     <section class="panel" data-panel="metrics" aria-labelledby="h-metrics">
       <header class="panel-head"><h2 class="panel-title" id="h-metrics">Metrics</h2><span class="panel-note" id="metrics-note">—</span>
@@ -114,13 +122,15 @@
         </div>
       </div>
     </section>
-    <section class="panel" data-panel="tree" aria-labelledby="h-tree">
-      <header class="panel-head"><h2 class="panel-title" id="h-tree">Folder tree</h2><span class="panel-note" data-note="tree">world territory — files light as tools touch them</span></header>
+    <section class="panel" data-panel="tree" id="tree-panel" aria-labelledby="h-tree">
+      <header class="panel-head"><h2 class="panel-title" id="h-tree">Folder tree</h2><span class="panel-note" data-note="tree">world territory — files light as tools touch them</span>
+        <div class="panel-tools"><button class="button" data-size="s" data-variant="quiet" type="button" id="drawer-close" aria-label="close the folder tree">esc</button></div></header>
       <div class="panel-body">
         <div class="tree" id="tree" role="tree" aria-label="world tree"><p class="tree-empty">reading the world…</p></div>
       </div>
     </section>
   </main>
+  <div class="shell-scrim" id="scrim"></div>
 </div>
 </body>
 </html>

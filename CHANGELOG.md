@@ -8,6 +8,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The dashboard's overview is a cockpit.** The neural net is the hero, the console docks beside
+  it (drag the splitter to resize, fold it to a rail — both remembered), and a timeline of Courts
+  and verdicts sits under the net (`/api/activity` now carries the newest runs, their wire headers
+  dropped); a row focuses its neuron. The header gains the plan's progress. The folder tree leaves
+  the grid for a drawer over every view — the files button, `t`, or Alt+T from the prompt; Esc or a
+  click away closes it — and hovering a path lights the neuron that owns it. Every action pulses
+  on its own neuron in 2D and 3D: reads ripple softly, writes pulse in the rank's colour, outward or
+  destructive steps and a waiting gate ring amber, verdicts flare green or red; the throne breathes
+  while the session runs.
+
 - **The neural net, rebuilt.** The dashboard's net draws the hierarchy as layers — the throne, then
   each rank in the order work flows down, the minds beside — every neuron a rank-coloured tile
   whose 28 cells are its last four weeks of work (runs and tokens from the journals; blank where no
@@ -150,6 +160,9 @@ All notable changes to Isekai are recorded here. The format follows
   names the missing key and the rerun, and does not start a founding session it cannot finish.
 
 ### Fixed
+
+- **The dashboard's folder tree loads again.** It read the root level's entries under `nodes`
+  while `/api/tree/children` answers `children`, so the tree always said "no tree source".
 
 - **The neural net draws the throne and its tree.** `/api/colony` always carries the throne node
   (the session body, under the lexicon's word for it) and names every creature's `parent`; a

@@ -204,8 +204,12 @@
       const maxW = Math.max(1, ...m.tree.map(t => t.weight));
       st.edges = m.tree.filter(t => st.nodes.has(t.up) && st.nodes.has(t.down)).map((t, i) => ({ ...t, k: t.weight ? Math.log2(1 + t.weight) / Math.log2(1 + maxW) : 0, seed: (i * 0.6180339) % 1 }));
       st.wears = m.wears.filter(w => st.nodes.has(w.from) && st.nodes.has(w.to));
-      st.dist0 = R * 2.75 + 2;
-      if (!st.focus) { st.goal.dist = st.dist0; st.dist = st.dist0; }
+      st.dist0 = R * 2.25 + 1.6;
+      // the camera looks at the middle of the whole stack, throne to minds
+      let lo = Infinity, hi = -Infinity;
+      for (const q of st.nodes.values()) { lo = Math.min(lo, q.p[1]); hi = Math.max(hi, q.p[1]); }
+      st.home = [0, isFinite(lo) ? (lo + hi) / 2 : 0, 0];
+      if (!st.focus) { st.goal.dist = st.dist0; st.dist = st.dist0; st.goal.target = st.home.slice(); st.target = st.home.slice(); }
       palette();
       kick();
     }
@@ -335,7 +339,7 @@
         const liveN = st.live.has(q.id);
         const a = d ? 0.12 : 1;
         items.push({ z: project(q.p).w, draw: () => {
-          put(q.p, c, (dark ? 0.42 : 0.3) * a * (liveN ? 1.6 * breath : on ? 1.4 : 1), q.size * (liveN ? 4.2 : 3.2), 0);
+          put(q.p, c, (dark ? 0.42 : 0.4) * a * (liveN ? 1.6 * breath : on ? 1.4 : 1), q.size * (liveN ? 4.2 : 3.2), 0);
           put(q.p, c, (dark ? 0.95 : 1) * a, q.size, q.n.kind === 'mind' ? 0.5 : 0.62);
         } });
       }
@@ -372,11 +376,13 @@
         return true;
       });
       for (const [id, f] of st.flashes) {
-        const t = (now - f.at) / 1100;
+        const t = (now - f.at) / (f.kind === 'read' ? 700 : 1100);
         if (t >= 1) { st.flashes.delete(id); continue; }
         const q = st.nodes.get(id);
         if (!q) continue;
-        items.push({ z: -1e9, draw: () => put(q.p, pal[f.tone] || col(q.rank), (1 - t) * 0.9, q.size * (2 + 5 * t), 0) });
+        const c = f.tone === 'info' ? pal.accent : f.tone === 'rank' || f.tone === 'down' ? col(q.rank) : pal[f.tone] || col(q.rank);
+        const big = f.kind === 'read' ? 0.55 : 1;
+        items.push({ z: -1e9, draw: () => { put(q.p, c, (1 - t) * 0.9 * big, q.size * (2 + 5 * t * big), 0); if (t < 0.4) put(q.p, c, (0.4 - t) * 2, q.size * 1.2, 0.6); } });
       }
       items.sort((a, b) => b.z - a.z);
       for (const it of items) it.draw();
@@ -516,7 +522,7 @@
     const ro = new ResizeObserver(resize);
     ro.observe(stage);
 
-    function flash(id, tone) { st.flashes.set(id, { at: performance.now(), tone }); kick(); }
+    function flash(id, tone, kind) { st.flashes.set(id, { at: performance.now(), tone, kind }); kick(); }
 
     return {
       elements: [canvas, overlay],
@@ -527,13 +533,14 @@
         if ((pinned || '') !== st.focus) {
           st.focus = pinned || '';
           const q = st.nodes.get(st.focus);
-          st.goal.target = q ? q.p.slice() : [0, 0, 0];
+          st.goal.target = q ? q.p.slice() : (st.home || [0, 0, 0]).slice();
           st.goal.dist = q ? Math.max(3.5, st.dist0 * 0.62) : st.dist0;
         }
         kick();
         if (opts.reduced()) render(performance.now(), true);
       },
       live(ids) { st.live = ids; kick(); },
+      act(id, tone, kind) { if (st.nodes.has(id)) flash(id, tone, kind); },
       signal(kind, hops, id, tone) {
         const pairs = hops.map(h => h.split('>')).filter(([a, b]) => st.nodes.has(a) && st.nodes.has(b));
         const endAt = kind === 'up' ? (pairs.length ? pairs[0][0] : id) : id;
