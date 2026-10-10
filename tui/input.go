@@ -88,10 +88,14 @@ func (m *Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+l":
 		return m, m.reflow()
+	case "ctrl+y":
+		return m, m.copyAnswer()
 	case "ctrl+o":
 		return m, m.expandLast()
 	case "esc":
 		switch {
+		case m.sel != nil:
+			m.sel = nil
 		case m.menu != nil || m.comp != nil:
 			m.menu, m.comp = nil, nil
 		case m.busy:
@@ -364,6 +368,10 @@ func (m *Model) slash(line string) tea.Cmd {
 		return m.leave()
 	case "board":
 		return m.openBoard()
+	case "copy":
+		return m.copyAnswer()
+	case "mouse":
+		return m.toggleMouse()
 	case "clear":
 		m.blocks, m.printedIdx = nil, 0
 		return m.reflow()

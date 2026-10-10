@@ -11,6 +11,9 @@
 │ ctrl+c        clear · interrupt · twice when idle: exit      │
 │ pgup / pgdn   scroll the chat (shift+↑ ↓ a line, the wheel)  │
 │ ctrl+t        the bodies: every body's log                   │
+│ drag          select in the chat, copied on release          │
+│ shift+drag    selects with the terminal (/mouse: always)     │
+│ ctrl+y        copy the last answer (/copy)                   │
 │ ctrl+o        expand the last collapsed block                │
 │ ctrl+l        redraw                                         │
 │ ?             this list                                      │

@@ -226,6 +226,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `ctrl+o` | expand the last folded block |
 | `esc` · `ctrl+c` | interrupt the turn · clear the input (↑ brings it back) |
 | `pgup` · `pgdn` · wheel | scroll the chat |
+| drag · `ctrl+y` · `/mouse` | select and copy · copy the last answer · the mouse to the terminal |
 
 ## The CLI
 

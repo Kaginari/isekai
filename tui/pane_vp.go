@@ -45,6 +45,7 @@ func (m *Model) feedVP(live []string, cw, paneH int) []string {
 		lines = append(append([]string(nil), lines...), live...)
 	}
 	atBottom := m.vp.AtBottom()
+	m.vpLines = lines
 	m.vp.SetContentLines(lines)
 	if atBottom {
 		m.vp.GotoBottom()

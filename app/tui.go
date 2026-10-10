@@ -405,6 +405,8 @@ var builtinCommands = []tui.MenuItem{
 	{Name: "handoff", Description: "/handoff [focus] writes one for a fresh session · /handoff read picks the last up"},
 	{Name: "sessions", Description: "the sessions of this world"},
 	{Name: "resume", Description: "/resume <id> — reopen a session"},
+	{Name: "copy", Description: "copy the last answer's markdown to the clipboard"},
+	{Name: "mouse", Description: "hand the mouse to the terminal (its own selection) or back to the panes"},
 	{Name: "clear", Description: "clear the screen"},
 	{Name: "quit", Description: "end the session"},
 }

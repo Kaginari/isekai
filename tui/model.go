@@ -55,6 +55,7 @@ type Model struct {
 	// the turn
 	busy          bool
 	turnStart     time.Time
+	turnSeq       int // counts turns: an answer's pieces share theirs
 	verb          string
 	stream        strings.Builder
 	streamed      bool
@@ -109,7 +110,7 @@ type Model struct {
 	prints chan printItem
 	// blocks is every finished block as a render at a width: a width change clears the terminal
 	// and prints them again at the new one, as the terminal's own rewrap cannot be trusted.
-	blocks    []func(w int) string
+	blocks    []*block
 	reflowSeq int
 	lastWidth int // the width the transcript was last printed at
 	bgKnown   bool
@@ -137,10 +138,17 @@ type Model struct {
 	paneRef   int
 	// the chat pane's viewport: transcript scrollback lives here while the panes own the
 	// window (pane_vp.go)
-	vp   viewport.Model
-	vpOK bool
-	vpCW int
-	vpH  int
+	vp      viewport.Model
+	vpOK    bool
+	vpCW    int
+	vpH     int
+	vpLines []string // what the viewport holds: the transcript, then the live rows
+	// the chat pane's drag selection (select.go); mouseTerm hands the mouse to the terminal
+	sel       *selection
+	clickAt   time.Time
+	clickSpot spot
+	clicks    int
+	mouseTerm bool
 	// printedIdx: blocks[:printedIdx] own the terminal scrollback already; under panes nothing
 	// prints live, so when the window narrows the panes hand the scrollback what it missed —
 	// every block exactly once, never twice
@@ -149,6 +157,15 @@ type Model struct {
 	board    *boardState
 	sender   func(tea.Msg)
 	attached chan struct{}
+}
+
+// block is one finished block of the transcript: its render at a width, and the source it
+// was drawn from — an answer's markdown — for the copy keys.
+type block struct {
+	render func(w int) string
+	src    string
+	answer bool // a piece of the session's answer
+	turn   int  // the turn it belongs to (turnSeq)
 }
 
 type collapsed struct {
@@ -423,7 +440,15 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, nil
+	case tea.MouseMotionMsg, tea.MouseReleaseMsg:
+		cmd, _ := m.mouseSelect(msg)
+		return m, cmd
+	case evSelScroll:
+		return m, m.selScroll()
 	case tea.MouseClickMsg:
+		if cmd, ok := m.mouseSelect(msg); ok {
+			return m, cmd
+		}
 		// a click on a courts-card row switches the plan card to that body's deck — the body's
 		// office lane tints the card (that's the office that turn is running under)
 		if msg.Button == tea.MouseLeft && m.railVisible() > 0 && m.choice == nil {
@@ -690,7 +715,7 @@ func (m *Model) paneChat(cw int) []string {
 	}
 	var out []string
 	for _, r := range m.blocks {
-		if b := r(cw); b != "" {
+		if b := r.render(cw); b != "" {
 			out = append(out, strings.Split(b, "\n")...)
 			out = append(out, "")
 		}
@@ -713,7 +738,10 @@ func (m *Model) splitPanes(live []string, rail, cw, paneH int) string {
 		cl = append([]string{""}, cl...)
 	}
 	for i, l := range cl {
-		l = ansi.Truncate(l, cw, "")
+		cl[i] = ansi.Truncate(l, cw, "")
+	}
+	m.highlight(cl, m.vp.YOffset())
+	for i, l := range cl {
 		cl[i] = l + padRight(l, cw)
 	}
 	rv := m.railView(rail - 3)
@@ -913,6 +941,7 @@ func (w Words) Session() string {
 
 func (m *Model) begin() {
 	m.busy = true
+	m.turnSeq++
 	m.turnStart = time.Now()
 	m.verbSeed++
 	m.state = "thinking"
@@ -930,7 +959,7 @@ func (m *Model) finish(ev EvTurnDone) tea.Cmd {
 	if ev.Streamed || m.streamed {
 		cmds = append(cmds, m.flushStream(true))
 	} else if t := strings.TrimSpace(ev.Text); t != "" {
-		cmds = append(cmds, m.print(func(w int) string { return m.theme.Assistant(t, w) }))
+		cmds = append(cmds, m.printAnswer(t))
 	}
 	for _, t := range m.tools {
 		t.Status = "failed"
@@ -978,11 +1007,20 @@ func (m *Model) finish(ev EvTurnDone) tea.Cmd {
 // upstream of this comment are the scars); the cache invalidates so the pane picks it up on
 // the next frame.
 func (m *Model) print(render func(w int) string) tea.Cmd {
-	block := render(m.width)
+	return m.push(&block{render: render})
+}
+
+// printAnswer prints a piece of the session's answer, its markdown kept for ctrl+y.
+func (m *Model) printAnswer(md string) tea.Cmd {
+	return m.push(&block{render: func(w int) string { return m.theme.Assistant(md, w) }, src: md, answer: true, turn: m.turnSeq})
+}
+
+func (m *Model) push(b *block) tea.Cmd {
+	block := b.render(m.width)
 	if block == "" {
 		return nil
 	}
-	m.blocks = append(m.blocks, render)
+	m.blocks = append(m.blocks, b)
 	if m.railVisible() > 0 {
 		m.paneDirty = true
 		return nil
@@ -999,6 +1037,7 @@ func (m *Model) print(render func(w int) string) tea.Cmd {
 // panes the transcript never left — this just dirties the viewport cache and the frame follows.
 func (m *Model) reflow() tea.Cmd {
 	m.lastWidth = m.width
+	m.sel = nil // the transcript rewraps: content coordinates move
 	if m.railVisible() > 0 {
 		m.paneDirty = true
 		m.reflowSeq++
@@ -1006,7 +1045,7 @@ func (m *Model) reflow() tea.Cmd {
 	}
 	var parts []string
 	for _, r := range m.blocks {
-		if b := r(m.width); b != "" {
+		if b := r.render(m.width); b != "" {
 			parts = append(parts, b)
 		}
 	}
@@ -1023,7 +1062,7 @@ func (m *Model) leave() tea.Cmd {
 	m.board, m.bview = nil, nil // the alternate screen keeps no print: leave it first
 	var parts []string
 	for _, r := range m.blocks[min(m.printedIdx, len(m.blocks)):] {
-		if b := r(m.width); b != "" {
+		if b := r.render(m.width); b != "" {
 			parts = append(parts, b)
 		}
 	}
@@ -1041,7 +1080,7 @@ func (m *Model) catchUp() {
 		return
 	}
 	for _, r := range m.blocks[m.printedIdx:] {
-		if b := r(m.width); b != "" {
+		if b := r.render(m.width); b != "" {
 			m.enqueue(printItem{text: b})
 		}
 	}
@@ -1100,7 +1139,7 @@ func (m *Model) flushStream(final bool) tea.Cmd {
 	}
 	if final {
 		m.stream.Reset()
-		return m.print(func(w int) string { return m.theme.Assistant(s, w) })
+		return m.printAnswer(s)
 	}
 	cut := safeCut(s)
 	if cut <= 0 {
@@ -1109,7 +1148,7 @@ func (m *Model) flushStream(final bool) tea.Cmd {
 	head, tail := s[:cut], s[cut:]
 	m.stream.Reset()
 	m.stream.WriteString(tail)
-	return m.print(func(w int) string { return m.theme.Assistant(head, w) })
+	return m.printAnswer(head)
 }
 
 // safeCut finds the last blank line outside a code fence such that the paragraph after it is
@@ -1167,8 +1206,9 @@ func (m *Model) View() tea.View {
 	v.WindowTitle = m.words.Dist + " · " + filepath.Base(m.footer.World) + " · " + state
 	if m.board != nil {
 		v.MouseMode = tea.MouseModeCellMotion
-	} else if m.railVisible() > 0 {
-		// the chat pane scrolls its transcript with the wheel while the panes own the window
+	} else if m.railVisible() > 0 && !m.mouseTerm {
+		// the chat pane scrolls its transcript with the wheel and selects with a drag while the
+		// panes own the window; /mouse gives the mouse back to the terminal
 		v.MouseMode = tea.MouseModeCellMotion
 	}
 	return v
@@ -1240,6 +1280,9 @@ func (m *Model) Render() string {
 	f := m.footer
 	f.Queued = m.queued
 	f.Hint = "? for shortcuts · ctrl+p plans"
+	if m.mouseTerm && rail > 0 {
+		f.Badge = "mouse: terminal"
+	}
 	f.Message = m.message
 	if f.Courts == "" {
 		f.Courts = m.words.Courts

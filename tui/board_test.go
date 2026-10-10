@@ -239,7 +239,7 @@ func drainPrints(m *Model) string {
 	if n := len(m.blocks); n > 0 && m.railVisible() > 0 {
 		// under panes the transcript is the block store: read the last landed block — that's
 		// what the human just gained on screen
-		if b := ansi.Strip(m.blocks[n-1](m.width - m.railVisible())); b != "" {
+		if b := ansi.Strip(m.blocks[n-1].render(m.width - m.railVisible())); b != "" {
 			out = append(out, b)
 		}
 	}

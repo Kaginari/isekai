@@ -1153,6 +1153,7 @@ type FooterView struct {
 	Courts  string // the plural word
 	Hint    string // "? for shortcuts"
 	Queued  int
+	Badge   string // a mode the session is in ("mouse: terminal"), lit in the accent
 	Message string // a transient message shown in place of the hint
 	// Zone carries the instrument zone of the session's context reading ("OK", "NEAR",
 	// "STRESS", "UNREAD"; "" when the app doesn't read zones). The footer wears it; the
@@ -1205,6 +1206,9 @@ func (t Theme) Footer(f FooterView, width int) string {
 	}
 	if f.Queued > 0 {
 		parts = append(parts, fmt.Sprintf("%d queued", f.Queued))
+	}
+	if f.Badge != "" {
+		parts = append(parts, t.accent.Render(f.Badge))
 	}
 	right := f.Hint
 	if f.Message != "" {
@@ -1315,6 +1319,9 @@ func DefaultShortcuts() []Shortcut {
 		{"ctrl+c", "clear · interrupt · twice when idle: exit"},
 		{"pgup / pgdn", "scroll the chat (shift+↑ ↓ a line, the wheel)"},
 		{"ctrl+t", "the bodies: every body's log"},
+		{"drag", "select in the chat, copied on release"},
+		{"shift+drag", "selects with the terminal (/mouse: always)"},
+		{"ctrl+y", "copy the last answer (/copy)"},
 		{"ctrl+o", "expand the last collapsed block"},
 		{"ctrl+l", "redraw"},
 		{"?", "this list"},

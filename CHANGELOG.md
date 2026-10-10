@@ -8,6 +8,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Select and copy in the TUI's panes.** A drag in the chat pane selects (clamped to the chat,
+  scrolling at its edges; a double click takes a word, a triple a line) and the release copies
+  the plain text — OSC 52, the primary selection, and off SSH the desktop's `wl-copy`/`xclip`/
+  `xsel`/`pbcopy` — with a toast. `ctrl+y` and `/copy` copy the last answer's markdown; `/mouse`
+  hands the mouse to the terminal (a `mouse: terminal` footer badge) and back.
+
 - **The law inside Claude Code.** `isekai install --claude` wires `isekai hook` into Claude Code's
   hooks: the crest and the log's last entries at every session start (and after `/clear` and
   compaction), recall on every prompt, the guard and the human gate before every tool (it only

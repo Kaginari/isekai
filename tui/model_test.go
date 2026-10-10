@@ -384,7 +384,7 @@ func TestCourtZombieCardLandsFrozenAtTurnEnd(t *testing.T) {
 	cards := func() int {
 		n := 0
 		for _, r := range m.blocks {
-			if strings.Contains(ansi.Strip(r(100)), "◆ court orc-experience") {
+			if strings.Contains(ansi.Strip(r.render(100)), "◆ court orc-experience") {
 				n++
 			}
 		}
@@ -423,7 +423,7 @@ func TestCourtZombieCardLandsFrozenAtTurnEnd(t *testing.T) {
 		t.Fatalf("tombstones for orc-experience: %d, want exactly 1", tombs)
 	}
 	for _, r := range m.blocks {
-		if s := ansi.Strip(r(100)); strings.Contains(s, "◆ court orc-experience") && !strings.Contains(s, "DONE · 3m31s") {
+		if s := ansi.Strip(r.render(100)); strings.Contains(s, "◆ court orc-experience") && !strings.Contains(s, "DONE · 3m31s") {
 			t.Fatalf("the tombstone lost the frozen clock: %q", s)
 		}
 	}
@@ -444,7 +444,7 @@ func TestCourtFlashHoldsThenTickLandsTheTombstone(t *testing.T) {
 	cards := func() int {
 		n := 0
 		for _, r := range m.blocks {
-			if strings.Contains(ansi.Strip(r(100)), "◆ court slime-auth") {
+			if strings.Contains(ansi.Strip(r.render(100)), "◆ court slime-auth") {
 				n++
 			}
 		}

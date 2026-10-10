@@ -34,6 +34,7 @@ type Theme struct {
 	ranks                                               map[string]lipgloss.Style
 	lanes                                               map[string]color.Color
 	add, del, ctxLine, lineNo                           lipgloss.Style
+	sel                                                 lipgloss.Style // a drag selection in the chat pane
 }
 
 // Words are the labels a distribution renames (agent-one says Subagent, Operator, Workspace).
@@ -78,6 +79,7 @@ func NewTheme(dark bool) Theme {
 	t.del = lipgloss.NewStyle().Foreground(c("#e06c5f", "#b8341f"))
 	t.ctxLine = lipgloss.NewStyle().Foreground(c("#8a94a3", "#5c6672"))
 	t.lineNo = lipgloss.NewStyle().Foreground(c("#5b6675", "#8a94a3"))
+	t.sel = lipgloss.NewStyle().Background(c("#2b4a73", "#b9d5fb")).Foreground(c("#eaf2ff", "#0b1424"))
 	t.classes = map[string]lipgloss.Style{
 		"read":        lipgloss.NewStyle().Foreground(c("#4db8dd", "#1a7fa3")),
 		"write":       lipgloss.NewStyle().Foreground(c("#9a86e8", "#5c3fc9")),

@@ -34,13 +34,15 @@ var paletteActions = []MenuItem{
 	{Name: "board", Description: "the board, full screen"},
 	{Name: "theme", Description: "switch between the dark and the light theme"},
 	{Name: "help", Description: "commands and shortcuts"},
+	{Name: "copy", Description: "copy the last answer's markdown"},
+	{Name: "mouse", Description: "the mouse to the terminal (its own selection) or back to the panes"},
 	{Name: "clear", Description: "clear the screen"},
 	{Name: "quit", Description: "end the session"},
 }
 
 // noArgs are the commands the palette runs at once; the others land in the input to be finished.
 var noArgs = map[string]bool{"board": true, "clear": true, "help": true, "quit": true, "agents": true, "usage": true,
-	"status": true, "sessions": true, "compact": true, "theme": true}
+	"status": true, "sessions": true, "compact": true, "theme": true, "copy": true, "mouse": true}
 
 func (m *Model) openPalette() {
 	seen := map[string]bool{}

@@ -132,8 +132,19 @@ overdrawn):
 - **Links** — a tool block's path is an OSC 8 hyperlink to the file: a click opens it where the
   terminal supports links, plain text elsewhere.
 - **Mouse on the board** — a click on a tab switches to it, on a row selects it (again: its
-  detail), on a graph node selects it; the wheel scrolls. The session's own screen keeps the
-  terminal's selection and scrollback, so it never captures the mouse.
+  detail), on a graph node selects it; the wheel scrolls.
+- **Mouse under the panes** — on a window wide enough for the sidebar the transcript lives in the
+  chat pane, so the program takes the mouse: the wheel scrolls the chat (the sidebar over its own
+  column), a click on a sidebar card row or header acts on it. A drag selects in the chat pane
+  only — never the sidebar or the divider — scrolling when it rests on the pane's edge; a double
+  click takes a word, a triple click a line; `esc` clears it. The release copies the plain text
+  (escapes stripped, each line's pad trimmed) by OSC 52, to the primary selection too, and —
+  off SSH — through the desktop's own tool (`wl-copy`, `xclip`, `xsel`, `pbcopy`), as some
+  terminals ignore OSC 52; a toast says how many lines. `ctrl+y` or `/copy` copies the last
+  answer's markdown. `/mouse` gives the mouse back to the terminal — its own selection, a
+  `mouse: terminal` badge in the footer — until `/mouse` again; `shift+drag` does the same for
+  one drag on most terminals. On quit the transcript the panes held prints to the scrollback.
+  A narrow window never captures the mouse: the terminal selects as always.
 
 ## The board — `/board`
 

@@ -409,7 +409,7 @@ func (m *Model) sessionLines(w int) []string {
 	var out []string
 	start := max(0, len(m.blocks)-60)
 	for _, r := range m.blocks[start:] {
-		if b := r(w); b != "" {
+		if b := r.render(w); b != "" {
 			out = append(out, strings.Split(b, "\n")...)
 			out = append(out, "")
 		}
