@@ -2,7 +2,7 @@
 
 - **Rank:** Orc
 - **Territory:** `tui/`, `board/`, `ui/`, `docs/screens/`
-- **Reports to:** elf-isekai
+- **Reports to:** elf-host
 - **Minds:** orc-gate-verdict, review-core
 - **Purpose:** rules the human's siphon — the terminal UI, the board and the dash, the web UI system, and the README's screenshots — and holds the gate over every landing there.
 

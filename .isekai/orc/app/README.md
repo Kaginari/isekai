@@ -2,7 +2,7 @@
 
 - **Rank:** Orc
 - **Territory:** `app/`, `cmd/`, `bench/`
-- **Reports to:** elf-isekai
+- **Reports to:** elf-host
 - **Minds:** orc-gate-verdict, review-core, bench-run
 - **Purpose:** rules the assembly — the one engine behind the binary (CLI, init and founding, the session host, the Courts host, world tools, the Claude Code hooks, the container, selftest) and the Harbor benchmarks — and holds the gate over every landing there.
 

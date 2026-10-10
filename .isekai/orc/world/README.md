@@ -2,7 +2,7 @@
 
 - **Rank:** Orc
 - **Territory:** `world/`, `onto/`, `memory/`, `toolbox/`
-- **Reports to:** elf-isekai
+- **Reports to:** elf-world
 - **Minds:** orc-gate-verdict, review-core, slime-creature-docs
 - **Purpose:** rules the law as a harness — the world loader, ranks and ascension, courts and the council, the Orc gate and Vitality, the log and the ledger shelf, the ontology and housekeep, the memory tiers and the two-level toolbox — and holds the gate over every landing there.
 

@@ -2,7 +2,7 @@
 
 - **Rank:** Orc
 - **Territory:** `config/`, `discover/`, `mcp/`, `examples/`
-- **Reports to:** elf-isekai
+- **Reports to:** elf-world
 - **Minds:** orc-gate-verdict, review-core, gate-safety
 - **Purpose:** rules what enters the engine from outside — the layered switchboard with every value's origin, the machine-local files and their scaffold, what other harnesses wrote (instructions, skills, commands, agents, MCP imports), and MCP servers — and holds the gate over every landing there.
 
