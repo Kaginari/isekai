@@ -458,6 +458,20 @@ answer, interrupt) carries a per-run token the page embeds and must name a loopb
 same-origin Origin, so another site cannot drive the session and a rebound DNS name cannot reach
 it. The page's CSP allows only its own scripts.
 
+**How the colony is drawn.** Minds and Bodies are two planes on one grid, never one crowd. The
+mind lanes keep their place *between* the ranks, each standing left of the rank it serves — tools
+before hands: zone minds · slime · verdict minds · orc · global minds · elf · ascended (the
+ascended are bodies of bodies — a seventh lane). The planes read through their dress: bodies carry
+portraits, halos and wide tints; minds are dashed rings on slim tints. Below the seven lanes, a
+full-width row names the **shared skills** — the host's commands and app-provided skills that are
+not the world's Minds — plainly, for what they are. The bonds are typed and coloured: slime⇒orc is
+the truth-current (cyan), orc⇒elf the verdict-current (gold), body⇌worn mind an anima-thread — one
+dashed shape tinted by lane. A mind node paints its brain in its lane's reasoning colour (zone
+gathers facts, verdict weighs rulings, global arms the voice, shared is the host's toolbox), so
+"whose work does this mind do?" is answered at a glance. The triad (Great Sage reads → Raphael
+judges → Ciel drafts) is drawn as one chain, each role's model named beside it, resolved from the
+minted bodies, never hand-typed.
+
 The command's own output — the board, each session — is a Charm Log: levelled, coloured, timed.
 
 ## Tests

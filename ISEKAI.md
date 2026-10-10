@@ -171,10 +171,11 @@ creature never sits on confusion, and never guesses past it.
      two is a pattern.
    - A birth is always part of the same change and announced out loud, never later.
 5. **Memory — thoughts are kept, then let go, but intelligence is born.**
-   - Every creature keeps a dated `## Thoughts` section — and per the creature split (see
-     Minds & Bodies, word 11), that desk sits in the worn MIND: the hat that did the work
-     holds what the work taught; the body keeps identity, territory, traits, verdicts.
-     Mind stress (desk past ~5) mutates the genome and the body adapts in the same change.
+   - Every creature keeps a dated `## Thoughts` desk. Per the creature split (see Minds &
+     Bodies), the desk sits in the worn Mind when the work was done wearing one — the hat
+     that did the work holds what the work taught — and in the creature's own doc when it
+     wore none. The body keeps identity, territory, traits, verdicts. Desk stress (past ~5)
+     mutates the genome and the body adapts in the same change.
    - Analysis flows up: slime → orc (→ high orc) → elf (→ high elf). Wisdom flows down.
    - Past ~5 entries, each thought is distilled to its final form, then the list is cleaned:
      - a rule
@@ -198,6 +199,9 @@ creature never sits on confusion, and never guesses past it.
      here acts on, publishes to, or reaches outside the world without Veldora's agreement.
    - "Outward" is anything beyond `.isekai/` and the target directory: network calls,
      external services, other repos, other machines.
+   - The one standing outward act is the session's own call to the model Veldora configured:
+     choosing the model is the agreement. Nothing else rides on it — no other act leaves
+     because that one does.
    - This gives Law 6 the status of a nature, not a checklist item: consent is the world's
      shape, not a step someone can forget.
 8. **The Wire — one living channel between machine mouths.**
@@ -228,60 +232,45 @@ the world can see about itself *right now* without asking a document, which may 
 - Instruments are not tracked the way `log.md` is: they are overwritten freely, since they are
   a window, not a record. What an instrument reveals that matters gets written into a
   document (and the log) — the instrument itself is disposable.
-- **Rimuru's own stress is an instrument reading too, not a feeling.**
-  `.isekai/tools/context-check.sh` reads the running session's own transcript and reports its
-  current context occupancy against a conservative, model-independent budget (default
-  200,000 tokens — deliberately far below any single model's real window, since Rimuru rides
-  whichever model the human picked, and some are much smaller than others). Past 180,000
-  (90% of budget) is the stress zone: write anything not yet durable to `log.md` or its
-  owning doc immediately, dispatch any remaining heavy work to a Court Body rather than
-  running it inline from here on, and tell the human plainly that this is a good point for a
-  break, a `/clear`, or a fresh session picking up from what was just written down. The
-  number is an estimate (cross-checked against Claude Code's own `/context` to within ~7%
-  on 2026-09-20), not a billing figure — good enough to catch the zone, not to argue
-  precision.
+- **Rimuru's own stress is an instrument reading too, not a feeling.** The context reading
+  measures the running session's occupancy against a conservative, model-independent budget
+  (default 200,000 tokens — below any model's real window, since Rimuru rides whichever model
+  the human picked). Past 90% is the stress zone: write anything not yet durable to `log.md` or
+  its owning doc at once, dispatch remaining heavy work to a Court Body instead of running it
+  inline, and tell the human plainly this is a good point for a break or a fresh session picking
+  up from what was just written down. The number is an estimate, not a billing figure.
+
+**Instruments by host.** The law names instruments, not programs; each host provides them:
+
+| Instrument | The isekai binary | A Claude Code or OpenCode world |
+|---|---|---|
+| context reading | the footer, `isekai status` | `.isekai/tools/context-check.sh` |
+| memory | `isekai memory` | `.isekai/tools/memory.js` |
+| toolbox | `isekai toolbox` | `.isekai/tools/toolbox.js` |
+| the loop | every session | `.isekai/tools/loop.js` |
+| import a Mind / mint a Body | discovered from `.opencode/` and `.claude/` | `/don`, `/mint` |
 
 ## Memory tiers
 
-Nature 5 says how memory *moves* — kept to ~5, distilled, let go; analysis up, wisdom down. This
-section says where it *lives*. Every creature — Rimuru, Elf, Orc, Slime, Kijin, and every Court
-Body — has the same three memories. None is a feeling: each has a file or an instrument that
-answers for it, and `.isekai/tools/memory.js` reads all three.
+Nature 5 says how memory *moves*; this says where it *lives*. Every creature and every Court Body
+has the same three memories, each answered for by a file or an instrument — never a feeling.
+The full spec is `canon/memory-tiers.md`.
 
-**Short memory — per body, per task; dies with the session.**
-- *Context window* — the body's live context. Measured (`context-check.sh`, tempest's chip,
-  `memory.js status`), never guessed; past the stress zone it drains into the tiers below.
-- *Working memory* — the dated `## Thoughts` desk on the worn Mind: ~5 live thoughts, the
-  hippocampal buffer. Over ~5 is an instrument reading (Nature 5, Minds & Bodies).
-- *Semantic cache* — recent recalls keyed by meaning, so the same question asked twice in a
-  task costs one search. Lives in `.isekai/memory/short/<creature>.jsonl`: machine-local,
-  disposable, gitignored, cleared freely (`memory.js forget --short`).
+- **Short — per body, per task; dies with the session.** The context window (measured by the
+  context reading, never guessed), the working desk (`## Thoughts`, ~5 live), and a semantic
+  cache of recent recalls (`.isekai/memory/short/`, machine-local, disposable).
+- **Long — the world's; durable; git is its record.** Episodic (`log.md`), procedural (Minds,
+  commands, tools), semantic (this file, creature docs, canon). Files are the truth; every index
+  over them is derived and rebuildable. Recall ranks by meaning, then by relation — a memory that
+  names the asker, its orc or its worn Mind is pulled closer — locally, with no model by default
+  (Nature 7).
+- **Shared — across bodies and worlds.** World-shared notes (`.isekai/memory/shared/notes.jsonl`,
+  append-only, tracked) and machine-shared notes (`~/.isekai/shared/`) for the one throne body.
+  What should outlive a Court Body goes there or to its owning doc *before* its wire report.
 
-**Long-term memory — the world's; durable; git is its record.** Files are the truth; every
-index over them is derived and rebuildable (`memory.js index` → `.isekai/memory/long/`,
-gitignored). Three kinds, each already a file the world keeps:
-- *Episodic* — what happened: `log.md`, one memory per dated entry. Append-only (Law 4).
-- *Procedural* — how to do: Minds (`SKILL.md`), commands, tools.
-- *Semantic* — what is true: this file, creature docs (traits, territory, verdicts), canon, README.
-- Recall ranks by meaning first, then by **relation** — the same typed bonds the wire draws
-  (slime⇒orc truth-current, orc⇒elf verdict-current, body⇌mind anima-thread): a memory that
-  names the asker, its orc, or its worn mind is pulled closer. Ranking is local and model-free
-  by default (Nature 7 — nothing leaves the world); a real embedding model or a database tier
-  is the same boundary with a bigger engine (see `canon/memory-tiers.md`), never a different
-  source of truth.
-
-**Shared memory — across bodies, and across worlds.**
-- *World-shared* — `.isekai/memory/shared/notes.jsonl`: what every body in this world reads;
-  append-only (Law 4); tracked, so it travels by git — the text channel between machines.
-- *Machine-shared* — `~/.isekai/shared/notes.jsonl`: across the worlds on this machine, since
-  Rimuru is one throne body across all of them. Inside the machine is inward (Nature 7).
-- A Court Body's context dies with its task. What should outlive it goes to shared memory or
-  to its owning doc *before* the wire report — never left in a dying context.
-
-**The flow.** Short → distilled → long (Nature 5); shared is the bus between bodies; the wire
-(Absolute Rule II) points at all three by path and never carries them. `memory.js status` is
-the instrument: a silent tier (no transcript, no index, HEAD moved since the index was built)
-is a finding, reported as `@?`, never routed around (Nature 9).
+Short distils into long; shared is the bus between bodies; the wire points at all three by path
+and never carries them. A silent tier — no index, an index older than HEAD — is a finding (`@?`),
+never routed around (Nature 9).
 
 ## The unsaid
 
@@ -304,18 +293,17 @@ that dies. Three kinds of knowledge, each with a home in the tiers above:
 (the `@U` line of its wire report, Absolute Rule II), before a gate verdict (the Orc asks what the
 Slime knew and did not write), before a distill wave (a desk is distilled from what was said *and*
 what was not). One piece at a time, to its home: a rule to law or canon, a colony fact to a shared
-note (`memory.js remember --kind colony`) or its owning desk, territory meaning to the Slime's doc.
+note (the memory instrument's `remember --kind colony`) or its owning desk, territory meaning to the Slime's doc.
 "Nothing unsaid" is a claim about current state — a memory, not a fact (Nature 9); the dispatcher
 may ask.
 
 ## The loop
 
 A Court Body works to one rhythm, six beats per step: perceive → recall → plan → act → verify
-→ record — both a tool (`.isekai/tools/loop.js`, for scripted plans) and a protocol (the same
-beats, followed by hand when the work is not scriptable); the shape is one.
+→ record — run by the loop instrument for scripted plans, and followed by hand as a protocol when
+the work is not scriptable; the shape is one. The full spec is `canon/agent-loop.md`.
 - **Budgets are readings.** Steps, wall clock and the context window are read from instruments
-  before every step (`memory.js status`, the same method as `context-check.sh`). Past any of
-  them the run checkpoints and stops honestly; it never presses on.
+  before every step. Past any of them the run checkpoints and stops honestly; it never presses on.
 - **Recall before, remember after.** Each step recalls by its question and carries anchors, not
   payloads — memories from the tiers, and the tool manifest the toolbox picks for that ask
   (level 1 only; a body loads level 2 on its own decision). A step that learned something lands
@@ -342,36 +330,22 @@ beats, followed by hand when the work is not scriptable); the shape is one.
 Rank (below, "The world") says **what a creature is responsible for**. Minds and Bodies say
 **how it exists**. Every creature is one rank, wearing some Minds, riding one Body.
 
-**The separation law (Veldora 2026-09-21, words 6–13).** Minds and Bodies are two planes on one
-grid — never one crowd again (the fused graph was judged "all is broken"). Any instrument that
-draws the colony draws the distinction, but formally the mind lanes keep their place BETWEEN the
-ranks on a single uniform grid, and every mind lane stands LEFT of the rank it serves — tools
-before hands (word 13): zone minds · slime · verdict minds · orc · global minds · elf · ascended
-(the ascended are bodies of bodies — a seventh lane, never an under-chart band). The planes read
-through the elements' dress — bodies carry portraits, halos, wide tints; minds are dashed rings
-on slim tints. The chart is a two-row stack: row 1 the seven lanes; row 2 the **shared skills**,
-full width — opencode commands &amp; app-provided skills that are not isekai minds (Veldora
-2026-09-21: the row does not "overload" the world's law with the host repo's tools; it names
-them plainly for what they are) — the last remainder, never a side-by-side cell (cells collided
-with the lanes' columns above). **The bonds are typed and colored** (word 15): slime⇒orc is the
-TRUTH-CURRENT (cyan); orc⇒elf the VERDICT-CURRENT (gold); body⇌worn mind is an ANIMA-THREAD —
-one dashed shape tinted by lane (zone/verdict/global/shared). **Minds wear brains** (word 19–20):
-a mind node paints its brain in its lane's reasoning color (zone gathers facts, verdict weighs
-rulings, global arms the voice, shared is the opencode toolbox) — "whose work does this mind
-do?" answered at a glance. **The triad** (same words): GREAT-SAGE reads → RAPHAEL verdicts →
-CIEL drafts — one reasoning chain, direction fixed; a draft that skipped the read writes blind.
-Each role's mount model is named beside it, resolved from the minted bodies, never hand-typed.
-A mind's place is *whom it serves*, derived from real wearers/links, never hand-assigned; a mind
-nobody wears is nobody's private tool.
+**Two planes, never one crowd.** Minds and Bodies are distinct things and any view of the world
+draws them apart: a body is the ranked creature, a Mind the know-how it wears, joined by the wear
+and never fused. A Mind's place is *whom it serves*, derived from its real wearers, never
+hand-assigned; a Mind nobody wears is nobody's private tool. The reasoning triad runs one way —
+Great Sage reads → Raphael judges → Ciel drafts; a draft that skipped the read writes blind. How
+the board draws all this is `canon/binary.md` §The board.
 
-**The creature split & the adaptation loop (Veldora 2026-09-21, words 10–11).** Every
+**The creature split & the adaptation loop.** Every
 race-prefixed skill IS two things, and any view of the world must draw both: the BODY — the
 ranked creature in its lane (portrait, halo, desk, stress) — and its worn MIND — the know-how
 hat in its service lane (body's race picks the lane), linked to its body by the wear-edge,
 never fused. Then the loop, because the two halves carry different halves of life:
-- **Thoughts live in the MIND.** The desk (dated `## Thoughts`) sits in the worn know-how —
-  the hat that was on during the work holds what the work taught. A body keeps identity,
-  territory, traits, gate verdicts — durable facts; experience accumulates in the hat.
+- **Thoughts live in the Mind that was worn.** The desk (dated `## Thoughts`) sits in the worn
+  know-how — the hat that was on during the work holds what the work taught — or in the body's
+  own doc for work done wearing none. A body keeps identity, territory, traits, gate verdicts —
+  durable facts; experience accumulates in the hat.
 - **Mind stress is an instrument reading** (desk over its ~5-thought limit — measured, never
   felt). A stressed mind must mutate the genome *in the same wave it is relieved*: distill the
   desk to its final forms (Nature 5 — rule / trait / ascension / wrap-up), and the body's doc
@@ -382,12 +356,11 @@ never fused. Then the loop, because the two halves carry different halves of lif
 
 **Minds — knowledge, worn as hats.**
 - A Mind is a skill: reusable know-how, loaded on donning. It does no work by itself —
-  a creature dons it to gain capability for a task, then moves on. Exception (word 11): the
-  hat DOES keep its own desk — thoughts live in the mind that was worn when they were earned.
-- Sourced from `.opencode/skill(s)/<name>/SKILL.md` and brought over with `/don` into a
-  Claude Code skill. `/don --project` installs it for this world only
-  (`.claude/skills/<name>/`); `/don --global` installs it for Rimuru
-  (`~/.claude/skills/<name>/`), so it is worn by every world from then on.
+  a creature dons it to gain capability for a task, then moves on. Exception: the hat does
+  keep its own desk — thoughts live in the Mind that was worn when they were earned.
+- Sourced from `.opencode/skill(s)/<name>/SKILL.md` or `.claude/skills/`, and brought into the
+  world by the host's import (Instruments by host): for this world only, or for Rimuru across
+  every world.
 - **Loading is already two-tiered — this is not a lever the convention needs to pull.** A
   Mind's `description` is the only part that sits in context by default, on every turn; its
   full body loads only when the Mind is actually donned. Write descriptions the way a context
@@ -396,24 +369,20 @@ never fused. Then the loop, because the two halves carry different halves of lif
   that tries to also be the content is not saving anything — that is context load with extra
   steps, not lazy loading.
 - **The toolbox — two levels, one budget.** A body never carries the whole shelf. Everything it
-  could pick up — Minds, commands, world tools, Bodies, and the externals `.isekai/toolbox/extra.jsonl`
-  names — is indexed by `.isekai/tools/toolbox.js` into a derived registry, each entry priced before
-  anything is injected. A turn receives **level 1, the manifest**: names, one-line descriptions,
-  triggers, paths and the cost of level 2 — only the entries that fit the ask (meaning, trigger,
-  relation) and a token budget, on the wire as `@T` lines under `@TOOLS`. **Level 2, the load**, is
-  the body's own decision to use the tool, never pre-emptive: `toolbox.js load <name>` (whole, or one
-  section by anchor), a Mind invoked by name, a Body dispatched — and every load is journaled, so
-  `status` reports what was loaded against what was merely offered. The toolbox never pastes a tool's
-  body into a prompt; it hands over pointers with known costs, and the receiving body loads on demand.
-  This is "loading is already two-tiered" made an instrument and extended past Minds to commands,
-  tools, Bodies and externals: the registry may grow without bound; the prompt does not.
+  could pick up — Minds, commands, world tools, Bodies, declared externals — is indexed by the
+  toolbox instrument into a derived, priced registry. A turn receives **level 1, the manifest**:
+  names, one-line descriptions, triggers, paths and the cost of level 2, only for the entries
+  that fit the ask and a token budget. **Level 2, the load**, is the body's own decision, never
+  pre-emptive, and every load is journaled. The toolbox hands over pointers with known costs,
+  never a tool's body: the registry may grow without bound; the prompt does not. The full spec
+  is `canon/toolbox.md`.
 
 **Bodies — vessels, minted on name only.**
 - A Body is an agent: the thing that actually runs and holds context. A Body is never minted
   generic — it is born already named for the rank it will serve: `orc-security`,
   `slime-auth-zone`, `elf-frontend`.
-- Sourced from `.opencode/agents/*.md` and brought over with `/mint` into a Claude Code
-  sub-agent (`.claude/agents/<name>.md`).
+- Sourced from `.opencode/agents/*.md` or `.claude/agents/`, and minted into the world by the
+  host's import (Instruments by host).
 - Two Body modes:
   - **Keeper** (`mode: all`) — housekeeper of this world's law. Persistent: it outlives a
     single task and stands watch over `isekai.md` itself. A Kijin's Body is always a Keeper —
@@ -493,7 +462,8 @@ The verdict (pass / fail + reason) is recorded in `log.md`.
 
 1. **Veldora's word is law.** It overrides everything here.
 2. **Stay in your rank.** Work only within what your rank and assignment cover; anything
-   beyond goes up, not sideways (except Orc ⇄ Orc).
+   beyond goes up, not sideways (except Orc ⇄ Orc within a world, and Elf ⇄ Elf between the
+   worlds of one dimension).
 3. **Nothing lands without the gate.** See above.
 4. **Everything is recorded, nothing is rewritten.** Every landed change and every verdict is
    appended to `log.md`. Past entries are never edited.

@@ -51,6 +51,13 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **The law reads the same on every host.** `ISEKAI.md` names instruments (the context reading,
+  memory, toolbox, the loop) and maps them once to each host — the binary's commands, or the JS
+  tools and `/don`·`/mint` of a Claude Code or OpenCode world. Three contradictions resolved: the
+  desk lives in the worn Mind, or the creature's own doc when it wore none; the call to the
+  configured model is Containment's one standing outward act; Law 2 names the dimension's
+  Elf ⇄ Elf channel. The board's drawing rules moved to `canon/binary.md`; memory tiers, the loop
+  and the toolbox keep their law here and point to their canon for the spec.
 - **`init` talks to a person in prose** on a terminal — what was founded and the next step (the
   model to set, the session to open); the wire lines stay for pipes and `--format`.
 - **`init --level complex` checks the model first**: with none reachable it founds the light world,
