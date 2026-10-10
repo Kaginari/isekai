@@ -4,8 +4,8 @@ bench/jobs/
 bench/.smoke-config.yaml
 bench/.fakevllm-*.log
 __pycache__/
-/.isekai/
-/.claude/
+/.claude/*
+!/.claude/skills/
 .env
 .env.*
 
