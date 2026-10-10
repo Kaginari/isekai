@@ -446,8 +446,9 @@ func (b *Board) apiColony(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, struct {
 		*Colony
-		Labels []laneLabel `json:"labels"`
-	}{c, labels})
+		Labels  []laneLabel `json:"labels"`
+		Relates []Relate    `json:"relates"`
+	}{c, labels, RelatesFor(b.opt.WorldRoot, c)})
 }
 
 // apiActivity is each body's recent work, day by day, for the net's activity tiles and the
