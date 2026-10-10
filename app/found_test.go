@@ -90,3 +90,41 @@ func TestNormLevel(t *testing.T) {
 		}
 	}
 }
+
+func TestSketchColonyChunksFlatDirs(t *testing.T) {
+	// the zone-sizing law at birth (2026-10-09): a big flat dir chunks into bounded file
+	// sets — one keeper per whole flat tree puts every new file's creation on one body
+	root := tree(t, "go.mod", "README.md", "main.go",
+		"flat/a.go", "flat/b.go", "flat/c.go", "flat/d.go", "flat/e.go", "flat/f.go",
+		"flat/g.go", "flat/h.go", "flat/i.go", "flat/j.go", "flat/k.go", "flat/l.go")
+	d, _ := parseDist("isekai")
+	s := sketchColony(root, d)
+	names := map[string]plan{}
+	for _, p := range s.all() {
+		names[p.Rank+"-"+p.Short] = p
+	}
+	a, aok := names["slime-flat-a"]
+	b, bok := names["slime-flat-b"]
+	if !aok || !bok {
+		t.Fatalf("a 12-file flat dir must chunk into two slimes: %s", s.table(lexiconFor("isekai").Prefixes))
+	}
+	if len(a.Territory) != 8 || len(b.Territory) != 4 {
+		t.Fatalf("chunks of 8 then the rest: a=%d b=%d", len(a.Territory), len(b.Territory))
+	}
+	if a.Parent != "orc-flat" || b.Parent != "orc-flat" {
+		t.Fatalf("the chunks report to the area's orc: %s / %s", a.Parent, b.Parent)
+	}
+	for _, x := range append(append([]string{}, a.Territory...), b.Territory...) {
+		if !strings.HasPrefix(x, "flat/") || strings.Count(x, "/") != 1 {
+			t.Fatalf("a chunk entry is one file in the flat dir: %q", x)
+		}
+	}
+	// a small flat dir keeps the single-slime birth (the old shape)
+	small := tree(t, "go.mod", "tiny/x.go", "tiny/y.go")
+	s2 := sketchColony(small, d)
+	for _, p := range s2.all() {
+		if p.Rank == "slime" && p.Short == "tiny" && len(p.Territory) != 1 {
+			t.Fatalf("a 2-file dir stays one zone: %+v", p)
+		}
+	}
+}

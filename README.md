@@ -2,9 +2,10 @@
 
 <h1 align="center">Isekai</h1>
 
-<p align="center"><b>An agent harness where the law is the harness.</b><br>
+<p align="center"><b>An agent harness where the law is the harness — and the world learns from its own runs.</b><br>
 One Go binary. The convention isn't a prompt the model may skip — the gate, the log, the human
-gate, the sandbox and the memory are code paths it cannot route around.</p>
+gate, the sandbox and the memory are code paths it cannot route around; every run's per-step
+readings (`guts`) cluster into what `lessons` turns into skill candidates.</p>
 
 ---
 
@@ -14,6 +15,9 @@ Coding agents read their project's rules and then, sometimes, don't follow them.
 directory into a **world** governed by [`ISEKAI.md`](ISEKAI.md) and runs the agent inside that
 law:
 
+- **Learns from its own runs** — the guts score every act mid-court and journal the reading;
+  `isekai lessons` clusters what kept costing ground across runs, so the next body crystallizes
+  the top class into a skill — a run stops waiting for the floor's verdict to learn.
 - **The gate** — every turn that changed the world is checked before it's reported done: the right
   creature authored it, its invariants hold, its duties are done, its doc changed with it. The
   verdict lands in an append-only `log.md`.
@@ -32,23 +36,36 @@ law:
 
 ## Install
 
+From source (the estate way — Go modules resolve through the Artifactory proxy):
+
 ```sh
-curl -fsSL -o install.sh https://raw.githubusercontent.com/Kaginari/isekai/main/install.sh
-sh install.sh                     # downloads the release for your OS and checks it against checksums.txt
-# or
-go install github.com/Kaginari/isekai/cmd/isekai@latest
+export GOPROXY='https://<user>:<token>@artifactory.example.com/artifactory/api/go/go-remote'
+git clone https://gitlab.example.com/team-example/isekai.git
+cd isekai && CGO_ENABLED=0 go build -o isekai ./cmd/isekai && ./isekai version
 ```
 
-Or build it: `CGO_ENABLED=0 go build -o isekai ./cmd/isekai` (Go ≥ 1.26).
+Or the Docker image (built by `.gitlab-ci.yml`, listed in the portal):
 
-Release archives for linux/macOS × amd64/arm64 ship with `checksums.txt` and build provenance:
-`gh attestation verify <archive> --repo Kaginari/isekai`. A container image to try the binary:
-`docker run --rm -it -e ANTHROPIC_API_KEY -v "$PWD:/work" ghcr.io/kaginari/isekai:latest` — the
-binary alone on Debian slim (no bubblewrap, git or toolchains); for real work in a container use
-`--containered`, which builds a runtime with them.
+```sh
+docker login registry.example.com
+docker run --rm -it -e GATEWAY_API_KEY -v "$PWD:/work" \
+  registry.example.com/team-example/isekai:<tag>   # current tags listed in the portal
+```
 
-**Requirements.** Linux or macOS. `bubblewrap` (`bwrap`) for the sandboxed shell on Linux — without it
-the shell runs unsandboxed and `status` says so; macOS has no bwrap. Docker for `--containered`.
+**Requirements.** Linux or macOS. Inside the image: bash (the shell tool) and ca-certificates incl.
+the corp CA; git and curl install only in CI kaniko builds (the estate apt helper ships there) —
+local images go without. On a
+host, `bubblewrap` (`bwrap`) for the sandboxed shell on Linux; without it the shell runs unsandboxed
+and `status` says so (macOS has no bwrap). Docker for `--containered`. Against the estate gateway set
+the provider to OpenAI-compatible (`examples/world-rules.yaml` carries a working config with the
+bench-earned laws); the API key travels as an env-var *name*, never a value in a file.
+
+**Estate wiring, pinned.** Models answer on the conduit front-door: `baseURL:
+https://gateway.example.com/v1/`. Package registries are Artifactory remotes on
+`artifactory.example.com` (npm / pypi / go). Container images always pass by a docker vhost:
+`registry.example.com/<image>:<tag>` for hub proxies,
+`registry.example.com/team-example/<image>:<tag>` for estate builds — `docker login
+registry.example.com` first.
 
 **Data boundary.** No telemetry. The binary contacts only the providers you configure (and the
 package or container registries you name); any other network act is `outward` and asks you, and the
@@ -56,15 +73,177 @@ sandboxed shell has no network unless an `outward` act was approved.
 
 ## Quick start
 
+First, plug a model. On the estate the gateway is an OpenAI-compatible endpoint serving **conduit**
+model ids directly — no proxy hop:
+
+```yaml
+# .isekai/config.local.yaml
+providers:
+  gateway:
+    enabled: true
+    type: openai                       # OpenAI-compatible: the conduit ids answer on it natively
+    baseURL: https://gateway.example.com/v1/   # the conduit front-door (hprd; not a local lab proxy)
+    apiKeyEnv: GATEWAY_API_KEY         # preferred: name the env var
+    # apiKey: "<value>"                # fallback when an env var can't be set (headless containers);
+                                       # a key literal never belongs in a committed file
+    toolCalls: native
+    contextWindow: auto
+models:
+  default: gateway/kimi-latest         # or glm-latest, glm-5-3-llmd, muse-glimmer-30b, …
+```
+
+`examples/world-rules.yaml` is the same shape with the bench-earned laws already in. (Full config
+language below.)
+
+### without Docker
+
 ```sh
 cd your-project
-isekai init --level complex      # found a world here — light: the law only · medium: a colony sketched from the tree · complex: the model reads all the code and hires the team
-export ANTHROPIC_API_KEY=…        # or any OpenAI-compatible endpoint (vLLM, Ollama, OpenRouter)
-isekai                           # the live session — the board opens at http://127.0.0.1:7411
+isekai init --level complex           # reincarnate a world here (light: the law only · medium: a
+                                      # colony sketched from the tree · complex: the model reads
+                                      # the code and founds the colony)
+export GATEWAY_API_KEY=…              # your key in the env, never a file
+isekai                                # the live session — board at http://127.0.0.1:7411
 isekai run "add a health check endpoint and its test"
 ```
 
-## The terminal
+### with Docker
+
+```sh
+docker pull registry.example.com/team-example/isekai:<tag>   # current tags listed in the portal
+docker run --rm -it -e GATEWAY_API_KEY -v "$PWD:/work" \
+  registry.example.com/team-example/isekai:<tag>   # current tags listed in the portal
+```
+
+The image carries only what the CLI needs: bash (the shell tool), git, ca-certificates,
+
+### the dashboard through Docker
+
+`dash` is the session in the browser: the chat console, the neural net, metrics — and approvals get
+answered there. The board binds `127.0.0.1` by design (and rejects non-loopback Host headers), so
+`docker run -p` cannot reach it — run on the host network instead:
+
+```sh
+docker run --rm --network host \
+  -e GATEWAY_API_KEY -v "$PWD":/work -w /work \
+  registry.example.com/team-example/isekai:<tag> dash --open
+# → http://127.0.0.1:7411/dash — ctrl-c stops
+```
+
+The `-e GATEWAY_API_KEY` line rides only if the key comes from your shell env. If your gitignored
+`.isekai/config.local.yaml` already holds `providers.gateway.apiKey` as a literal (the harness's
+designated escape for machine-local files), the key travels inside the mounted world and the `-e`
+line can go.
+
+Host networking is native on Linux; on Docker Desktop enable it under Settings → Resources →
+Network. A local image for the same flow: `docker build --build-arg GOPROXY="$GOPROXY" -t
+isekai:local .` (GOPROXY from your `.env`). Pulling
+from a private registry a world can reach is `registry.containers.usernameEnv/tokenEnv` (or
+`username` / `token` inline when a body runs headless with no env).
+
+## The CLI, seen
+
+A working session: the ask up top, every classified step drawn as it lands:
+
+![the session](docs/screens/isekai-welcome.png)
+
+## Architecture
+
+**Wrapped layers.** A model on its own is text in, text out — no hands, no memory, no check on
+itself. A *body* is that model inside a loop with tools. A *world* is everything around the loop.
+Isekai is one static Go binary at the outermost shell — the law runs code:
+
+<table>
+<tr><th>layer</th><th>wraps</th><th>is</th></tr>
+<tr><td><b>LLM</b></td><td>—</td><td>the bounded mind — text in, text out; no hands, no memory, no check on itself</td></tr>
+<tr><td><b>body</b></td><td>the LLM</td><td>the model inside a loop with tools — the model walks</td></tr>
+<tr><td><b>world</b></td><td>the body</td><td>loop + context/memory + permissions/sandbox — the code protects</td></tr>
+<tr><td><b>Isekai</b></td><td>the world</td><td>one static Go binary at the outermost shell — the law runs code</td></tr>
+</table>
+
+**Six beats per step, one model call.** The model lives only in the plan-and-act beats; perceive,
+recall, verify and record are code — no tokens, milliseconds. `law.guts` scores each act at verify
+and speaks once inside a slide; the witness demand runs at close when files were written.
+
+<table>
+<tr><th>beat</th><th>runs on</th><th>spend</th></tr>
+<tr><td>1 · perceive — context read, budgets before any call</td><td>code</td><td>no tokens</td></tr>
+<tr><td>2 · recall — anchors rebuilt per call, never cached</td><td>code</td><td>no tokens</td></tr>
+<tr><td>3 · plan — <b>the one model call</b></td><td>model</td><td>tokens</td></tr>
+<tr><td>4 · act — the tool calls the plan ordered</td><td>model directs, code runs</td><td>tokens (the plan's)</td></tr>
+<tr><td>5 · verify — checks run; <code>law.guts</code> scores the act</td><td>code</td><td>no tokens</td></tr>
+<tr><td>6 · record — journal, memory, roster state</td><td>code</td><td>no tokens</td></tr>
+</table>
+
+**A task, end to end** — tools act inside the world; nothing closes on belief.
+
+<ol>
+<li>the task lands — a prompt, or a commission a court carries</li>
+<li>perceive: context read, budgets checked before any call</li>
+<li>recall: anchors + the world's law rebuilt for this call</li>
+<li>one model call — the plan
+<ol type="a">
+<li>each tool call it orders is classified first (read · write · outward · destructive)</li>
+<li>the guard refuses catastrophic patterns before any ask</li>
+<li>outward and destructive ride to the human gate; a denial comes back as a message the model reads</li>
+<li>an approved act runs sandboxed — timeout, kill tree, fs under the root</li>
+<li>the step lands: observe marks it, record journals it — and while tool calls remain, the loop turns again</li>
+</ol></li>
+<li>the model stops calling tools: the turn-end gate runs its checks — wrote files? an orc holds the gate</li>
+<li>the wire rides up: status, findings, holes, unsaid — the context dies with the task</li>
+</ol>
+
+## What lands where
+
+Three tiers keep the law clean: rules teach, code enforces, instruments remember.
+
+<table>
+<tr><th>tier</th><th>duty</th><th>homes</th></tr>
+<tr><td><b>rules teach</b></td><td>steer the model</td><td><code>ISEKAI.md</code> · <code>rules:</code> entries — injected into the system prompt, advice never law</td></tr>
+<tr><td><b>code enforces</b></td><td>protect the world</td><td>the gate · permissions · the guard · budgets · territory ownership</td></tr>
+<tr><td><b>instruments remember</b></td><td>make runs accountable</td><td>the wire formats (<code>@S</code>/<code>@F</code>/<code>@?</code>/<code>@U</code>) · the journal · memory anchors</td></tr>
+</table>
+
+**Terminology, once and for all.** A *prompt* is what you type — the ask. A *system prompt* is the
+machine's standing instruction, auto-composed at every turn before the ask rides in. *Code* is
+everything the world enforces without asking a body to believe anything.
+
+**The system prompt, composed per turn, contains:**
+
+- identity + standing: who this body is, the world it belongs to, its ranks and offices
+- the law: `ISEKAI.md` in full when `law.principles` is on (default), plus every `rules:` entry
+  verbatim
+- the four action classes and who asks before a privileged one runs
+- the wire it must answer in (`@S` / `@F` / `@U` / `@D` / `@E`)
+- instrument readings it may claim: budgets read per step; the guts' announced behavior
+- docs-as-code duty and the colony map for this world
+
+**In per-step context, on top of the ask:**
+
+- memory anchors: notes matched to this ask (short / long / shared tiers, budgeted)
+- the toolbox manifest — only the tools that fit this step's question
+- working notes, journal tails, the last tool results (the step's own evidence)
+- the witness demands when files were written and the body's close is being checked
+
+**Never in any prompt — coded and enforced:**
+
+- the guard (dangerous commands refused before any approval) and the gate (who may approve)
+- the sandbox knot (bwrap / `--containered` envelope)
+- budgets read as instruments: context window % readings, stress-zone behavior, session wallets
+- the closing witness's admissibility rule (machine-check or independent method)
+- the guts' scoring, the echo penalty, and where every reading journals
+- wire parsing, reports, sessions, undo, hooks — surface, not advice
+
+- **`rules:` are converted to the system prompt.** Each `text:` line is law text the binary reads
+  into every turn's system message — shape culture here, never private muscle (omitted from a
+  subagent's prompt unless `raw` is on; an entry can be a file path instead of inline text).
+- **The ask, memory anchors, the toolbox manifest and witness evidence go in per-step context** —
+  what this step needs, nothing it doesn't.
+- **`law:` is enforced in code, never prompted** — the guard and gate classes, the sandbox,
+  budgets read as instruments, the closing witness demand, the guts' scoring. A body can only
+  tighten a law, never loosen it; `status` names every switched-off law aloud.
+
+## Deep: the terminal
 
 A terminal UI in the class of Claude Code, built on the Charm libraries: the conversation flows into
 your scrollback, and every event of the loop is drawn — thinking, tool calls, diffs, Courts, the gate.
@@ -112,6 +291,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `resume <id>` · `sessions` | continue or list sessions |
 | `status` | every live reading (models, sandbox, guard, memory) and every law feature switched off, with where — gaps print as `@?` lines |
 | `config show\|explain\|check\|path\|patch` | the effective config with the origin of every value |
+| `config scaffold [--check]` | mint (never overwrite) the machine-local config set — `config.local.yaml` + `<section>.local.yaml`, commented and default-valued — or drift-check it against this binary |
 | `memory` · `toolbox` · `onto` | the three memories, the two-level toolbox, the creature graph |
 | `usage` | tokens and cost by body, office, rank, model and day |
 | `bench` | a fixed task set on every configured model |
@@ -135,12 +315,22 @@ Configuration is YAML (or JSON), layered — each layer overrides the one before
 | built-in defaults | in the binary — everything on | — |
 | global | `~/.config/isekai/` | no |
 | project | `.isekai/` in the world | yes |
-| project local | `.isekai/config.local.yaml` | no (machine-only) |
+| project local | `.isekai/config.local.yaml`, and per-section `.isekai/<section>.local.yaml` | no (machine-only) |
 | environment | `ISEKAI_CONFIG=<file>`, `ISEKAI_CONFIG_CONTENT=<yaml>`, `ISEKAI_MODEL`, `ISEKAI_DISABLE_PROJECT_CONFIG=1` (skip the project layers), `ISEKAI_PROVIDER_<NAME>_API_KEY` (built-in provider names only; a custom provider uses `apiKeyEnv`) | — |
 | flags | `--model`, `--set key=value`, `--approve outward`, `--dry-run`, `--no-<feature>` | — |
 
 `isekai config explain` shows every effective value and the file and line it came from;
 `isekai status` shows every model, the guard, the sandbox and anything switched off.
+
+### Keys and registry credentials
+
+Providers prefer `apiKeyEnv` (name the variable, never the value). Where an env var cannot exist —
+the estate's headless containers — the designated escape is `providers.<name>.apiKey` holding the
+literal; every other field still refuses credentials in a file (headers, urls, unknown keys).
+
+`--containered`'s registry pulls authenticate the same way: env-first, literal fallback —
+`registry.containers: { usernameEnv, tokenEnv }` or `{ username, token }`. Docker receives the
+token on stdin, never argv.
 
 ### One file per part
 
@@ -165,7 +355,7 @@ behind a gateway — is laid out this way:
 gateway:
   enabled: true
   type: openai                       # any OpenAI-compatible endpoint: vLLM, a gateway, OpenRouter, Ollama
-  baseURL: https://llm-gateway.example.corp/v1
+  baseURL: https://gateway.example.com/v1/   # the conduit front-door (hprd)
   apiKeyEnv: GATEWAY_API_KEY         # the variable's name; export the key in your shell
   toolCalls: native                  # vLLM with --enable-auto-tool-choice; "text" for tags in the text
   contextWindow: auto                # read from /v1/models (max_model_len)
@@ -184,24 +374,24 @@ commented out):
 
 ```yaml
 models:                                     # "<provider>/<id>" — tier orders the offices; price in USD per 1M tokens
-  gateway/muse-glimmer: { tier: 1, contextWindow: 131072, price: { input: 0, output: 0 } }
-  gateway/glm-5-3:      { tier: 2 }
-  gateway/kimi-k3:      { tier: 3 }
+  gateway/muse-glimmer-30b: { tier: 1, contextWindow: 131072, price: { input: 0, output: 0 } }
+  gateway/glm-latest:       { tier: 2 }
+  gateway/kimi-latest:      { tier: 3 }
 tools:                                      # external tools the toolbox indexes
   - { name: kubectl, description: "the cluster CLI", triggers: [kube, pods, deploy] }
 packages:                                   # set in every shell command and in the container
-  npm: https://artifactory.example.corp/artifactory/api/npm/npm-remote/
-  pip: https://artifactory.example.corp/artifactory/api/pypi/pypi-remote/simple
-  go:  https://artifactory.example.corp/artifactory/api/go/go-remote
+  npm: https://artifactory.example.com/artifactory/api/npm/npm-remote/
+  pip: https://artifactory.example.com/artifactory/api/pypi/pypi-remote/simple
+  go:  https://artifactory.example.com/artifactory/api/go/go-remote
   tokenEnv: ARTIFACTORY_TOKEN               # let through by name — the agent can read it: use a read-only token
   env: { GONOSUMDB: example.corp }
-containers:                                 # for --containered
-  base: artifactory.example.corp/docker-remote/debian:bookworm-slim
-  apt:  https://artifactory.example.corp/artifactory/debian-remote
-  # image: artifactory.example.corp/docker-local/isekai-runtime:1   # pull a prebuilt runtime instead
+containers:                                          # for --containered — images always pass by a docker vhost
+  base: registry.example.com/debian:bookworm-slim   # the hub proxy (docker-remote)
+  apt:  https://artifactory.example.com/artifactory/debian-remote
+  # image: registry.example.com/team-example/isekai-runtime:1   # our local repo: pull a prebuilt runtime instead
 ```
 
-For a private container registry, `docker login artifactory.example.corp` first: docker's own login
+For a private container registry, `docker login registry.example.com` first: docker's own login
 answers for the pull.
 
 **`models.yaml`** — the session's model and the three offices (Great Sage reads, Raphael gives verdicts,
@@ -211,11 +401,11 @@ Court Body does for a call; a *rank* is its place in the tree (elf → orc → s
 one named body — each can be given its own model:
 
 ```yaml
-default: { model: gateway/kimi-k3, fallback: gateway/glm-5-3 }
+default: { model: gateway/kimi-latest,      fallback: gateway/glm-latest }
 offices:
-  great-sage: { model: gateway/muse-glimmer, fallback: gateway/glm-5-3 }
-  raphael:    { model: gateway/glm-5-3,      fallback: gateway/kimi-k3 }
-  ciel:       { model: gateway/kimi-k3,      fallback: gateway/glm-5-3 }
+  great-sage: { model: gateway/muse-glimmer-30b, fallback: gateway/glm-latest }
+  raphael:    { model: gateway/glm-latest,       fallback: gateway/kimi-latest }
+  ciel:       { model: gateway/kimi-latest,      fallback: gateway/glm-latest }
 # ranks: { slime: …, orc: … }   creatures: { slime-auth: … }   tasks: { drain: …, gate: … }
 ```
 
@@ -259,7 +449,6 @@ rules:
 | `budgets` | spend ceilings for the session and each Court | `session: { tokens: 400000, usd: 5 }` |
 | `ui` · `output` | the dashboard, the status line, output format | `board: { autostart: false }` |
 | `sessions` · `undo` | where sessions and undo snapshots live, how long | `sessions: { keepDays: 30 }` |
-
 | `toolbox` · `ontology` · `instruments` | the searchable tool registry, the creature graph, the journals | `toolbox: { budgetTokens: 1500 }` |
 | `mode` · `smallModel` · `logLevel` | `build` or `plan` (plan writes nothing); a small model for small tasks | `mode: plan` |
 | `tools.profile` · `tools.missing` | the toolset shape (`max`, `anthropic`, `openai`, `minimal`); what happens when a tool is missing | `profile: minimal` |
@@ -270,6 +459,11 @@ Everything is on by default; switching something off is always shown in `status`
 `isekai config explain` shows every value with the file and line it came from. The full schema:
 [`docs/canon/config.md`](docs/canon/config.md) · the design: [`docs/canon/binary.md`](docs/canon/binary.md) · the terminal:
 [`docs/canon/tui.md`](docs/canon/tui.md).
+
+`isekai config scaffold` mints a world's machine-local config set for you — `config.local.yaml`
+plus one `<section>.local.yaml` per section, each with defaults and a comment per key; it never
+overwrites an existing file, and `--check` answers what drifted between a world's local files
+and this binary's canon (so a harness upgrade adapts, never surprises).
 
 ## Web UIs
 
@@ -312,7 +506,67 @@ Beyond the gate, the human gate and the sandbox described above:
 Benchmarks run under [Harbor](https://github.com/harbor-framework/harbor) in Docker — one container
 per task, the agent inside it, the task's own tests deciding. Every launch is recorded in
 [`bench/runs.jsonl`](bench/runs.jsonl); [`bench/RESULTS.md`](bench/RESULTS.md) is generated from it.
-The €0 smoke (`bench/smoke.sh`) runs on every commit in CI against a fake OpenAI-compatible server.
+CI runs a no-cost smoke benchmark (`bench/smoke.sh`) on every commit against a fake
+OpenAI-compatible server. A real run, isekai against OpenCode on the same gateway models, is
+`bench/harbor.sh` — see [`bench/HARBOR.md`](bench/HARBOR.md).
+
+**Reading honestly, first.** The two columns below are not a same-day A/B: on the left, the world's
+newest grid (run `tb2-final2-024306`); on the right, OpenCode's worst reading tonight on the same
+tasks. The pairing shows how far the loop lifts a floor the stock loop dropped — not a fairness
+claim. The control's best tonight was 0.92 with its stock loop, lifted by fixes around it, never by
+a loop change (terminal-bench-2 slice, 6 tasks × 2 attempts, kimi on the estate gateway, same gateway
+all night).
+
+| task | isekai · `tb2-final2-024306` (witness on · guts on · echo applied) | opencode (stock loop) — its weakest grid tonight |
+|---|---|---|
+| bn-fit-modify | 2/2 | 2/2 |
+| constraints-scheduling | 2/2 | 2/2 |
+| feal-differential-cryptanalysis | 2/2 | 2/2 |
+| filter-js-from-html | **2/2** ← flipped | 0/2 |
+| fix-git | 2/2 | 2/2 |
+| gcode-to-text | 0/2 | 0/2 |
+| **score** | **10/12 = 0.83** | **8/12 = 0.67** |
+
+Per task, the two grids (mean per trial of 2 attempts; the guts' spoke count rides beside):
+
+| task | world in/out | loops | guts spoke | OpenCode in/out | loops |
+|---|---|---|---|---|---|
+| bn-fit-modify | 0.11M / 14k | 15 | 3 | 0.12M / 3k | 13 |
+| constraints-scheduling | 0.07M / 6k | 8 | 1 | 0.06M / 2k | 6 |
+| feal-differential-cryptanalysis | 0.09M / 15k | 10 | 3 | 0.17M / 4k | 12 |
+| filter-js-from-html | 0.71M / 47k | 26 | 1 | 1.31M / 15k | 28 |
+| fix-git | 0.05M / 7k | 14 | 1 | 0.10M / 1k | 11 |
+| gcode-to-text | 1.87M / 33k | 62 | 18 | 1.30M / 13k | 49 |
+
+### Experimental loop features (off-switches, measured)
+
+| feature | default | off with |
+|---|---|---|
+| `law.guts` | on | `--set law.guts.enabled=false` |
+| `law.closingCheck` | on under bench, off live | `--set law.closingCheck.enabled=false` |
+| echo penalty + witness admissibility | inside guts / closingCheck | ride their toggles |
+
+Same 6 tasks × 2 attempts, kimi on the estate gateway, same cells:
+
+| run | loop state | score | input / out |
+|---|---|---|---|
+| `tb2-final-165052` | everything off | 8/12 (.67) | 3.1M / 0.25M |
+| `tb2-fixed-220431` | laws + ceilings off | 7/12 (.58) | 2.4M / 0.18M |
+| `tb2-clean-010744` | + witness close + guts | **10/12 (.83)** | 12.2M / 0.32M |
+| `tb2-final2-024306` | + echo + admissibility | **10/12 (.83)** | **5.8M** / 0.25M |
+
+On tokens: the winning harness grid spent 5.8M in / 0.25M out against the control's 6.1M in / 78k
+out.
+
+agent-one's current loop needs **23% less input per point of score** than the control's weakest
+day — same tasks, same model. (For honesty: the control's best reading tonight was 0.92 — its loop
+never changed; lifts came only from fixes around it. gcode-to-text sits at the model's glyph
+precision edge for every harness: probe runs read the flag twice and miss a 0/O glyph; refusals
+are honest, not confused.)
+
+The culture that came from the bench is in [`examples/world-rules.yaml`](examples/world-rules.yaml)
+— two laws earned, kept as principles, plus the close-time falsification witness (`law.closingCheck`)
+and the per-step value sense (`law.guts`) they motivated.
 
 ## License
 

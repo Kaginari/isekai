@@ -31,6 +31,8 @@ type IO struct {
 type cliFlags struct {
 	root, dist, session, format string
 	json, quiet, noBoard, bench bool
+	heal, spawn                 bool
+	attribute                   bool
 	plain                       bool
 	since                       string
 	goal                        goalContract
@@ -68,6 +70,12 @@ func splitFlags(args []string) (cliFlags, []string) {
 			f.since = take(&i, name)
 		case "--json", "-json":
 			f.json = true
+		case "--heal", "-heal":
+			f.heal = true
+		case "--spawn", "-spawn":
+			f.spawn = true
+		case "--attribute", "-attribute":
+			f.attribute = true
 		case "--quiet", "-quiet", "-q":
 			f.quiet = true
 		case "--no-board":
@@ -107,7 +115,9 @@ var commands = []struct{ name, summary string }{
 	{"memory", "the memory instrument (status, index, recall, remember, forget)"},
 	{"toolbox", "the toolbox instrument (index, brief, pick, load, status)"},
 	{"onto", "the ontology (check, project, query)"},
+	{"housekeep", "the chain law: audit member homes and links, heal the mechanical classes — housekeep [--heal] [--spawn]"},
 	{"usage", "the usage journal: usage [--session <id>] [--since <date>]"},
+	{"lessons", "the guts' readings ranked — the autopsy instrument: lessons [<journal dir|bench run dir>] [<top N>]"},
 	{"bench", "a fixed task set on every configured model (mock always; real providers with keys)"},
 	{"selftest", "every package's selftest, one @S PASS n checks"},
 	{"init", "found a world here: init [--level light|medium|complex] [--bench] — light: the law only; medium: a colony sketched from the tree; complex: the model reads all the code and founds the team"},
@@ -116,6 +126,34 @@ var commands = []struct{ name, summary string }{
 	{"ui", "the web ui system: init (tokens, layout, components), scan (the legend), check (lint + screenshots)"},
 	{"version", "print the version"},
 	{"help", "this list"},
+}
+
+// healRunStart keeps the creature graph healthy on every world-touching CLI run start
+// (relayed commission 2026-10-13): synchronous and in-goroutine — never spawned async, an
+// async heal would let the command body race the heal for the same creature README files.
+// Called from Main just above New(opt): App's session/history/journal (os.Executable-backed)
+// file claims all happen inside New and below, so a heal here naturally precedes every claim.
+// Idempotent by design: probeDeadBonds (onto/housekeep.go) skips living bonds and rewrites
+// only a dead Reports-to, so a second heal on an already-healed world repairs nothing.
+// Fail-open: a Housekeep error surfaces as a wire @? line on stderr and the command
+// proceeds read-only — never os.Exit here (log-and-continue, not knot-check's fail-loud:
+// a wobbling graph must not brick the CLI).
+func healRunStart(stderr io.Writer, root string) {
+	if root == "" {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(root, ".isekai")); err != nil {
+		return // no world to heal (findRoot caller will fail-loud itself)
+	}
+	if _, _, err := ontoHousekeepHeal(root); err != nil {
+		fmt.Fprintf(stderr, "@? run-start heal: %v (command proceeds read-only)\n", err)
+	}
+}
+
+// ontoHousekeepHeal is the one-call indirection over onto.Housekeep so the run-start seam
+// names its own verb (heal), and one shim exists if the heal signature/flags ever shift.
+func ontoHousekeepHeal(root string) (*onto.HouseReport, []onto.Finding, error) {
+	return onto.Housekeep(root, true, false)
 }
 
 // Main is the entry of both binaries: dist names the distribution the binary was built as.
@@ -185,6 +223,8 @@ func Main(dist string, args []string, io IO, v Version) int {
 		return config.CLI(append(cargs, rest...), io.Out, io.Err)
 	case "memory", "toolbox", "onto":
 		return cmdInstrument(name, dist, f, leftover, io)
+	case "housekeep":
+		return cmdHousekeep(dist, f, io)
 	case "guard":
 		return cmdGuard(dist, rest, io)
 	case "ui":
@@ -192,6 +232,17 @@ func Main(dist string, args []string, io IO, v Version) int {
 	case "selftest":
 		return Selftest(dist, io)
 	}
+
+	// Run-start heal (relayed commission 2026-10-13): keep the creature graph healthy on
+	// every world-touching run, not only at founding (cmdInit already heals on `found` at :386).
+	// Synchronous, BEFORE New(opt) — the App's os.Executable/session/history/journal file
+	// claims all happen inside New and the command bodies after it — so the heal never races
+	// a command body for the same README files. Fail-open: a Housekeep wobble is logged and
+	// the command proceeds read-only; init/instrument/loop-instrument branches above return
+	// before New and stay unhealed (no world, nothing to heal; also keeps `found` from
+	// double-healing).
+	healRunStart(io.Err, f.root)
+
 	a, err := New(opt)
 	if err != nil {
 		if name == "status" || name == "sessions" || name == "usage" {
@@ -246,8 +297,16 @@ func Main(dist string, args []string, io IO, v Version) int {
 		return a.cmdRun(ctx, strings.TrimSpace(strings.Join(leftover, " ")), io)
 	case "resume":
 		if len(leftover) == 0 {
-			fmt.Fprintf(io.Err, "@S FAIL\n@? resume needs a session id (see `%s sessions`)\n", dist)
-			return 2
+			// bare resume = continue the newest session (the checkpoint hint says exactly this;
+			// typing no id after a stuck turn lands here, and an error where a continuation was
+			// asked reads as "can't resume" — caught live 2026-10-03)
+			list, err := a.Sessions.List()
+			if err != nil || len(list) == 0 {
+				fmt.Fprintf(io.Err, "@S FAIL\n@? resume needs a session id (see `%s sessions`)\n", dist)
+				return 2
+			}
+			fmt.Fprintf(io.Err, "resuming latest: %s\n", list[0].ID)
+			leftover = []string{list[0].ID}
 		}
 		return a.cmdResume(ctx, leftover[0], strings.TrimSpace(strings.Join(leftover[1:], " ")), io)
 	case "sessions":
@@ -256,6 +315,8 @@ func Main(dist string, args []string, io IO, v Version) int {
 		return a.cmdStatus(io)
 	case "usage":
 		return a.cmdUsage(f, io)
+	case "lessons":
+		return a.cmdLessons(leftover, io)
 	case "bench":
 		return a.Bench(ctx, io)
 	case "board":
@@ -301,51 +362,75 @@ func cmdInit(dist string, f cliFlags, io IO) (int, string) {
 		fmt.Fprintf(io.Err, "@S FAIL\n@? init: unknown level %q — light (or soft), medium, complex\n", f.level)
 		return 2, ""
 	}
+	rep := initReport{dist: dist, root: root, level: level}
 	made, err := Init(dist, root)
 	if err != nil {
 		fmt.Fprintf(io.Err, "@S FAIL\n@? init: %v\n", err)
 		return 2, ""
 	}
-	if len(made) == 0 {
-		fmt.Fprintf(io.Out, "@S OK %s already founded at %s — nothing touched\n", dist, root)
-	} else {
-		fmt.Fprintf(io.Out, "@S OK %s founded at %s\n", dist, root)
-		for _, m := range made {
-			fmt.Fprintln(io.Out, "@F "+m)
-		}
-	}
+	rep.made = made
 	if wantsSetup(dist, root, f, io) {
 		if f.level == "" {
 			if l, err := askLevel(dist); err == nil {
 				level = l
+				rep.level = l
 			}
 		}
-		switch p, err := runSetup(dist, root, io); {
+		switch p, port, err := runSetup(dist, root, io); {
 		case err != nil:
 			fmt.Fprintf(io.Err, "@? setup: %v — the %s is founded; its config can be written later\n", err, worldWord(dist))
 		case p != "":
-			fmt.Fprintln(io.Out, "@F "+p)
+			rep.setupPath = p
+			rep.boardPort = port
 		}
 	}
 	d, _ := parseDist(dist)
 	lex := lexiconFor(dist)
-	switch level {
-	case "medium":
+	if level == "medium" {
 		s := sketchColony(root, d)
 		wrote, err := writeSketch(root, d, s, lex.Ranks, lex.Prefixes, lex.Display)
 		if err != nil {
 			fmt.Fprintf(io.Err, "@S FAIL\n@? init --level medium: %v\n", err)
 			return 2, ""
 		}
-		for _, w := range wrote {
-			fmt.Fprintln(io.Out, "@F "+w)
+		rep.medium = &mediumRep{members: s.all(), wrote: wrote, kept: len(s.all()) - len(wrote)}
+	}
+	rep.bench = f.bench
+	// The chain law at birth: a founded world never stands broken — audit it and seal
+	// the mechanical classes (light founds the law only; no creatures, so nothing to chain).
+	if level != "light" {
+		if hk, left, herr := onto.Housekeep(root, true, false); herr == nil {
+			rep.housekept = hk.Healed
+			rep.leftover = len(left)
+		}
+	}
+	// A terminal gets the styled face (init_render.go); pipes, bench and tests read the wire.
+	if styledInit(io.Out, f.plain) {
+		renderInit(io.Out, rep, defaultInitWords())
+		return 0, level
+	}
+	if len(rep.made) == 0 {
+		fmt.Fprintf(io.Out, "@S OK %s already founded at %s — nothing touched\n", dist, root)
+	} else {
+		fmt.Fprintf(io.Out, "@S OK %s founded at %s\n", dist, root)
+		for _, m := range rep.made {
+			fmt.Fprintln(io.Out, "@F "+m)
+		}
+	}
+	if rep.setupPath != "" {
+		fmt.Fprintln(io.Out, "@F "+rep.setupPath)
+	}
+	if rep.medium != nil {
+		for _, wf := range rep.medium.wrote {
+			fmt.Fprintln(io.Out, "@F "+wf)
 		}
 		fmt.Fprintf(io.Out, "@S OK a colony sketched from the tree: %d creatures written (%d kept as they were) — refine their traits and verify lines, or run `%s init --level complex` to have the model read the code\n",
-			len(wrote), len(s.all())-len(wrote), dist)
-	case "complex":
-		fmt.Fprintf(io.Out, "@S OK the founding session starts: the model reads all the code and founds the team\n")
+			len(rep.medium.wrote), rep.medium.kept, dist)
 	}
-	if f.bench {
+	if level == "complex" {
+		fmt.Fprintf(io.Out, "@S OK the founding session starts: the model reads all the code and founds the colony\n")
+	}
+	if rep.bench {
 		fmt.Fprintln(io.Out, "@F bench: config comes from "+strings.ToUpper(strings.ReplaceAll(dist, "-", "_"))+"_CONFIG_CONTENT; the gate needs a TTY or a file-layer pre-approval")
 	}
 	return 0, level

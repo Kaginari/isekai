@@ -76,6 +76,7 @@ so context is spent on work, not on words.
 | `@V` | a verdict on a claim, with evidence |
 | `@?` | a hole — named, never guessed |
 | `@U <kind> …` | the unsaid: one piece of knowledge that was in the worker's head and nowhere on disk; kind is `law`, `colony` or `territory` (§The unsaid) |
+| `@FORGE <kind>:<name> \| <text>` | a draft the run proved — kind `tool` or `skill`; rides the report up, lands as a colony note tagged `forge`, and mints only by the desk (`/forge mint`) |
 | `@E <bytes>` | closes the answer |
 
 **Hygiene**
@@ -228,6 +229,10 @@ the world can see about itself *right now* without asking a document, which may 
 - Instruments are not tracked the way `log.md` is: they are overwritten freely, since they are
   a window, not a record. What an instrument reveals that matters gets written into a
   document (and the log) — the instrument itself is disposable.
+- **The guts** (`law.guts`, default on) score every act as it lands and journal the reading;
+  past a slide they speak once inside the failing act's own result. `lessons` ranks what the
+  journals learned — the instrument aggregates; crystallizing a class into a skill or a law is
+  a writer's act.
 - **Rimuru's own stress is an instrument reading too, not a feeling.**
   `.isekai/tools/context-check.sh` reads the running session's own transcript and reports its
   current context occupancy against a conservative, model-independent budget (default
@@ -336,6 +341,11 @@ beats, followed by hand when the work is not scriptable); the shape is one.
   each junction is proven the moment it is formed, so a failure always sits in the newest rung
   or the newest junction, never somewhere below. Building several rungs and testing at the end
   is the anti-pattern: the error could be anywhere, and every rung above it is spent twice.
+- **Recovery — a gate fail is not a rollback.** Writes that landed before a fail verdict stay;
+  the repair is the same turn: the moving body's doc carries the correction thought
+  (Nature 1), the elder's desk carries the same-turn acknowledgement, and the verdict lands in
+  `log.md`. The failed act is never re-run to pass a second time; the repair is a new step on
+  the same journal — the record keeps the fail honest.
 
 ## Minds & Bodies
 
@@ -412,8 +422,9 @@ never fused. Then the loop, because the two halves carry different halves of lif
 - A Body is an agent: the thing that actually runs and holds context. A Body is never minted
   generic — it is born already named for the rank it will serve: `orc-security`,
   `slime-auth-zone`, `elf-frontend`.
-- Sourced from `.opencode/agents/*.md` and brought over with `/mint` into a Claude Code
-  sub-agent (`.claude/agents/<name>.md`).
+- The creature doc IS the body card: `{{WORLD}}/<rank dir>/<name>/README.md` is the body. No
+  mirror is minted under `.claude/agents/` — the world is self-contained (Veldora decree
+  2026-10-02: body cards live inside the world, never on the host).
 - Two Body modes:
   - **Keeper** (`mode: all`) — housekeeper of this world's law. Persistent: it outlives a
     single task and stands watch over `isekai.md` itself. A Kijin's Body is always a Keeper —
@@ -474,6 +485,11 @@ another world provisions. The world knows its neighbours, and routes through the
 - **One hop per level.** Worlds in the same dimension speak directly, Elf to Elf. A question for
   another dimension goes up to the dimension above both, which asks the right dimension, which asks
   the right world — never sideways across a dimension's border (Law 2, Absolute Rule III).
+- **A world wanting change in another world asks that world's body.** Whatever body lives there —
+  its session body, the Rimuru throne it rides, its Elf — receives the ask and applies its own
+  gate. **Never a direct write across a world's border.** When no body lives in that world, the
+  need returns to Veldora: named twice (Nature 4), then he grants. Veldora's emergency override is
+  always allowed, and it is always recorded in `log.md`.
 - **Rimuru holds the map.** The throne is one body across every world; the dimensions are how it
   sees them. The board opens on that map: dimensions, their worlds, worlds within worlds, and
   the relations between them.
@@ -486,6 +502,13 @@ No change lands without its Orc's pass. The Orc checks:
 2. **Traits hold** — the area's invariants are still true.
 3. **Duties done** — everything the task required was done.
 4. **Doc truthful** — the owning doc changed in the same change (Vitality).
+
+Two seats sit outside authorship policing, unchecked differently: a creature's own doc
+(`<dir>/README.md`) — the throne authors the skel at founding, the creature edits it after —
+and the throne's own seat files (the dimension manifest `<worldDir>/dimension.yaml` and the
+law doc), which are Rimuru's own work product, not any body's territory. When Rimuru or a
+Rimuru-rank mount writes a throne seat file, neither *right slime authored* nor *doc truthful*
+fires; a non-throne body on the same file still fails right-author.
 
 The verdict (pass / fail + reason) is recorded in `log.md`.
 

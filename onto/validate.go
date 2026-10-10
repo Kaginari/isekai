@@ -106,9 +106,15 @@ func (w *World) finding(shape string, x Term, field, msg string) Finding {
 	return f
 }
 
+// overlap reports a real territory collision. Two creatures asserting the SAME path literal
+// (a == b) is NOT a collision: it is a lawful sub-file split — e.g. slime-db-schema owns the
+// tables/migrate() of store.go while slime-db-queries owns its query/scan functions, one file,
+// disjoint responsibility (Nature 2). The world-reading keeps the asserted literal, so check
+// respects it. A true collision is namespace nesting: one path a strict ancestor directory of
+// the other (src/auth vs src/auth/login).
 func overlap(a, b string) bool {
 	if a == b {
-		return true
+		return false
 	}
 	return strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
 }

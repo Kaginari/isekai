@@ -1,0 +1,40 @@
+# Bench config for a real run: the agent against an OpenAI-compatible gateway, the same shape as
+# examples/gateway/.isekai/ folded into one file. bench/harbor.sh renders it into the run dir,
+# filling the three placeholders (the gateway URL, the key's variable NAME, the first model); the
+# key's value never lands in a file. Inside a task container the container is the sandbox, and
+# nobody is there to answer the gate.
+providers:
+  gateway:
+    enabled: true
+    type: openai
+    baseURL: __GATEWAY_URL__
+    apiKeyEnv: __KEY_ENV__          # the key's name only; the launcher forwards it by name
+    toolCalls: native               # vLLM with --enable-auto-tool-choice; "text" if the gateway strips tools
+    contextWindow: auto             # read from the gateway's /v1/models (max_model_len)
+    timeout: 10m
+models:
+  default: gateway/__DEFAULT_MODEL__   # each job passes --model gateway/<model>; this is the fallback
+# Uncomment and price the models to get a cost column; without prices cost stays unknown ("—").
+# registry:
+#   models:
+#     gateway/__DEFAULT_MODEL__: { tier: 3, price: { input: 0, output: 0 } }
+tools:
+  profile: minimal
+  bash: { sandbox: none }
+rules:
+  # A bench-born law (tb2 filter-js, 2026-09-29): every body reads it; no task names it.
+  - text: "A filter or transform never reserializes input it did not change: a clean file stays byte-identical."
+  # Output discipline (tb2 output-token gap): one line of intent per step; the wire and journal carry the detail.
+  - text: "Speak tersely: one line of intent before a step, then act — never restate diffs, logs or output a step just printed; reasoning depth belongs in the work, not the report."
+law:
+  humanGate: { enabled: false }
+  closingCheck: { enabled: true }   # one close-time re-ask — nobody sits at the keyboard
+  # Long-haul tasks (filter-js, gcode) outgrow the interactive ceilings: a checkpoint is
+  # exit 5, and Harbor scores it as an exception. Lift them; Harbor's agent timeout
+  # ([agent].timeout_sec × --timeout-multiplier) is the only wall under the bench.
+  budget: { steps: -1, minutes: -1 }
+budgets:
+  session: { tokens: 0 }    # 0 = off (Cap.Off): the 1.6M cap checkpointed solo runs near $75
+ui:
+  board: { autostart: false }
+

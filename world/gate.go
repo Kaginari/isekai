@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -58,7 +60,20 @@ func (v Verdict) String() string {
 
 // Gate runs the checks over a turn's writes for a body and returns the verdict. It is the
 // EndGate hook's body, exposed so a dispatcher can run it on its own account.
-func (w *World) Gate(ctx context.Context, opt GateOptions, as string, wrote []string, rep *wire.Report, isWire bool, ask string) Verdict {
+//
+// Hard law (Right-author, human decree 2026-09-30): no body — including the throne — writes
+// inside another creature's territory unless that creature's own README rides the same turn.
+// Rimuru owns no territory, so the owner's doc is the lawful vehicle for any cross-territory
+// write from above; without it, Right-author fails (the old silent exemption is closed).
+//
+// Own-pair reconciliation (human decree 2026-10-01): the owner's doc is paired when EITHER arm
+// holds — (1) it rides this turn's writes (the 2026-09-30 arm, unchanged), or (2) it exists on
+// disk, differs from the clean git baseline, and is attributable to this session's own courts
+// via the court-write ledger. Pairing was per-turn, so the only Law-7-lawful flow — a court
+// authors the README this turn, the throne lands the code next turn — could never pass: the
+// gate re-ran every turn on the accumulated writes while the court's doc write had been
+// subtracted from the throne's bucket (ownWrites), a subtraction nothing ever gave back.
+func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as string, wrote []string, rep *wire.Report, isWire bool, ask string) Verdict {
 	v := Verdict{Word: "pass"}
 	if !opt.Enabled {
 		return Verdict{Word: "off", Holes: []string{"law.gate is off — the turn's writes were not checked"}}
@@ -85,18 +100,93 @@ func (w *World) Gate(ctx context.Context, opt GateOptions, as string, wrote []st
 		if owner != nil {
 			touched[owner.Name] = owner
 		}
+		// A creature's own doc (<dir>/README.md) sits at the creature's seat in the world's
+		// address space: the throne authors the skel at founding, the creature itself edits it
+		// after. Right-author never fires on it.
+		creatureDoc := owner != nil && owner.Dir != "" && normRel(rel) == normRel(owner.Dir+"/README.md")
+		throneAuthored := as == "" || as == Rimuru || w.RankOf(as).Name == Rimuru
+		// pairing, three vehicles: the doc rides THIS turn's writes (arm 1), or a cross-session
+		// court record proves it (arm 2), or it moved in an earlier wave this world witnessed
+		// (arm 3, session-pair mark — 2026-10-07). docPaired is any-writer evidence;
+		// pairedEarlier keeps the throne-scoped reading the 2026-10-01/02 arms were born with.
+		docPaired := owner != nil && (w.courtPairedDoc(s, owner) || w.docMovedEarlier(owner))
+		pairedEarlier := throneAuthored && docPaired
+		// The throne's own seat files — the dimension manifest and the law — are rimuru's
+		// work product, of one class with a creature's own doc. Owner's gate-holder fallback
+		// would otherwise silently make orc own every unowned path under .isekai/; the throne
+		// seat files are rimuru's regardless of which body Owner resolves.
+		throneSeat := normRel(rel) == normRel(w.Lex.WorldDir+"/dimension.yaml") ||
+			normRel(rel) == normRel(w.Lex.WorldDir+"/"+w.Lex.Law)
+		// arm-2 discrimination (darkelf verdict 2026-10-02, third strike closed 2026-10-04):
+		// a throne-authored write of an EXISTING creature doc is exempt only while it is
+		// not conclusively drifted off the clean git baseline (founding skel, identical,
+		// no-git soil) — or a lane A/B court record pairs the drift (pairedEarlier).
+		driftedUnpaired := false
+		if creatureDoc && throneAuthored {
+			d, ok := w.docDriftedFromBaseline(owner.Doc)
+			driftedUnpaired = ok && d && !pairedEarlier
+		}
 		// 1. right slime authored
 		if opt.RightAuthor && orcs {
 			switch {
+			case throneSeat && throneAuthored:
+				// the throne's own work, on its own seat — no body's authorship to check
+			case creatureDoc && as == owner.Name:
+				// self-edit (creature): the creature's doc is not a work product to police
+				// for authorship
+			case creatureDoc && throneAuthored && !driftedUnpaired:
+				// founding skel or court-paired re-authoring (throne): clean, identical, no-git
+				// soil, or a lane A/B court record stands behind the drift — the creature's doc
+				// is not a work product to police for authorship
+			case creatureDoc && throneAuthored:
+				// third strike closed (darkelf verdict 2026-10-02): drifted off the clean
+				// baseline with no court record in any lane — the throne re-authored an
+				// existing creature doc without pairing evidence
+				fail(fmt.Sprintf("%s: %s is %s's doc, re-authored by the throne with no pairing evidence (drifted off the clean baseline, no court record in any lane)", w.Lex.Checks[0], rel, owner.Name))
+			case throneAuthored && owner != nil && (contains(wrote, owner.Doc) || pairedEarlier):
+				// pure hard law (human decree 2026-09-30, arm 1) — the throne may cross a creature's soil only carrying that creature's doc in the same turn; rimuru holds no territory, so the owner README riding the same wave is the lawful vehicle; without it Right-author still fires.
+				// own-pair reconciliation (decree 2026-10-01, arm 2; lane-B consult 2026-10-03) — or the doc landed a turn apart: the court-write ledger attributes it to a recorded court writer cross-session (lane B survives the court engine's Close), it is on disk and drifted off the clean baseline, so the pairing stands and this wave's cross-author is treated as paired
 			case owner != nil && (self == nil || owner.Name != self.Name) && !(self != nil && self.InTerritory(rel)):
+				// Right-author mortals: HARD — cross-territory authoring is the Human's
+				// 2026-09-30 decree and pair-marks don't soften it. The 2026-10-07 thrash class
+				// (identical retries on identical fails) is answered by the circuit-breaker in
+				// EndGate and the refusals naming the pairing doc, never by loosening this arm.
 				fail(fmt.Sprintf("%s: %s belongs to %s, written by %s", w.Lex.Checks[0], rel, owner.Name, or(as, "rimuru")))
 			case owner == nil && self != nil && !self.InTerritory(rel) && len(self.Territory) > 0:
 				fail(fmt.Sprintf("%s: %s is outside %s's territory", w.Lex.Checks[0], rel, self.Name))
 			}
 		}
-		// 4. doc truthful — Vitality
-		if opt.DocTruthful && owner != nil && owner.Doc != "" && !contains(wrote, owner.Doc) && normRel(rel) != normRel(owner.Doc) {
-			fail(fmt.Sprintf("%s (Vitality): %s changed under %s's territory but %s did not change in the same turn", w.Lex.Checks[3], rel, owner.Name, owner.Doc))
+		// 4. doc truthful — Vitality. The same two pairing arms hold here: a turn's change under a
+		// territory is Vitality-paired when the owner's doc changed in the same turn (arm 1) or
+		// sits on disk drifted off the baseline with a cross-session court-write record behind
+		// it (arm 2; lane B keyed by creature name, kept at Close, bound 8 per creature) —
+		// otherwise the check double-fired on every retry for a doc the throne cannot lawfully
+		// write itself.
+		if opt.DocTruthful && !throneSeat && owner != nil && owner.Doc != "" && !contains(wrote, owner.Doc) && normRel(rel) != normRel(owner.Doc) && !docPaired {
+			fail(fmt.Sprintf("%s (Vitality): %s changed under %s's territory but %s did not move — pair it: edit %s in this wave, or have %s's own court author its doc first (the doc names the pairing vehicle)", w.Lex.Checks[3], rel, owner.Name, owner.Doc, owner.Doc, owner.Name))
+		}
+	}
+	// Spend the session pair-marks this wave rode (arm 3 is transactional): a territory whose
+	// code moved under a mark, WITHOUT moving the doc in this same wave, consumes the mark —
+	// one doc wave buys exactly one later wave, never a permanent exemption.
+	if len(w.pairMarks) > 0 {
+		var spend []string
+		for _, rel := range wrote {
+			owner := w.Owner(rel)
+			if owner == nil || owner.Dir == "" || contains(wrote, owner.Doc) {
+				continue
+			}
+			doc := normRel(owner.Dir + "/README.md")
+			if _, ok := w.pairMarks[doc]; ok && !contains(spend, doc) {
+				spend = append(spend, doc)
+			}
+		}
+		if len(spend) > 0 {
+			w.mu.Lock()
+			for _, d := range spend {
+				delete(w.pairMarks, d)
+			}
+			w.mu.Unlock()
 		}
 	}
 	v.Checked = append(v.Checked, w.Lex.Checks[0], w.Lex.Checks[3])
@@ -223,7 +313,11 @@ func (w *World) EndGate(opt GateOptions) func(ctx context.Context, s *loop.Sessi
 		}
 		o := opt
 		o.TestsBefore = s.TestsBefore
-		v := w.Gate(ctx, o, as, s.Wrote, &r.Report, r.IsWire, s.Ask)
+		v := w.Gate(ctx, s, o, as, s.Wrote, &r.Report, r.IsWire, s.Ask)
+		// the council circuit-breaker (freeze review 2026-10-07): the same gate failing on
+		// the same file-set for the same body is a spec defect, not an authoring skill —
+		// after breakerAt repeats, the fail text hardens into the only lawful next acts.
+		w.breaker(as, s.Wrote, &v)
 		holes := append([]string(nil), v.Holes...)
 		if opt.Log && opt.Enabled {
 			result := "done"
@@ -247,7 +341,62 @@ func (w *World) EndGate(opt GateOptions) func(ctx context.Context, s *loop.Sessi
 		if v.Word == "fail" {
 			return v.String(), holes, fmt.Errorf("gate fail — %s", strings.Join(v.Reasons, "; "))
 		}
+		if v.Word == "pass" {
+			// pair law (freeze review 2026-10-07): a doc that moved and PASSED law marks the
+			// pairing window — later waves that touch the territory without re-moving the doc pair
+			// against the mark, once (the gate spends marks after its wrote loop). Failures never
+			// mint marks: a lawful wave is the only lawful evidence.
+			for _, rel := range s.Wrote {
+				if owner := w.Owner(rel); owner != nil && owner.Dir != "" && normRel(rel) == normRel(owner.Dir+"/README.md") {
+					w.mu.Lock()
+					w.pairMarks[normRel(owner.Dir+"/README.md")] = time.Now()
+					w.mu.Unlock()
+				}
+			}
+		}
 		return v.String(), holes, nil
+	}
+}
+
+// gateStreak is one body's circuit-breaker reading: how often the same signature
+// (sorted file-set) failed its gate in a row. A pass or a differently-shaped wave resets it.
+type gateStreak struct {
+	Sig string
+	N   int
+}
+
+// gateBreakerAt: the streak that says the spec is broken, not the body.
+const gateBreakerAt = 3
+
+// breaker stamps the circuit-breaker directive into a streaked fail verdict. It refuses the
+// thrash loop the way the law affords: naming the only lawful next acts in the fail text the
+// model reads (rewrite the commission with each creature's doc duty, @SPLIT, or escalate);
+// a dispatch-side hard veto is the next slice, flagged in the freeze wrap-up.
+func (w *World) breaker(as string, wrote []string, v *Verdict) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	st := w.gateStreaks[as]
+	if st == nil {
+		st = &gateStreak{}
+		w.gateStreaks[as] = st
+	}
+	if v.Word == "pass" {
+		st.N, st.Sig = 0, ""
+		return
+	}
+	if v.Word != "fail" {
+		return
+	}
+	sorted := append([]string(nil), wrote...)
+	sort.Strings(sorted)
+	sig := strings.Join(sorted, "|")
+	if st.Sig == sig {
+		st.N++
+	} else {
+		st.Sig, st.N = sig, 1
+	}
+	if st.N >= gateBreakerAt {
+		v.Reasons = append(v.Reasons, fmt.Sprintf("council circuit-breaker — this same gate failed %d times in a row on this exact file-set for %s; the spec is broken, not the body. Lawful next acts: rewrite the commission naming each creature's doc duty, @SPLIT it narrower, or escalate to the human. Retrying identically burns the court clock.", st.N, as))
 	}
 }
 
@@ -266,6 +415,98 @@ func (w *World) LogPath() string { return w.Dir() + "/" + w.Lex.Log }
 // orcs is true for a verdict word from a world with a gate holder (pass | fail), false for the
 // no-gate-holder line, which already reads `Gate: n/a (…)`.
 func orcs(word string) bool { return word == "pass" || word == "fail" }
+
+// docMovedEarlier is arm 3 of pairing (session-pair): the creature's own doc moved in a
+// witnessed earlier wave this process — the mark. The gate spends marks after the wrote loop
+// (see Gate), so a rider re-marks only by moving the doc again.
+func (w *World) docMovedEarlier(owner *Creature) bool {
+	if owner == nil || owner.Dir == "" {
+		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, ok := w.pairMarks[normRel(owner.Dir+"/README.md")]
+	return ok
+}
+
+// courtPairedDoc is arm 2 of own-pair reconciliation (decree 2026-10-01): the owner's doc is
+// attributable to a recorded court write of this world's bodies AND sits on disk drifted off
+// the clean git baseline. The court-write ledger (world/court.go courtGated) records what a
+// Court wrote and gated on its own account — lane A per-engine (dies at the engine's Close),
+// lane B cross-session keyed by creature name (Close keeps it; court.go courtWrites). Arm 2
+// first reads lane A on the session's own engine; when that lane has closed it consults lane
+// B — the asked-for pairing narrows to the ledger record itself: the doc write the throne is
+// being asked to re-do is exactly the write the record attributes to its writer creature. The baseline leg
+// is git's clean tree (HEAD when tracked, staged copy when new): a doc identical to its clean
+// state is a pre-existing doc nobody re-authored, never this session's pairing. The
+// refnames leg ("refs/notes/..." HEAD) refuses a detached or in-flux work tree rather than
+// guess. No work tree at all (no ledger hit can be proven clean-or-drifted against git) is
+// conservative: no pairing, the same verdict as before the decree.
+func (w *World) courtPairedDoc(s *loop.Session, owner *Creature) bool {
+	if s == nil {
+		return false
+	}
+	w.mu.Lock()
+	rec, court := w.courtWrote[s.Engine][normRel(owner.Doc)]
+	// Lane B (2026-10-03 reshoot-final): the per-engine lane dies at Close. No session
+	// walks world (no w.Par/w.Sessions — the commission's pseudonyms unmet), so the
+	// narrowest truthful consult is the world-resident name lane itself: the asking
+	// session's creature, and the owner whose doc the throne re-authors.
+	if !court {
+		if m := w.courtWrites[owner.Name]; m != nil && m[normRel(owner.Doc)].Writer != "" {
+			rec, court = m[normRel(owner.Doc)], true
+		}
+	}
+	if !court && s.Engine.As != "" && s.Engine.As != owner.Name {
+		if m := w.courtWrites[s.Engine.As]; m != nil && m[normRel(owner.Doc)].Writer != "" {
+			rec, court = m[normRel(owner.Doc)], true
+		}
+	}
+	w.mu.Unlock()
+	if !court {
+		return false // never touched by this session's courts
+	}
+	if rec.Writer == "" {
+		return false // recorded without a writer: no attribution to re-derive pairing from
+	}
+	drifted, ok := w.docDriftedFromBaseline(owner.Doc)
+	return ok && drifted
+}
+
+// docDriftedFromBaseline reads whether the doc differs from its clean git baseline:
+// (drifted, true) when the reading is conclusive, (false, false) when git cannot speak.
+func (w *World) docDriftedFromBaseline(rel string) (drifted bool, ok bool) {
+	rel = normRel(rel)
+	// refs/heads-style refnames tell a clean work tree; a detached HEAD or an in-flux rebase
+	// is not a baseline to judge drift against — refuse rather than guess.
+	if out, err := w.gitOut("symbolic-ref -q --short HEAD"); err != nil || strings.TrimSpace(out) == "" {
+		return false, false
+	}
+	cur, err := os.ReadFile(filepath.Join(w.Root, filepath.FromSlash(rel)))
+	if err != nil {
+		return false, false // gone from disk: not on-disk, never a pairing
+	}
+	base, berr := w.gitOut("show HEAD:./" + rel)
+	if berr != nil {
+		// untracked (new file): the staged copy is the clean baseline when one exists, else
+		// absent — an untracked, unstaged doc is drift by definition (its clean baseline is
+		// nothing), which still only pairs when the ledger attributes it to a court.
+		if staged, serr := w.gitOut("show :" + rel); serr == nil {
+			return string(cur) != staged, true
+		}
+		return true, true
+	}
+	return string(cur) != base, true
+}
+
+// gitOut runs one git command in the world's root, returning stdout; an error means git
+// could not speak (no work tree, unknown revision, in-flux state).
+func (w *World) gitOut(args string) (string, error) {
+	c := exec.Command("git", strings.Fields(args)...)
+	c.Dir = w.Root
+	out, err := c.Output()
+	return string(out), err
+}
 
 func lawTable(w *World) bool {
 	d := DefaultRanks(w.Lex)

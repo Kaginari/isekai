@@ -23,7 +23,7 @@ var shelfOrder = []string{"bash", "read", "ls", "glob", "grep", "write", "edit",
 
 // worldToolNames are the tools the world package supplies (rung 3); the shelf leaves a seat
 // for each and reports it disabled with its origin when config switches it off.
-var worldToolNames = []string{"dispatch", "recall", "remember", "toolbox", "onto", "skill", "desk"}
+var worldToolNames = []string{"dispatch", "recall", "remember", "toolbox", "onto", "skill", "desk", "plan", "pulse"}
 
 // Shelf builds the tool registry for a body from config: every builtin honours its enabled
 // switch, the profile and its overrides; custom tools join on the same terms; MCP tools and
@@ -160,6 +160,8 @@ func (s *Shelf) Build(body string) (*tool.Registry, func()) {
 			if profile != "minimal" {
 				add(tool.EditorTool(tool.EditorOptions{Enabled: true}))
 			}
+		case "delete":
+			add(tool.DeleteTool())
 		case "multiedit":
 			add(tool.MultiEditTool(tool.MultiEditOptions{Enabled: true}))
 		case "patch":

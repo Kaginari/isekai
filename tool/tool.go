@@ -75,12 +75,14 @@ type Policy func(a Access) error
 // directory name (".isekai" by default; the machine-shared tier is ~/<WorldDir>) and the
 // record test (files never overwritten, Law 4).
 type Env struct {
-	Root     string // the world root; every relative path resolves against it
-	Cwd      string // defaults to Root
-	WorldDir string // defaults to DefaultWorldDir
-	Policy   Policy
-	IsRecord func(rel string) bool // defaults to IsRecord; nil-safe
-	Timeout  int                   // seconds, for bash; 0 means the tool's default
+	Root      string                  // the world root; every relative path resolves against it
+	Cwd       string                  // defaults to Root
+	WorldDir  string                  // defaults to DefaultWorldDir
+	Policy    Policy                  //
+	IsRecord  func(rel string) bool   // defaults to IsRecord; nil-safe
+	ZoneOwner func(rel string) string // optional: which creature authors this zone ("" = none)
+	Self      func() string           // optional: the acting session's own state digest (the pulse tool); nil-safe
+	Timeout   int                     // seconds, for bash; 0 means the tool's default
 }
 
 // DefaultWorldDir is the world directory name when Env.WorldDir is empty.
@@ -238,10 +240,10 @@ func (r *Registry) Only(names ...string) *Registry {
 
 // Builtins is the standard shelf: read, write, edit, bash (on a persistent shell, started
 // lazily on its first call and living until the process ends — a body's shelf closes its own),
-// glob, grep.
+// glob, grep, skim.
 func Builtins() *Registry {
 	bash, _ := NewBashTool(BashOptions{Enabled: true})
-	return NewRegistry(ReadTool(), WriteTool(), EditTool(), bash, GlobTool(), GrepTool())
+	return NewRegistry(ReadTool(), WriteTool(), EditTool(), DeleteTool(), bash, GlobTool(), GrepTool(), SkimTool())
 }
 
 // Resolve makes p absolute against the env's cwd (or root) and cleans it.

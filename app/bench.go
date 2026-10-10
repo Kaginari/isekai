@@ -268,7 +268,7 @@ func (a *App) benchOne(ctx context.Context, model string, t benchTask, mcpBin st
 		mcp = "mcp:\n  servers:\n    t: {command: [" + mcpBin + "], inward: true, sandbox: none}\n"
 	}
 	write(".isekai/config.yaml", "models:\n  default: "+mount+"\n  offices: {great-sage: court/c}\n  tasks: {drain: court/c}\n"+providers+
-		"tools:\n  bash: {sandbox: none}\n  custom:\n    lsl: {description: list, class: read, params: {path: {type: string, required: true}}, run: [ls, \"-1\", \"{{path}}\"]}\n"+
+		"tools:\n  bash: {sandbox: none}\n  dispatch: {strictFlow: false}\n  custom:\n    lsl: {description: list, class: read, params: {path: {type: string, required: true}}, run: [ls, \"-1\", \"{{path}}\"]}\n"+
 		"law: {budget: {stressTokens: 2600}}\ncompaction: {keepRecentTurns: 1}\nui: {board: {autostart: false}}\n"+mcp)
 	var out, errb strings.Builder
 	app, err := New(Options{Dist: "isekai", Root: root, Cwd: root, Home: a.Opt.Home, Env: a.Opt.Env, In: strings.NewReader(""), Out: &out, Err: &errb, Quiet: true, IsTTY: func() bool { return false }, NoBoard: true})

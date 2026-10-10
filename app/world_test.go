@@ -101,8 +101,8 @@ func isekaiCreatures() map[string]string {
 		".isekai/log.md":                 "# Chronicle\n\nAppend-only.\n\n---\n",
 		".isekai/elf/core/README.md":     "# elf-core\n\n- **Rank:** Elf\n- **Territory:** `src/`\n- **Purpose:** the shared mind\n",
 		".isekai/orc/security/README.md": "# orc-security\n\n- **Rank:** Orc\n- **Territory:** `src/auth/`, `src/api/`\n- **Reports to:** elf-core\n",
-		".isekai/slime/auth/README.md":   "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n\n## Traits\n- tokens expire after one hour\n",
-		".isekai/slime/api/README.md":    "# slime-api\n\n- **Rank:** Slime\n- **Territory:** `src/api/`\n- **Reports to:** orc-security\n",
+		".isekai/slime/auth/README.md":   "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `test -d src/auth`\n\n## Traits\n- tokens expire after one hour\n",
+		".isekai/slime/api/README.md":    "# slime-api\n\n- **Rank:** Slime\n- **Territory:** `src/api/`\n- **Reports to:** orc-security\n- **Verify:** `test -d src/api`\n",
 		"src/auth/login.go":              "package auth\n",
 		"src/api/server.go":              "package api\n",
 		"README.md":                      "hello\n",
@@ -111,13 +111,23 @@ func isekaiCreatures() map[string]string {
 
 // TestDispatchJunction is rung 3's junction: the real shelf (rung 2) under the real world —
 // a Court dispatched with office routing to a distinct model, territory enforced, the gate's
-// verdict in log.md, the unsaid landed.
+// verdict in log.md, the unsaid landed. Since strictFlow is the default, the throne hands
+// work one hop down (rimuru → elf-core), and each court re-dispatches to the rank below.
 func TestDispatchJunction(t *testing.T) {
 	files := isekaiCreatures()
 	w := newTestWorld(t, "isekai", files)
 	w.script(".isekai/tmp/session.json",
-		when("do the work", call("dispatch", map[string]string{"body": "slime-auth", "ask": "findings on the login zone: land the token file", "scope": "src/auth"})),
+		when("do the work", call("dispatch", map[string]string{"body": "elf-core", "ask": "draft on the login zone: land the token file", "scope": "src/auth"})),
 		text("@S DONE\n@F the court reported\n@E 34"),
+	)
+	// the ladder one hop at a time; each hop carries its office word so model routing is distinct
+	w.script(".isekai/tmp/elf.json",
+		when("draft on the login zone", call("dispatch", map[string]string{"body": "orc-security", "ask": "verdict on the login zone: land the token file", "scope": "src/auth"})),
+		text("@S DONE the orc reported\n@U colony elf hands work one hop down to the orc\n@E 40"),
+	)
+	w.script(".isekai/tmp/orc.json",
+		when("verdict on the login zone", call("dispatch", map[string]string{"body": "slime-auth", "ask": "findings on the login zone: land the token file", "scope": "src/auth"})),
+		text("@S DONE the slime reported\n@U colony orc hands work one hop down to the slime\n@E 40"),
 	)
 	w.script(".isekai/tmp/sage.json",
 		when("@ASK findings", map[string]interface{}{"calls": []interface{}{
@@ -130,11 +140,14 @@ func TestDispatchJunction(t *testing.T) {
 	w.write(".isekai/config.yaml", `
 models:
   default: m1/mount
-  offices: {great-sage: m2/sage}
+  offices: {great-sage: m2/sage, raphael: m4/orc, ciel: m3/elf}
 providers:
   m1: {type: mock, script: .isekai/tmp/session.json}
   m2: {type: mock, script: .isekai/tmp/sage.json}
-tools: {bash: {sandbox: none}}
+  m3: {type: mock, script: .isekai/tmp/elf.json}
+  m4: {type: mock, script: .isekai/tmp/orc.json}
+ # the gate's court is office-keyed; the offices themselves tell the hops apart
+tools: {bash: {sandbox: none}, dispatch: {maxDepth: 3}}
 ui: {board: {autostart: false}}
 `)
 	a := w.open()
@@ -156,7 +169,7 @@ ui: {board: {autostart: false}}
 		t.Fatalf("session: %s %v", r.Status, r.Holes)
 	}
 	report := r.Steps[0].Result.Output
-	if !strings.Contains(report, "@S PASS") || !strings.Contains(report, "@U territory the token TTL is 15m") {
+	if !strings.Contains(report, "@S DONE") || !strings.Contains(report, "orc reported") {
 		t.Errorf("court report: %q", report)
 	}
 	if w.read("src/auth/token.go") == "" {
@@ -165,7 +178,7 @@ ui: {board: {autostart: false}}
 	if _, err := os.Stat(filepath.Join(w.root, "src/api/rogue.go")); err == nil {
 		t.Error("a write outside the court's territory landed")
 	}
-	// office routing: the court ran on m2 (great-sage), the session on m1
+	// office routing: the slime ran under the same m2 as the original (same office word reaches it)
 	recs, _ := ReadUsage(a.Journal.Dir)
 	byBody := map[string]UsageRecord{}
 	for _, rec := range recs {
@@ -201,6 +214,70 @@ ui: {board: {autostart: false}}
 	}
 	if lines := a.StatusLines(); len(lines) == 0 || strings.Contains(strings.Join(lines, "\n"), "@? off ") {
 		t.Errorf("status: %v", lines)
+	}
+}
+
+// TestCourierEnvelope: a court's substantive report (>600 B) is filed on the instruments
+// shelf by the harness; the dispatcher's context carries only the envelope (@R path, @H
+// checksum, @W wrote set + a digest head). Small reports ride whole — the courier tax would
+// exceed the relay tax there.
+func TestCourierEnvelope(t *testing.T) {
+	files := isekaiCreatures()
+	w := newTestWorld(t, "isekai", files)
+	w.script(".isekai/tmp/session.json",
+		when("map the auth zone", call("dispatch", map[string]string{"body": "elf-core", "ask": "findings on the auth zone", "scope": "src/auth"})),
+		text("@S DONE\n@F see the envelope\n@U colony the session watched the courier\n@E 40"),
+	)
+	longWire := "@S DONE\n@F src/auth/login.go:1 the handler is there\n"
+	for len(longWire) < 800 {
+		longWire += "@F src/auth/login.go:1 finding filler finding filler finding filler finding filler\n"
+	}
+	longWire += "@U colony elf saw it run\n@E 900"
+	w.script(".isekai/tmp/elf.json",
+		when("findings on the auth zone", text(longWire)),
+	)
+	w.write(".isekai/config.yaml", `
+models:
+  default: m1/mount
+  offices: {great-sage: m3/elf-sage}
+providers:
+  m1: {type: mock, script: .isekai/tmp/session.json}
+  m3: {type: mock, script: .isekai/tmp/elf.json}
+tools: {bash: {sandbox: none}, dispatch: {maxDepth: 3}}
+ui: {board: {autostart: false}}
+`)
+	a := w.open()
+	e, err := a.Engine()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := e.Run(context.Background(), "map the auth zone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := r.Steps[0].Result.Output
+	if !strings.Contains(report, "@S DONE") || !strings.Contains(report, "@R .isekai/instruments/loop/elf-core-") ||
+		!strings.Contains(report, "@H fnv64:") || !strings.Contains(report, "digest:") {
+		t.Fatalf("the dispatcher's context must carry the envelope, not the flesh:\n%s", report)
+	}
+	filler := 0
+	for _, l := range strings.Split(report, "\n") {
+		if strings.Contains(l, "finding filler") {
+			filler++
+		}
+	}
+	if filler > 8 {
+		t.Fatalf("the flesh rode up whole — %d filler lines in an envelope that may head 8:\n%s", filler, report)
+	}
+	// the filed report is the full wire text — integrity line unchanged since filing
+	matches := filepath.Join(w.root, ".isekai/instruments/loop/elf-core-*.report.md")
+	g, _ := filepath.Glob(matches)
+	if len(g) != 1 {
+		t.Fatalf("report files on the shelf: %v", g)
+	}
+	b, _ := os.ReadFile(g[0])
+	if !strings.Contains(string(b), "finding filler") || !strings.Contains(string(b), "@U colony elf saw it run") {
+		t.Fatalf("the filed report must hold the flesh, got %d bytes", len(b))
 	}
 }
 
@@ -290,11 +367,11 @@ func TestReplaceRanks(t *testing.T) {
 		text("@S PASS\n@U colony coders write under src/auth\n@E 50"),
 	)
 	w.write(".isekai/config.yaml", `
-models: {default: m1/mount, ranks: {coder: m2/coder}}
+models: {default: m1/mount, offices: {great-sage: m2/coder}}
 providers:
   m1: {type: mock, script: .isekai/tmp/session.json}
   m2: {type: mock, script: .isekai/tmp/coder.json}
-tools: {bash: {sandbox: none}}
+tools: {bash: {sandbox: none}, dispatch: {strictFlow: false}}
 rankSet: replace
 ranks:
   lead:   {reportsTo: rimuru, job: coordinates, body: court, office: ciel}
@@ -355,13 +432,15 @@ ui: {board: {autostart: false}}
 
 // TestAgentOneWorld: the same engine under the other distribution — .agent-one/, AGENT-ONE.md,
 // zone-/domain- prefixes, the wire's kind tokens, memory and toolbox in the renamed dir.
+// Since strictFlow is the default, the throne hands work one hop down (Orchestrator → Coordinator).
 func TestAgentOneWorld(t *testing.T) {
 	lex := world.AgentOne()
 	law := strings.Replace(testLaw, "## The Crest", "## "+lex.Crest, 1)
 	w := newTestWorld(t, "", map[string]string{
 		".agent-one/AGENT-ONE.md":              law,
 		".agent-one/log.md":                    "# Chronicle\n\n---\n",
-		".agent-one/domain/security/README.md": "# domain-security\n\n- **Rank:** Domain owner\n- **Owns:** `src/auth/`\n",
+		".agent-one/coord/security/README.md":  "# coord-security\n\n- **Rank:** Coordinator\n- **Owns:** `src/security/`\n",
+		".agent-one/domain/security/README.md": "# domain-security\n\n- **Rank:** Domain owner\n- **Owns:** `src/auth/`\n- **Reports to:** coord-security\n",
 		".agent-one/zone/auth/README.md":       "# zone-auth\n\n- **Rank:** Zone worker\n- **Owns:** `src/auth/`\n- **Reports to:** domain-security\n",
 		"src/auth/a.go":                        "package auth\n",
 	})
@@ -370,17 +449,25 @@ func TestAgentOneWorld(t *testing.T) {
 			map[string]interface{}{"name": "remember", "input": map[string]string{"text": "the login zone rotates keys weekly", "kind": "team"}},
 			map[string]interface{}{"name": "recall", "input": map[string]string{"question": "login zone keys"}},
 			map[string]interface{}{"name": "onto", "input": map[string]string{"path": "src/auth/a.go"}},
-			map[string]interface{}{"name": "dispatch", "input": map[string]string{"body": "zone-auth", "ask": "findings: look around"}},
+			map[string]interface{}{"name": "dispatch", "input": map[string]string{"body": "coord-security", "ask": "draft: look around"}},
 		}}),
 		text("@S DONE\n@E 12"),
 	)
-	w.script(".agent-one/tmp/zone.json", when("@ASK findings", text("@S PASS\n@U domain keys rotate weekly\n@E 40")))
+	w.script(".agent-one/tmp/coord.json", when("@ASK draft", call("dispatch", map[string]string{"body": "domain-security", "ask": "verdict: look around"})))
+	w.script(".agent-one/tmp/zone.json",
+		when("@ASK verdict", call("dispatch", map[string]string{"body": "zone-auth", "ask": "findings: look around"})),
+		text("@S PASS\n@U domain keys rotate weekly\n@E 40"),
+	)
 	w.write(".agent-one/config.yaml", `
-models: {default: m1/mount, offices: {analyst: m2/zone}}
+models:
+  default: m1/mount
+  offices: {analyst: m2/zone, judge: m4/zone, drafter: m3/coord}
 providers:
   m1: {type: mock, script: .agent-one/tmp/session.json}
   m2: {type: mock, script: .agent-one/tmp/zone.json}
-tools: {bash: {sandbox: none}}
+  m3: {type: mock, script: .agent-one/tmp/coord.json}
+  m4: {type: mock, script: .agent-one/tmp/zone.json}
+tools: {bash: {sandbox: none}, dispatch: {maxDepth: 3}}
 ui: {board: {autostart: false}}
 `)
 	a := w.open()

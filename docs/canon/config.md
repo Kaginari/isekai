@@ -58,7 +58,10 @@ section holds just that section's value: `models.yaml`, `providers.yaml`, `rules
 `mcp.yaml`, `guard.yaml` (or `guards.yaml`) — any key of the defaults. It loads in the same layer,
 after `config.yaml`, so it wins there; its values keep their own file for `config explain`. Two files
 for one section (`guard.yaml` and `guards.yaml`) is a load error; a file whose name is no section is
-left alone. `guards.yaml` may be just the list of patterns:
+left alone. The local layer mirrors this, machine-only and never traveling by git: beside (or instead
+of) `.isekai/config.local.yaml`, a `<section>.local.yaml` holds one section's value and wins after
+`config.local.yaml`. `guards.local.yaml` may likewise be just the list. `guards.yaml` may be just
+the list of patterns:
 
 ```yaml
 # .isekai/guards.yaml — added to the built-in denylist, refused before any gate
@@ -203,7 +206,7 @@ document is JSON here; the same keys in YAML are the same config.
     "webfetch":  { "enabled": true, "maxBytes": 5242880, "timeout": "1m" },
     "websearch": { "enabled": true, "timeout": "1m", "backend": "" },   // backend: a URL with {query} answering SearXNG-style JSON ({results:[{title,url,content}]}); "" = no backend, the tool says so
     "ask":       { "enabled": true },                 // `question` is accepted as an alias
-    "dispatch":  { "enabled": true, "maxDepth": 1, "background": false },
+    "dispatch":  { "enabled": true, "maxDepth": 3, "background": false },
     "recall":    { "enabled": true },
     "remember":  { "enabled": true },
     "toolbox":   { "enabled": true },
@@ -231,8 +234,13 @@ document is JSON here; the same keys in YAML are the same config.
     "wire":      { "enabled": true, "cap": 2048, "requireUnsaid": true, "raw": false },
     "log":       { "enabled": true, "path": "[dist-dir]/log.md" },   // append-only; off = verdicts are printed, not recorded
     "escalation":{ "enabled": true, "maxRetries": 2 },// a failed verify retries, then @? one hop up
-    "budget":    { "contextTokens": 200000, "stressTokens": 180000, "steps": 40, "minutes": 60 },
-    "doomLoop":  { "enabled": false, "threshold": 3 } // LATER
+    "budget":    { "contextTokens": 200000, "stressTokens": 180000, "steps": 40, "minutes": 60, "salvageTokens": 4096 },   // salvageTokens: a court's pre-timeout journalise turn — at T-grace the body is resumed from its own transcript with "spend this on @U/@F only"; 0 = default, negative = die silent
+    "doomLoop":  { "enabled": false, "threshold": 3 },// LATER
+    "stress":    { "escalateAt": 5, "maxConsults": 3 }// the council: at strain ≥ escalateAt a failing/stalled Court's report
+                                                      // carries a council warrant its dispatcher must answer (@INSTRUCT /
+                                                      // @SPLIT / @ESCALATE, sideways counsel allowed); past maxConsults the
+                                                      // run hardens @S ESCALATE and rises to the human; escalateAt 0/-1 = off
+                                                      // (strain = the run's sent-backs + 1 per unlanded run, per body, clear on clean)
   },
 
   // ---------------------------------------------------------------- memory tiers

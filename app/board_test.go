@@ -22,7 +22,7 @@ models: {default: mock/m, offices: {great-sage: court/c}}
 providers:
   mock: {enabled: true, script: .isekai/tmp/session.json}
   court: {type: mock, script: .isekai/tmp/court.json}
-tools: {bash: {sandbox: none}}
+tools: {bash: {sandbox: none}, dispatch: {strictFlow: false}}
 toolbox: {enabled: false}
 ui: {board: {autostart: true, port: 0}}
 `)

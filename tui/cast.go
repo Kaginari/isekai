@@ -27,6 +27,8 @@ type icon struct {
 var isekaiIcons = map[string]icon{
 	"slime": {frames: [2][]string{{"..BB..", ".BBBB.", "BEBBEB", "SSSSSS"}, {"......", ".BBBB.", "BEBBEB", "SSSSSS"}},
 		palette: map[byte]string{'B': "#58b7f0", 'E': "#0d1b2a", 'S': "#2a78b8"}},
+	"rimuru": {frames: [2][]string{{"..BB..", ".BBBB.", "BEBBEB", "SSSSSS"}, {"......", ".BBBB.", "BEBBEB", "SSSSSS"}},
+		palette: map[byte]string{'B': "#d4af37", 'E': "#1a1033", 'S': "#8a7020"}},
 	"orc": {frames: [2][]string{{".DDDD.", "GRGGRG", "GGGGGG", "GWGGWG"}, {".DDDD.", "GGGGGG", "GGGGGG", "GWGGWG"}},
 		palette: map[byte]string{'G': "#6fae5a", 'D': "#3f6f33", 'R': "#e06c5f", 'W': "#f2efe6"}},
 	"elf": {frames: [2][]string{{".YYYY.", "YKKKKY", "PEKKEP", ".KKKK."}, {".YYYY.", "YKKKKY", "PKKKKP", ".KKKK."}},
@@ -55,7 +57,7 @@ func (t Theme) Icon(dist, rank string, frame int) []string {
 	}
 	key := rank
 	switch rank {
-	case "rimuru", "":
+	case "":
 		key = "slime"
 	case "high-orc":
 		key = "orc"
@@ -227,7 +229,8 @@ func (l *bodyLog) step(t ToolView, end bool) {
 
 type bodyView struct {
 	sel    int
-	scroll int // lines up from the bottom; 0 follows the tail
+	scroll int  // lines up from the bottom; 0 follows the tail
+	pipe   bool // i: a line is being typed for the selected body's inbox
 }
 
 // bodies are the session and every Court seen, in order.
@@ -256,6 +259,29 @@ func (m *Model) openBodies() tea.Cmd {
 
 func (m *Model) bodiesKey(k tea.KeyPressMsg) tea.Cmd {
 	v, n := m.bview, len(m.bodies())
+	if v.pipe {
+		switch k.String() {
+		case "esc":
+			v.pipe = false
+			m.input.Reset()
+			return nil
+		case "enter":
+			text := strings.TrimSpace(m.input.Value())
+			m.input.Reset()
+			v.pipe = false
+			if text == "" {
+				return nil
+			}
+			if bs := m.bodies(); v.sel < len(bs) {
+				m.say(m.host.Pipe(bs[v.sel], text))
+			}
+			return nil
+		default:
+			var cmd tea.Cmd
+			m.input, cmd = m.input.Update(k)
+			return cmd
+		}
+	}
 	switch k.String() {
 	case "esc", "ctrl+t", "q", "ctrl+c":
 		m.bview = nil
@@ -267,6 +293,11 @@ func (m *Model) bodiesKey(k tea.KeyPressMsg) tea.Cmd {
 			m.enqueue(printItem{text: b})
 		}
 		m.held = nil
+	case "i":
+		// pipe a line into the selected body's inbox: it lands at its next turn boundary
+		// (never mid-turn — the FIFO contract), and a done body refuses at the host
+		v.pipe = true
+		m.input.Reset()
 	case "tab", "right", "l":
 		v.sel, v.scroll = (v.sel+1)%n, 0
 	case "shift+tab", "left", "h":
@@ -337,12 +368,19 @@ func (m *Model) bodiesView() string {
 		view[i] = ansi.Truncate(view[i], w, "…")
 	}
 	rule := t.border.Render(strings.Repeat("─", w))
-	keys := " tab next body · ↑↓ scroll · end follow · esc back"
+	keys := " tab next body · ↑↓ scroll · i pipe a line · end follow · esc back"
+	if v.pipe {
+		keys = " type — it lands in " + sel + "'s inbox · enter sends · esc cancels"
+	}
 	more := ""
 	if v.scroll > 0 {
 		more = fmt.Sprintf("%d lines below ", v.scroll)
 	}
-	return strings.Join(append(append([]string{head, rule, card[0], card[1], rule}, view...), padBetween(t.dim.Render(keys), t.dim.Render(more), w)), "\n")
+	lines := append(append([]string{head, rule, card[0], card[1], rule}, view...), padBetween(t.dim.Render(keys), t.dim.Render(more), w))
+	if v.pipe {
+		lines = append(lines, t.border.Render("› ")+sel+" ▏ "+m.input.View())
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m *Model) rankOf(body string) (rank, state string) {
@@ -425,14 +463,20 @@ func orStr(s, def string) string {
 }
 
 // statusLines is the spinner as the cast draws it: the body's icon beside the verb, its name and
-// state under it.
+// state under it. While one Court runs it wears that Court's face; the session's face otherwise,
+// the gate's at the gate.
 func (m *Model) statusLines(spinLine string) string {
 	rank := m.words.Session()
+	who := m.words.Session()
 	if strings.HasPrefix(m.state, "gating") {
 		rank = gateRank(m.words.Dist)
+		who = rank
+	} else if c := m.foregroundCourt(); c != nil {
+		rank = c.Rank
+		who = c.Name
 	}
 	ic := m.theme.Icon(m.words.Dist, rank, m.shimmer/4)
-	sub := m.words.Session() + " · " + orStr(m.state, "thinking")
+	sub := who + " · " + orStr(m.state, "thinking")
 	if m.state == "gating" {
 		sub = rank + " · the " + m.words.Gate + " weighs the turn's writes"
 	}
@@ -444,6 +488,22 @@ func (m *Model) statusLines(spinLine string) string {
 		sub += fmt.Sprintf(" · %d %s running — ctrl+t to watch", n, word)
 	}
 	return ic[0] + " " + spinLine + "\n" + ic[1] + " " + m.theme.dim.Render(sub)
+}
+
+// foregroundCourt is the Court whose face the spinner wears: exactly one live Court, the live
+// one that most recently reported; nil when none or when several run at once.
+func (m *Model) foregroundCourt() *CourtView {
+	var live *CourtView
+	n := 0
+	for _, name := range m.courtSeq {
+		if c := m.courts[name]; c != nil && c.State != "done" {
+			live, n = c, n+1
+		}
+	}
+	if n != 1 {
+		return nil
+	}
+	return live
 }
 
 func (m *Model) liveCourts() int {

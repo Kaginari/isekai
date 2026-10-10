@@ -33,7 +33,8 @@ func ranksFor(cfg *config.Config, lex world.Lexicon) world.Ranks {
 	for _, r := range cfg.Ranks() {
 		name := canonRank(r.Name)
 		wr := world.Rank{Name: name, ReportsTo: canonRank(r.ReportsTo), Job: r.Job, Authors: r.Authors, HoldsGate: r.HoldsGate, Sideways: r.Sideways,
-			Body: r.Body, Office: r.Office, Tools: append([]string(nil), r.Tools...), Base: canonRank(r.AscendsFrom)}
+			Body: r.Body, Office: r.Office, Tools: append([]string(nil), r.Tools...), Base: canonRank(r.AscendsFrom), Layer: r.Layer,
+			DivineRules: append([]string(nil), r.DivineRules...), AscendsWhen: r.AscendsWhen}
 		if d, ok := def[name]; ok && r.Builtin {
 			wr.Dir, wr.Prefix = d.Dir, d.Prefix
 			if wr.ReportsTo == "" {
@@ -135,10 +136,10 @@ func relOrAbs(root, p string) string {
 // hookOptions is config's word on the world's hooks.
 func hookOptions(cfg *config.Config, rules []world.Rule) world.HookOptions {
 	h := world.DefaultHooks()
-	h.Recall = world.RecallOptions{Enabled: cfg.Memory.Long.Enabled || cfg.Toolbox.Enabled, Memory: cfg.Memory.Long.Enabled, Toolbox: cfg.Toolbox.Enabled, K: cfg.Memory.Recall.K, Budget: cfg.Toolbox.BudgetTokens}
+	h.Recall = world.RecallOptions{Enabled: cfg.Memory.Long.Enabled || cfg.Toolbox.Enabled, Memory: cfg.Memory.Long.Enabled, Toolbox: cfg.Toolbox.Enabled, K: cfg.Memory.Recall.K, Budget: cfg.Toolbox.BudgetTokens, RebuildOnStale: cfg.Memory.Long.RebuildOnStale}
 	h.Record = world.RecordOptions{Enabled: cfg.Memory.Shared.World.Enabled, Unsaid: cfg.Memory.Shared.World.Enabled, Landed: false}
 	h.Gate = world.GateOptions{Enabled: cfg.Law.Gate.Enabled, RightAuthor: cfg.Law.Gate.RightAuthor, TraitsHold: cfg.Law.Gate.TraitsHold, DutiesDone: cfg.Law.Gate.DutiesDone,
-		DocTruthful: cfg.Law.Gate.DocTruthful || cfg.Law.Vitality.Enabled, Log: cfg.Law.Log.Enabled, Retries: cfg.Law.Gate.Retries, TestsIntact: cfg.Law.Gate.TestsIntact}
+		DocTruthful: cfg.Law.Gate.DocTruthful || cfg.Law.Vitality.Enabled, Log: cfg.Law.Log.Enabled, Retries: cfg.Law.Gate.Retries, TestsIntact: cfg.Law.Gate.TestsIntact, Timeout: cfg.Law.Gate.VerifyTimeout.D()}
 	for _, ck := range cfg.Checks("", "") {
 		h.Gate.Checks = append(h.Gate.Checks, world.Check{Name: ck.ID, Command: ck.Command, Timeout: ck.Timeout, Scope: ck.Scope})
 	}
@@ -156,7 +157,7 @@ func hookOptions(cfg *config.Config, rules []world.Rule) world.HookOptions {
 		}
 	}
 	h.Prompt = world.PromptOptions{Crest: cfg.Law.Crest.Enabled, Identity: true, Ontology: world.OntologyOptions{Enabled: cfg.Ontology.Enabled, Budget: cfg.Ontology.ProjectBudgetTokens},
-		Instructions: cfg.Discovery.Instructions.Enabled, Creature: true, Memory: cfg.Memory.Long.Enabled || cfg.Memory.Shared.World.Enabled}
+		Instructions: cfg.Discovery.Instructions.Enabled, Creature: true, Memory: cfg.Memory.Long.Enabled || cfg.Memory.Shared.World.Enabled, SelfState: cfg.Law.Guts.Enabled}
 	for _, r := range cfg.Rules {
 		if r.Text != "" {
 			h.Prompt.Rules = append(h.Prompt.Rules, world.Rule{Text: r.Text, Scope: r.Scope})
@@ -185,6 +186,26 @@ func compactOptions(cfg *config.Config, window int) compact.Options {
 func lawBudget(cfg *config.Config, maxTokens int) loop.Budget {
 	return loop.Budget{Steps: cfg.Law.Budget.Steps, Minutes: cfg.Law.Budget.Minutes, Retries: cfg.Law.Escalation.MaxRetries, MaxTokens: maxTokens,
 		Context: instrument.Budget{Limit: cfg.Law.Budget.ContextTokens, Stress: cfg.Law.Budget.StressTokens}}
+}
+
+// lawGuts: the loop's per-step value sense, shared by throne and court children (N13 evening
+// audit: children ran gutless — the flailing slime got zero in-band nudges). nil = off.
+func lawGuts(cfg *config.Config) *loop.Guts {
+	if !cfg.Law.Guts.Enabled {
+		return nil
+	}
+	return &loop.Guts{Window: cfg.Law.Guts.Window, Floor: cfg.Law.Guts.Floor,
+		BenchThrashVisits: cfg.Law.Guts.BenchThrashVisits, DigestEvery: cfg.Law.Guts.DigestEvery}
+}
+
+// lawDoom: the thoughts-stress auto-relief ladder (law.yaml doomLoop). A body's guts spoke
+// streak past threshold ends its run CHECKPOINT with the three arms (retire / split /
+// genome-shift) named on the wire — relief is automatic, the dispatcher picks the arm. 0 = off.
+func lawDoom(cfg *config.Config) int {
+	if !cfg.Law.DoomLoop.Enabled {
+		return 0
+	}
+	return cfg.Law.DoomLoop.Threshold
 }
 
 // router resolves and meters the provider for a world route (dispatch or session).

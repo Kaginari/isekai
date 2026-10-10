@@ -8,6 +8,136 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The TUI rail scrolls and folds, and the footer counts its tokens.** The side rail gains
+  its own scroll offset — the wheel over the rail column walks it clamped to the content,
+  with ▲▼ edge markers when more rides off-screen (f2ce295) — and the plan/courts/files rail
+  cards collapse to a one-line `+<glyph> <title> (<count>)` header via alt+p/c/f or a click
+  on the header border, the session card exempt; all three bindings join the Shortcuts
+  overlay (0fdfb9f). The footer reads `ctx ▮▮▮▯ 42% · 84k/200k`: FooterView gains
+  `CtxTokens`/`CtxLimit`, the humanized context token counts gated at width ≥ 88 while the
+  meter keeps its ≥ 72 gate, and zero values render byte-identical to before (cbb181d);
+  `app/tui.go` hoists `readingOf` out of the footer closure and fills both fields from
+  `r.Tokens`/`r.Limit` (4d08c4c).
+
+- **The web answers gates in every run mode (webBus.answerable from birth).** The browser
+  dashboard now mints a choice id for every gate ask whatever the front-end — dash-only,
+  TUI with the board up, or the container — so approvals answer from the web everywhere.
+  First answer wins across surfaces: whichever of the terminal or the browser answers first
+  lands, and the loser gets the existing "answered elsewhere" refusal instead of a hang.
+
+- **Open plans block a clean close (plan conformance, the closing check's second leg).** The loop
+  gains `PlanOpen`, wired to the body's deck: the closing check's re-ask names the open item, and a
+  body that closes anyway gets the hole on the report — `@? closed with an open plan: …`.
+
+- **The closing check (`law.closingCheck`).** When enabled, a body's run that closes with no tool
+  call is sent back once ("is the ask applied end-to-end?") before it may close — the bench-class
+  failure it catches is a mid-plan close ("let me merge…" with the merge never run). Off by
+  default; the bench config enables it (`bench/configs/gateway.yaml`).
+
+- **The forge (`@FORGE` + `/forge`).** A run that proves a repeating need may carry its draft on
+  the report's wire — `@FORGE tool:<name> | <summary> | <argv>` (argv holes `{{param}}` declare
+  as string params) or `@FORGE skill:<name> | <text>`. Drafts ride up unminted and land as
+  shared notes tagged `forge` on the record beat; the desk lists them (`/forge`) and mints by
+  index (`/forge mint <n>`) — a skill lands as a world note, a tool lands as a `tools.custom`
+  patch that reloads live. Minted drafts mark themselves (`forge-minted`); nothing mints twice,
+  and an existing `tools.custom` name is never overwritten.
+
+- **The container's trust (law.humanGate.trustContainer).** Inside the harness's own runtime
+  container — `<PREFIX>CONTAINERED=1`, set only by the harness's own container argv, spoofable by
+  no body — every action class reads as pre-approved at the Gate: the sandbox is the membrane,
+  so outward and destructive stop asking. The guard denylist still refuses first; the world dir
+  mounts read-write inside the sandbox or out.
+
+- **The throne stays free (tools.dispatch.sessionBackground).** With `tools.dispatch.background`
+  on, the session's own dispatches default to background — rimuru keeps talking while Courts
+  ride on; each report wakes the session. A commission keeps its word: `background: false`
+  still rides the foreground. One layer down, a Court's own dispatches stay foreground by canon.
+
+- **The bodies pane pipes (ctrl+t → i).** A body selected in the pane takes a typed line into
+  its inbox — it lands at the body's next turn boundary (the FIFO contract, never mid-turn) and
+  a done body refuses: its context died with its task. esc cancels a pipe in the making.
+
+- **The council (law.stress).** Governance strain is now counted and answered: the loop's
+  turn-end surface carries `Strains` (failed acts standing + gate re-asks + wire re-asks), and
+  the dispatcher keeps a strain ledger per body. A Court that never lands — loop Fail or
+  Checkpoint, or its own wire verdict reads FAIL/ESCALATE — accrues strain, and past
+  `law.stress.escalateAt` (default 5) its report carries a **council warrant** the dispatcher
+  answers as its manager: `@INSTRUCT` folds context into the re-commissioned ask, `@SPLIT`
+  narrows to one commission per slice, `@ESCALATE` rides the hole up — sideways counsel is
+  named lawful in the warrant's text. The warrants a body carries are bounded by
+  `law.stress.maxConsults` (default 3); past the bound the report hardens to `@S ESCALATE` and
+  rises to the human. A clean landing clears the ledger. The body's own wire verdict drives —
+  a court that lands its run cleanly but says `@S FAIL` is counted as failing (the Law-9
+  reading, coded end-to-end now: the journal's status is lifecycle, the body's @S is verdict).
+
+- **The model resolver's pin law.** A pin set in config now FORCES: `config.ResolveModel`
+  resolves creature → rank → office → task → default (was: office ahead of rank), so
+  `models.ranks.<race>` or `ranks.<race>.model` outrules the office hat the commission
+  named. Only an unpinned body takes the lens of the ask — and the binary's own tasks
+  (drain/gate/log/bench) sit below offices, routable per task. Doubly-locked by
+  `TestModelsResolution`'s collision row: a pinned race rides its pin even on a differently
+  lensed commission.
+
+- **Nested dispatch steps land their Courts, coded.** A dispatch step's start seeds the
+  Court card's ask and its end lands the card with the wire report at EVERY depth — a Court
+  dispatched by a Court is no longer invisible to the card flow: the host sees the child's
+  steps only as its parent's, so `tuiHost.observe` carries the seed/land handling at the top,
+  before the session-only branch. The parent's own log lines ride along unchanged.
+
+- **Court-card exit-verdict law (Leg 2).** A court card's face now prints the run journal's
+  exit verdict — `FAIL · 2m35s` under a failed journal — never the bare lifecycle word `done`.
+  `LiveBody.Exit` is populated at `Court.Finish` from the wire report's first `@S` token; the
+  dispatch tool re-stamps `rep.Status` as the payload's first `@S` line so a renderer that
+  reads only the returned string can never show a collapsed "done" over a FAILed journal. The
+  lifecycle word moves to the ask-line tooltip. (`nil` derailed the 2026-09-28 session: Law 9.)
+
+### Fixed
+
+- **The zombie Court card.** A Court that closed "done" without its wire report ever reaching
+  the model (dispatched by a Court, a drained `@%`, an unparseable or failed report) kept its
+  card in the live area forever, the clock recomputed on every frame — an orc card read
+  `DONE · 15m0s` when its own budget clock had axed it. Coded at the seams, never prompted:
+  `Render` stops recomputing a done Court's elapsed; the turn's end sweeps every
+  done-but-unlanded card into exactly one tombstone; and a Court event closes the body pane's
+  state too, so no pane outlives its card reading "thinking".
+
+- `TestREPLLive`, `world.TestDispatch`, and `tui.TestBlocksGolden` walk again — the goldens
+  now carry the new face stamps; the dispatch asserts expect the stamped `@S DONE`.
+
+- **Per-section local config.** The local layer mirrors one-file-per-section: beside (or
+  instead of) `.isekai/config.local.yaml`, a `<section>.local.yaml` (`.yml`/`.json`) holds one
+  top-level section's value, loads after `config.local.yaml`, wins there, and keeps its own
+  file for `config explain`; two local files for one section are a load error, mirroring the
+  section-file rule. Machine-local by canon: `*.local.yaml` belongs in the world's gitignore.
+- **`isekai config scaffold [--check]`** — the local-layer mint: writes (never overwrites)
+  `config.local.yaml` and one commented, default-valued `<section>.local.yaml` per section
+  into the world dir, appends `*.local.yaml` to the world's `.gitignore`; `--check` writes
+  nothing and answers on the wire what drifted: unknown local sections/keys as `@?`, defaults
+  sections with no local file yet as `@F`. File names and keys come from the running binary's
+  own defaults, so re-running the command syncs the scaffold when canon moves.
+
+- **The plan deck is native.** A new world tool, `plan`: every planner-level body (rimuru, elf,
+  orc, kijin, ascended) keeps a todo deck under the plan dir — one line per slice with the rank or
+  zone it belongs to (`who`), exactly one `in_progress`; `tick` moves a line, `read` reads another
+  body's deck, all machine-local under tmp. The elf's rank text now codes the chain: write the
+  deck, map lines to owning domains, dispatch — orcs in parallel (`background: true`) when the
+  slices are independent; the orc's text codes the verify-first: the slice's checks are written
+  before its slime is ordered.
+
+## [0.3.0] - 2026-09-28
+
+### Highlights
+
+**The world versions and defends its own seat.** A world root bearing `.isekai/dimension.yaml`
+outside any work-tree is versioned `git init -b main` once at open — a world is born under git, by
+the harness itself. And the gate now attributes the throne's own seat files (the dimension manifest
+and the law doc) to Rimuru: before, a gate-holder whose territory reached `.isekai/` silently owned
+them through Owner's fallback, so Rimuru's lawful relocation of the manifest failed right-author and
+Vitality — demanding an orc's README for the throne's own file. The exemption mirrors the creature
+doc rule and polices non-throne bodies exactly as before.
+
+### Added
+
 - **Web UIs from one token system.** A built-in `ui` Mind (method + design craft, offline), and
   `isekai ui init|scan|check`: a foundation (tokens in three tiers, 13 OKLCH palettes checked for
   WCAG AA, layout primitives, cascade layers, two example components), a derived legend under
@@ -25,6 +155,17 @@ All notable changes to Isekai are recorded here. The format follows
   sketches a colony from the tree with no model; complex runs a founding session that reads all the
   code and hires the team — elves, orcs, slimes, a kijin, minds and bodies, relations, verify lines
   that pass — until `onto check` is clean.
+- **Dimension self-init.** `isekai/world/dimension.go`: `LoadDimension` parses
+  `.isekai/dimension.yaml`, and `GitSelfInit` versions a manifest-bearing root outside any
+  work-tree (`git init -b main`, once, at open) — malformed manifests are a note, never a failed
+  open; the harness never commits nor pushes.
+
+### Fixed
+
+- **Throne-seat attribution at the gate.** The gate's right-author and Vitality checks exempt the
+  throne's seat files (`.isekai/dimension.yaml`, `.isekai/isekai.md`) when the throne authors them —
+  Owner's gate-holder fallback no longer lets an orc whose territory is `.isekai/` claim the throne's
+  own files. A non-throne body writing them still fails right-author.
 
 ### Removed
 

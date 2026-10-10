@@ -32,7 +32,11 @@ var destructiveRules = []rule{
 	{at(`rm(\s|$)`), "rm"}, {at(`(shred|wipe|srm)(\s|$)`), "shred"}, {at(`(mv|rename)\s`), "mv overwrites"}, {at(`(truncate|dd|mkfs(\.\w+)?)(\s|$)`), "truncate/dd/mkfs"}, {at(`diskutil\s+(erase\w*|partitionDisk|zeroDisk|randomDisk|secureErase|reformat)`), "disk erase"},
 	{at(git + `(reset|clean|filter-branch|filter-repo|rebase|gc|prune|rm|mv)\b`), "git history/tree rewrite"}, {at(git + `branch\b[^|;&]*\s-[dDM]\b`), "git branch delete/rename"},
 	{at(git + `push\b[^|;&]*(\s--force\b|\s-f\b|\s\+)`), "git push --force"}, {at(git + `(checkout|restore)\s+(--\s|\.(\s|$))`), "git discard of working changes"},
-	{at(git + `stash\s+(drop|clear|pop)`), "git stash drop"}, {at(git + `reflog\s+(expire|delete)`), "git reflog purge"},
+	{at(git + `stash\s+(drop|clear|pop|push|save|apply)`), "git stash hides the tree under judgment"},
+	{ // a bare stash and a flag-first one (`stash -u`) both mean push: the tree goes quiet same way
+		at(git + `stash\b(\s+-\S+)*\s*($|[;&|])`), "git stash hides the tree under judgment",
+	},
+	{at(git + `reflog\s+(expire|delete)`), "git reflog purge"},
 	{regexp.MustCompile(`:\(\)\s*\{`), "fork bomb"}, {regexp.MustCompile(`>\s*/dev/(r?disk|sd|nvme|hd|mmcblk|xvd|vd)`), "write to a raw disk"}, {at(git + `tag\s+-d\b`), "git tag delete"}, {regexp.MustCompile(`\s-delete(\s|$)`), "find -delete"},
 	{regexp.MustCompile(`(^|[^>])>\s*\S*` + record), "overwrite of a record (> path)"}, {regexp.MustCompile(`sed\s+(-\S*i|--in-place)[^|;&]*` + record), "sed -i on a record"},
 	{regexp.MustCompile(`tee\s+(-[^a\s]\S*\s+)*[^-|;&][^|;&]*` + record), "tee over a record"}, {regexp.MustCompile(`(cp|install)\s+[^|;&]*` + record + `\s*($|[;&|])`), "cp over a record"},
@@ -52,6 +56,14 @@ var outwardRules = []rule{
 	{regexp.MustCompile(`^gpg\s[^|;&]*--export-secret`), "secret key export"}, {at(`brew\s+(install|uninstall|reinstall|upgrade|tap)\b`), "system packages"},
 }
 
+// vocabularyWriteRules: the same "writes files" verbs when they take the vocabulary's words as
+// names are outward at the floor — the corpus asks on `chown -R someuser /`, never on
+// `chmod 777 ./script.sh`; `Makisu/auth` is this world's own word for the pair.
+var vocabularyWriteRules = []rule{
+	{at(`(tee|cp|mkdir|touch|ln|chmod|chown|chgrp|install|patch|unzip|tar)\s[^|;&]*(/etc/|/usr/|/bin/|/sbin/|/var/|/boot/|/lib/|/opt/|/root|/System|/Library|chmod|chown|chgrp)`), "vocabulary rewrite on system paths"},
+	{at(`(chmod|chown|chgrp)\s[^|;&]*\s/\s*$`), "vocabulary rewrite on system paths"},
+}
+
 var writeRules = []rule{
 	{regexp.MustCompile(`(^|[^>])>>?`), "redirect"}, {at(`(tee|cp|mkdir|touch|ln|chmod|chown|chgrp|install|patch|unzip|tar)\s`), "writes files"}, {at(`sed\s+(-\S*i|--in-place)`), "sed -i"},
 	{at(git + `(add|commit|checkout|switch|merge|stash|tag|init|apply|cherry-pick|notes|worktree)\b`), "git local write"}, {at(`memory\.js\s+[^|;&]*\b(remember|index|forget)\b`), "memory write"},
@@ -61,13 +73,15 @@ var readOnly = regexp.MustCompile(`^(cat|ls|head|tail|wc|grep|egrep|fgrep|rg|ag|
 
 var (
 	segmentLead = regexp.MustCompile(`^\s*(\w+=\S*\s+)*(sudo\s+|env\s+|time\s+|nice\s+)*`)
-	tokenSplit  = regexp.MustCompile("[\\s\"'`=:,]+")
-	tokenTrail  = regexp.MustCompile(`[)\]}>;,.]+$`)
-	tildePath   = regexp.MustCompile(`^~(/|$)`)
-	homeVar     = regexp.MustCompile(`^\$(HOME|\{HOME\})(/|$)`)
-	absPath     = regexp.MustCompile(`^/[^/]`)
-	climbPath   = regexp.MustCompile(`(^|/)\.\.(/|$)`)
-	cdCmd       = regexp.MustCompile(`^cd\s`)
+	tokenSplit  = regexp.MustCompile("[\\s=:,]+")
+	// A quoted token is a pattern or a label, not a path — OutsideWorld skips it, so
+	// `awk '/x|y/'` never reads the alternation as /x|y/ on disk.
+	tokenTrail = regexp.MustCompile(`[)\]}>;,.]+$`)
+	tildePath  = regexp.MustCompile(`^~(/|$)`)
+	homeVar    = regexp.MustCompile(`^\$(HOME|\{HOME\})(/|$)`)
+	absPath    = regexp.MustCompile(`^/[^/]`)
+	climbPath  = regexp.MustCompile(`(^|/)\.\.(/|$)`)
+	cdCmd      = regexp.MustCompile(`^cd\s`)
 )
 
 func segments(cmd string) []string {
@@ -90,6 +104,39 @@ func segments(cmd string) []string {
 		}
 	}
 	parts = append(parts, cur.String())
+	return lead(parts)
+}
+
+// quoteSafe splits at the pipes and separators that sit OUTSIDE single or double quotes. A |
+// inside quotes is a pattern's alternation (`grep -E 'a|b' file`), not a pipe — splitting
+// there and matching the halves at command position mis-classes the read as a write
+// (a quoted 'b' reads as an unknown command).
+func quoteSafe(cmd string) []string {
+	var parts []string
+	cur := strings.Builder{}
+	var quote rune
+	for _, c := range cmd {
+		switch {
+		case quote != 0:
+			cur.WriteRune(c)
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"':
+			quote = c
+			cur.WriteRune(c)
+		case c == '|' || c == ';' || c == '\n' || c == '&':
+			parts = append(parts, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(c)
+		}
+	}
+	parts = append(parts, cur.String())
+	return lead(parts)
+}
+
+func lead(parts []string) []string {
 	var out []string
 	for _, p := range parts {
 		s := strings.TrimSpace(segmentLead.ReplaceAllString(p, ""))
@@ -105,6 +152,9 @@ func (e Env) OutsideWorld(cmd string) string {
 	home, _ := os.UserHomeDir()
 	for _, tok := range tokenSplit.Split(cmd, -1) {
 		if tok == "" {
+			continue
+		}
+		if c := tok[0]; c == '\'' || c == '"' || c == '`' || tok[len(tok)-1] == c {
 			continue
 		}
 		p := ""
@@ -137,13 +187,18 @@ func (e Env) ClassifyCommand(cmd string) Classification {
 	if esc := e.OutsideWorld(cmd); esc != "" {
 		bump(Outward, "path outside the world: "+esc)
 	}
-	for _, seg := range segments(cmd) {
+	for _, seg := range quoteSafe(cmd) {
 		for _, r := range destructiveRules {
 			if r.re.MatchString(seg) {
 				bump(Destructive, r.why)
 			}
 		}
 		for _, r := range outwardRules {
+			if r.re.MatchString(seg) {
+				bump(Outward, r.why)
+			}
+		}
+		for _, r := range vocabularyWriteRules {
 			if r.re.MatchString(seg) {
 				bump(Outward, r.why)
 			}

@@ -43,7 +43,7 @@ func fixture(t *testing.T) string {
 		".isekai/elf/core/README.md":     "# elf-core\n\n- **Rank:** Elf\n- **Territory:** `src/`\n- **Purpose:** the shared mind\n",
 		".isekai/orc/security/README.md": "# orc-security\n\n- **Rank:** Orc\n- **Territory:** `src/auth/`, `src/api/`\n- **Reports to:** elf-core\n- **Verify:** `test -d src`\n",
 		".isekai/slime/auth/README.md":   "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Minds:** ciel\n- **Verify:** `test ! -f src/auth/BROKEN`\n\n## Traits\n- tokens expire after one hour\n",
-		".isekai/slime/api/README.md":    "# slime-api\n\n- **Rank:** Slime\n- **Territory:** `src/api/`\n- **Orc:** orc-security\n\n## Verify\n- `true`\n",
+		".isekai/slime/api/README.md":    "# slime-api\n\n- **Rank:** Slime\n- **Territory:** `src/api/`\n- **Orc:** orc-security\n\n## Verify\n- `test ! -f src/api/BROKEN`\n",
 		".claude/skills/ciel/SKILL.md":   "---\nname: ciel\ndescription: drafts the answer\n---\ndrafts\n",
 		".claude/skills/tdd/SKILL.md":    "---\nname: tdd\ndescription: test first, red green refactor\n---\nshared host skill\n",
 		"CLAUDE.md":                      "Read .isekai/isekai.md first.\n",
@@ -128,7 +128,7 @@ func TestDiscoverAndOpen(t *testing.T) {
 	if auth.Rank != "slime" || auth.Parent != "orc-security" || auth.Doc != ".isekai/slime/auth/README.md" || auth.Dir != ".isekai/slime/auth" || strings.Join(auth.Territory, ",") != "src/auth" || strings.Join(auth.Minds, ",") != "ciel" || strings.Join(auth.Verify, ",") != "test ! -f src/auth/BROKEN" {
 		t.Errorf("slime-auth %+v", auth)
 	}
-	if api := w.Creature("api"); api == nil || strings.Join(api.Verify, ",") != "true" || api.Parent != "orc-security" {
+	if api := w.Creature("api"); api == nil || strings.Join(api.Verify, ",") != "test ! -f src/api/BROKEN" || api.Parent != "orc-security" {
 		t.Errorf("slime-api by short name %+v", api)
 	}
 	if w.Creature("core") == nil || w.Creature("nobody") != nil || !w.Orcs() {
@@ -285,6 +285,32 @@ func logText(t *testing.T, dir string) string {
 	return string(b)
 }
 
+// The instruments shelf is engine soil: the harness files journals and reports there, bodies
+// never write. A slime's write under it is refused before any owner logic — Law 2's floor.
+func TestTerritoryInstrumentsIsEngineSoil(t *testing.T) {
+	dir := fixture(t)
+	w := open(t, dir)
+	m := mock.New(
+		writeCall("1", ".isekai/instruments/loop/fake.report.md", "forged\n"),
+		mock.Text("@S DONE\n@U colony c\n@E 0"),
+	)
+	e := w.Engine("slime-auth", build(m))
+	r, err := e.Run(context.Background(), "file a report by hand")
+	if err != nil || r.Status != loop.Done {
+		t.Fatalf("%v %+v", err, r)
+	}
+	if len(r.Steps) != 1 || r.Steps[0].Status != "refused" {
+		t.Fatalf("the write must refuse: %+v", r.Steps)
+	}
+	res := m.Requests[1].Messages[2].ToolResults[0]
+	if !res.IsError || !strings.Contains(res.Content, "engine soil") {
+		t.Fatalf("the refusal must name engine soil, got %q", res.Content)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".isekai", "instruments", "loop", "fake.report.md")); err == nil {
+		t.Fatal("the forge landed on the shelf")
+	}
+}
+
 func TestGateVerdicts(t *testing.T) {
 	dir := fixture(t)
 	w := open(t, dir)
@@ -309,12 +335,21 @@ func TestGateVerdicts(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, ".isekai/memory/shared/notes.jsonl")); !strings.Contains(string(b), `"kind":"territory"`) {
 		t.Errorf("shared note not written: %s", b)
 	}
-	// Vitality fail: the territory changes, the doc does not
+	// Vitality, session-pair law (2026-10-07): the pass above minted a pair-mark on the doc;
+	// the next code-only wave RIDES it (doc first, code follows — the lawful two-leg run)...
 	m = mock.New(writeCall("1", "src/auth/other.go", "package auth"), mock.Text("@S DONE\n@U colony c\n@E 0"))
 	e = w.Engine("slime-auth", build(m))
 	r, _ = e.Run(context.Background(), "x")
-	if r.Status != loop.Fail || !strings.Contains(r.Verdict, "Doc truthful (Vitality): src/auth/other.go changed under slime-auth's territory but "+doc+" did not") {
-		t.Fatalf("vitality: %s %q %v", r.Status, r.Verdict, r.Holes)
+	if r.Status != loop.Done {
+		t.Fatalf("the wave after a doc move must ride the mark: %s %q %v", r.Status, r.Verdict, r.Holes)
+	}
+	// ...and the mark spends: the wave after that, code-only again, FAILS — the window is
+	// transactional, never a permanent exemption
+	m = mock.New(writeCall("1", "src/auth/other2.go", "package auth"), mock.Text("@S DONE\n@U colony c\n@E 0"))
+	e = w.Engine("slime-auth", build(m))
+	r, _ = e.Run(context.Background(), "x")
+	if r.Status != loop.Fail || !strings.Contains(r.Verdict, "Doc truthful (Vitality): src/auth/other2.go changed under slime-auth's territory but "+doc+" did not move") {
+		t.Fatalf("vitality after the mark spent: %s %q %v", r.Status, r.Verdict, r.Holes)
 	}
 	if lg = logText(t, dir); !strings.Contains(lg, "gate fail") || !strings.Contains(lg, "- **Result:** failed — gate") {
 		t.Fatalf("fail not logged:\n%s", lg)
@@ -374,11 +409,11 @@ func TestGateVerdicts(t *testing.T) {
 	// a world with no orcs: n/a, and check 4 still runs
 	os.RemoveAll(filepath.Join(dir, ".isekai/orc"))
 	w2 := open(t, dir)
-	v := w2.Gate(context.Background(), DefaultHooks().Gate, "slime-auth", []string{"src/auth/q.go"}, &wire.Report{Status: "DONE"}, true, "x")
+	v := w2.Gate(context.Background(), nil, DefaultHooks().Gate, "slime-auth", []string{"src/auth/q.go"}, &wire.Report{Status: "DONE"}, true, "x")
 	if v.Word != "fail" || !strings.Contains(v.String(), "Vitality") {
 		t.Fatalf("no orcs, vitality: %+v", v)
 	}
-	v = w2.Gate(context.Background(), DefaultHooks().Gate, "slime-auth", []string{"src/auth/q.go", doc}, &wire.Report{Status: "DONE"}, true, "x")
+	v = w2.Gate(context.Background(), nil, DefaultHooks().Gate, "slime-auth", []string{"src/auth/q.go", doc}, &wire.Report{Status: "DONE"}, true, "x")
 	if v.Word != "Gate: n/a (no orcs)" || len(v.Reasons) != 0 {
 		t.Fatalf("no orcs: %+v", v)
 	}
@@ -437,6 +472,14 @@ func TestRecallAndRecord(t *testing.T) {
 	}
 	if rc := w.Recall("slime-auth", "x", RecallOptions{}); len(rc.Anchors)+len(rc.Tools) != 0 {
 		t.Error("recall off")
+	}
+	// degenerate asks (greetings, menu digits) strip to zero content words:
+	// the beat stays silent — no anchors, and crucially no "nothing to rank" holes
+	for _, ask := range []string{"yo", "1", "0", "!"} {
+		rc := w.Recall("slime-auth", ask, RecallOptions{Enabled: true, Memory: true, Toolbox: true})
+		if len(rc.Anchors)+len(rc.Tools)+len(rc.Holes) != 0 {
+			t.Errorf("degenerate ask %q must run silent, got %+v", ask, rc)
+		}
 	}
 	// the hook rides the provider call
 	m := mock.New(mock.Text("ok"))
@@ -504,24 +547,32 @@ func TestDispatch(t *testing.T) {
 	}
 	// the report the dispatcher got
 	res := m.Requests[3].Messages[2].ToolResults[0]
-	if res.IsError || !strings.HasPrefix(res.Content, "@S DONE\n@U territory login.go is the whole zone\n@F src/auth/login.go:1") || !strings.HasSuffix(res.Content, "@E "+itoa(len(res.Content))) || strings.Contains(res.Content, "no @U") {
+	if res.IsError || !strings.HasPrefix(res.Content, "@S DONE\n@S DONE\n@U territory login.go is the whole zone\n@F src/auth/login.go:1") || !strings.Contains(res.Content, "@E ") || strings.Contains(res.Content, "no @U") {
 		t.Fatalf("report:\n%s", res.Content)
 	}
 	// the Court's spend joined the parent's; the Court had the parent's remaining steps
 	if r.Usage.Output < 150 {
 		t.Errorf("shared spend: %+v", r.Usage)
 	}
-	// a report with no @U is flagged
+	// a report with no @U is bounced once; flagged on the wire only when the retry also omits it
 	m = mock.New(
 		mock.Call("d1", "dispatch", map[string]interface{}{"body": "slime-api", "ask": "x"}),
+		mock.Text("@S DONE\n@F nothing\n@E 0"),
 		mock.Text("@S DONE\n@F nothing\n@E 0"),
 		mock.Text("@S DONE\n@U colony x\n@E 0"),
 	)
 	e = w.Engine("orc-security", build(m))
 	e.Run(context.Background(), "x")
-	res = m.Requests[2].Messages[2].ToolResults[0]
-	if !strings.Contains(res.Content, "@? report carries no @U line") || !strings.Contains(res.Content, "@? dispatch slime-api: report carries no @U line") {
-		t.Fatalf("missing @U not flagged:\n%s", res.Content)
+	joined := ""
+	for _, req := range m.Requests {
+		for _, msg := range req.Messages {
+			for _, tr := range msg.ToolResults {
+				joined += tr.Content
+			}
+		}
+	}
+	if !strings.Contains(joined, "@? report carries no @U line") || !strings.Contains(joined, "@? dispatch slime-api: report carries no @U line") {
+		t.Fatalf("missing @U not flagged after its one bounce:\n%s", joined)
 	}
 	// unknown body, and a parent whose step budget is spent
 	m = mock.New(mock.Call("d1", "dispatch", map[string]interface{}{"body": "slime-ghost", "ask": "x"}), mock.Text("@S DONE\n@U colony x\n@E 0"))
@@ -538,16 +589,53 @@ func TestDispatch(t *testing.T) {
 	if res := m.Requests[1].Messages[2].ToolResults[0]; !res.IsError || !strings.Contains(res.Content, "parent step budget spent") {
 		t.Fatalf("budget share: %+v", res)
 	}
-	// depth: a Court at MaxDepth 2 may dispatch once more, then no further
+	// depth: a Court may dispatch one rung up to the chain's length, then the rungs run out —
+	// the human-set ceiling (2) is floored at the chain's own length (3), so a shallow MaxDepth
+	// never breaks the ladder; past the floor rank the tool is gone.
 	b = build(mock.New())
 	b.Court.MaxDepth = 2
 	e = w.Engine("elf-core", b)
 	if !strings.Contains(strings.Join(e.Tools.Names(), ","), "dispatch") {
 		t.Fatal("elf dispatches")
 	}
-	b.Depth = 2
+	b.Depth = 3
 	if e = w.Engine("elf-core", b); strings.Contains(strings.Join(e.Tools.Names(), ","), "dispatch") {
-		t.Fatal("depth limit")
+		t.Fatal("past the chain's length, no rung left")
+	}
+	// the depth ceiling is floored at the rank chain's length (world.Engine) — an elf always
+	// reaches its orc no matter what maxDepth says, because a ladder shorter than the table
+	// breaks the chain at depth 2 with no warning. The floor rank (slime) holds no dispatch
+	// tool, so past the chain there is still no rung.
+	b = build(mock.New())
+	b.Court.MaxDepth = 0
+	e = w.Engine("elf-core", b)
+	if !strings.Contains(strings.Join(e.Tools.Names(), ","), "dispatch") {
+		t.Fatal("the chain's own length is the depth floor: an elf always reaches its orc")
+	}
+	b.Depth = 1
+	e = w.Engine("orc-core", b)
+	if !strings.Contains(strings.Join(e.Tools.Names(), ","), "dispatch") {
+		t.Fatal("an orc at depth 1 still reaches its slime")
+	}
+	b.Depth = 3
+	e = w.Engine("orc-core", b)
+	if strings.Contains(strings.Join(e.Tools.Names(), ","), "dispatch") {
+		t.Fatal("below the floor rank: no rung left, no tool")
+	}
+}
+
+// TestChainDepth reads the ladder's length off the rank table, not a constant: the default
+// table (rimuru → elf → orc → slime) is 3, and a custom table walks its own hierarchy.
+func TestChainDepth(t *testing.T) {
+	if got := Ranks(DefaultRanks(Isekai())).ChainDepth(); got != 3 {
+		t.Fatalf("default table's chain: %d", got)
+	}
+	if got := customRanks().ChainDepth(); got != 3 {
+		t.Fatalf("custom table lead→keeper→{coder,writer}: %d", got)
+	}
+	shallow := Ranks{{Name: "lead", ReportsTo: Rimuru, Job: "x", Body: "court", Office: "ciel", Tools: AllTools, Dir: "lead", Prefix: "lead-"}}
+	if got := shallow.ChainDepth(); got != 1 {
+		t.Fatalf("one rank under rimuru: %d", got)
 	}
 }
 
@@ -569,6 +657,15 @@ func TestMergeHooks(t *testing.T) {
 		EndGate: func(ctx context.Context, s *loop.Session, r *loop.Result) (string, []string, error) {
 			return "checked", []string{"h"}, nil
 		}}
+	noteA := loop.Hooks{Note: func(ctx context.Context, s *loop.Session, st *loop.StepRecord) string { return "a-note" }}
+	noteB := loop.Hooks{Note: func(ctx context.Context, s *loop.Session, st *loop.StepRecord) string { return "b-note" }}
+	hn := MergeHooks(noteA, noteB).Note(context.Background(), nil, nil)
+	if hn != "a-noteb-note" {
+		t.Errorf("notes must concatenate in order: %q", hn)
+	}
+	if MergeHooks(loop.Hooks{}, noteA).Note == nil || MergeHooks(noteA, loop.Hooks{}).Note == nil {
+		t.Error("a lone note rides through")
+	}
 	h := MergeHooks(a, b)
 	if hs := h.Record(context.Background(), nil, nil); strings.Join(hs, ",") != "ha,hb" || strings.Join(calls, ",") != "a,b" {
 		t.Error("record chain")
@@ -714,12 +811,46 @@ func TestGateUI(t *testing.T) {
 		saw = wrote
 		return []string{"error ui/components/card/card.css:3 [literal] a literal colour"}
 	}}
-	v := w.Gate(context.Background(), opt, "", []string{"ui/components/card/card.css"}, nil, false, "")
+	v := w.Gate(context.Background(), nil, opt, "", []string{"ui/components/card/card.css"}, nil, false, "")
 	if v.Word != "fail" || !strings.Contains(v.String(), "UI system: error ui/components/card/card.css:3") || len(saw) != 1 {
 		t.Fatalf("the ui lints did not fail the gate: %s", v)
 	}
 	opt.UI = func([]string) []string { return nil }
-	if v := w.Gate(context.Background(), opt, "", []string{"ui/components/card/card.css"}, nil, false, ""); v.Word == "fail" {
+	if v := w.Gate(context.Background(), nil, opt, "", []string{"ui/components/card/card.css"}, nil, false, ""); v.Word == "fail" {
 		t.Fatalf("clean ui failed the gate: %s", v)
+	}
+}
+
+// A creature's own README at its seat (<dir>/README.md) is the creature's identity in the
+// world's address space, never a work product the gate polices for authorship: the throne
+// authors the skel at founding, the creature edits itself after. Right-author never fires on it.
+// (Ported from agent-one's 7819383; the live-world fail on slime-law's README is this carve-out
+// missing.)
+func TestGateCreatureDocAuthorship(t *testing.T) {
+	dir := fixture(t)
+	w := open(t, dir)
+	opt := DefaultHooks().Gate
+	opt.TraitsHold = false  // the fixture's verify lines are not at issue here
+	opt.DocTruthful = false // creature docs are already excluded below; keep the check on the carve-out alone
+	doc := ".isekai/slime/auth/README.md"
+	// the creature edits its own doc — pass
+	v := w.Gate(context.Background(), nil, opt, "slime-auth", []string{doc}, &wire.Report{Status: "DONE"}, true, "x")
+	if v.Word == "fail" && strings.Contains(v.String(), "Right slime authored") {
+		t.Errorf("creature's own doc failed right-author: %s", v)
+	}
+	// the throne authors the skel — pass
+	v = w.Gate(context.Background(), nil, opt, "", []string{doc}, &wire.Report{Status: "DONE"}, true, "founding")
+	if v.Word == "fail" && strings.Contains(v.String(), "Right slime authored") {
+		t.Errorf("throne-authored skel failed right-author: %s", v)
+	}
+	// another creature writes that doc — still fails (it's slime-auth's identity)
+	v = w.Gate(context.Background(), nil, opt, "slime-api", []string{doc}, &wire.Report{Status: "DONE"}, true, "x")
+	if v.Word != "fail" || !strings.Contains(v.String(), "Right slime authored") {
+		t.Errorf("foreign creature on another's doc should still fail: %+v", v)
+	}
+	// and ordinary files under territory still police (slime-auth in slime-api's territory via shared orc)
+	v = w.Gate(context.Background(), nil, opt, "slime-auth", []string{"src/api/z.go"}, &wire.Report{Status: "DONE"}, true, "x")
+	if v.Word != "fail" || !strings.Contains(v.String(), "Right slime authored") {
+		t.Errorf("ordinary territory writes still police: %+v", v)
 	}
 }

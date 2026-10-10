@@ -34,13 +34,32 @@ func (s *syncBuffer) String() string {
 }
 
 func TestEmbeddedLawsMatchTheWorld(t *testing.T) {
-	for _, c := range []struct{ file, dist string }{{"../../.isekai/isekai.md", "isekai"}, {"../../agent-one/AGENT-ONE.md", "agent-one"}} {
-		want, err := os.ReadFile(c.file)
+	// Compare against the law at hand: in the vendor workroom the laws live as siblings
+	// (../../agent-one/…), in a standalone checkout at the project root (../../AGENT-ONE.md).
+	// Never against a deployment's live law (a top-level .isekai/ watched by a running world).
+	candidates := []struct {
+		paths []string
+		dist  string
+	}{
+		{[]string{"../../ISEKAI.md"}, "isekai"},
+		{[]string{"../../agent-one/AGENT-ONE.md", "../../AGENT-ONE.md"}, "agent-one"},
+	}
+	for _, c := range candidates {
+		var want []byte
+		var err error
+		var from string
+		for _, p := range c.paths {
+			want, err = os.ReadFile(p)
+			if err == nil {
+				from = p
+				break
+			}
+		}
 		if err != nil {
-			t.Skipf("%s: %v", c.file, err)
+			t.Skipf("%s: %v", c.paths[0], err)
 		}
 		if string(want) != LawText(c.dist) {
-			t.Errorf("app/law/%s differs from %s — Vitality: copy it in the same change", filepath.Base(c.file), c.file)
+			t.Errorf("app/law/%s differs from %s — Vitality: copy it in the same change", filepath.Base(c.paths[0]), from)
 		}
 	}
 }
@@ -169,6 +188,23 @@ ui: {board: {autostart: false}}
 	}
 }
 
+func TestLessons(t *testing.T) {
+	w := newTestWorld(t, "isekai", nil)
+	w.write(".isekai/instruments/loop/r1.jsonl",
+		"{\"t\":\"guts\",\"id\":\"s1\",\"v\":-1,\"momentum\":-1,\"why\":\"the act failed\",\"spoke\":false}\n"+
+			"{\"t\":\"guts\",\"id\":\"s2\",\"v\":-1,\"momentum\":-2,\"why\":\"the act failed\",\"spoke\":true}\n"+
+			"{\"t\":\"guts\",\"id\":\"s3\",\"v\":-1,\"momentum\":-3,\"why\":\"the same act twice\",\"spoke\":false}\n")
+	code, out, errb := w.main("isekai", "", "lessons")
+	if code != 0 || !strings.Contains(out, "3 readings") || !strings.Contains(out, "the act failed") {
+		t.Fatalf("lessons: %d %q %q", code, out, errb)
+	}
+	i := strings.Index(out, "the act failed")
+	j := strings.Index(out, "the same act twice")
+	if i < 0 || j < 0 || i > j {
+		t.Fatalf("classes must rank by frequency: %q", out)
+	}
+}
+
 func TestInitBench(t *testing.T) {
 	for _, dist := range []string{"isekai", "agent-one"} {
 		w := newTestWorld(t, dist, nil)
@@ -231,7 +267,7 @@ models: {default: mock/m, offices: {great-sage: court/c}}
 providers:
   mock: {enabled: true, script: .isekai/tmp/session.json}
   court: {type: mock, script: .isekai/tmp/court.json}
-tools: {bash: {sandbox: none}, dispatch: {background: true}}
+tools: {bash: {sandbox: none}, dispatch: {background: true, strictFlow: false}}
 ui: {board: {autostart: false}}
 `)
 	a, err := New(Options{Dist: "isekai", Root: w.root, Cwd: w.root, Home: w.home, Env: func(k string) string { return map[string]string{"HOME": w.home}[k] },
@@ -296,7 +332,7 @@ ui: {board: {autostart: false}}
 
 func TestBenchOnMock(t *testing.T) {
 	w := newTestWorld(t, "isekai", isekaiCreatures())
-	w.write(".isekai/config.yaml", "models: {default: mock/m}\nproviders: {mock: {enabled: true}}\ntools: {bash: {sandbox: none}}\nui: {board: {autostart: false}}\n")
+	w.write(".isekai/config.yaml", "models: {default: mock/m}\nproviders: {mock: {enabled: true}}\ntools: {bash: {sandbox: none}, dispatch: {strictFlow: false}}\nui: {board: {autostart: false}}\n")
 	code, out, errb := w.main("isekai", "", "bench")
 	if code != 0 || !strings.Contains(out, "@S PASS") {
 		t.Fatalf("bench: %d\n%s\n%s", code, out, errb)

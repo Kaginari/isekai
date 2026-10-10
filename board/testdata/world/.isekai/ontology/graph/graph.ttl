@@ -1,0 +1,16 @@
+# Colony fixture — asserted graph layer for TestColonyGraph / TestColonyPageEmbedsGraph.
+# Creature nodes slime-auth / orc-core / elf-voice / rimuru are minted by derive from the
+# typed dirs; this file carries the asserted bond chain + the shared mind the derived
+# layer cannot mint (host-skill tdd is CLAUDE-only; the graph must still name a shared mind).
+# Law-trumps over the elf sketch (2026-10-04-colony-graph-fixture-verdict.md): rimuru has
+# NO is:name line here (derive mints its own), prefix is the world's <isekai:>, and the
+# chain rides truth/verdict/reports — never after.
+@prefix is: <isekai:> .
+
+is:slime-auth is:truth   is:orc-core .
+is:orc-core   is:verdict is:elf-voice .
+is:elf-voice  is:reports is:rimuru    .
+
+is:slime-auth is:wears is:mind-tdd .
+is:mind-tdd a is:mind ; is:shared "true" .
+

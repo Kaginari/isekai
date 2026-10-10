@@ -2,6 +2,9 @@ package world
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Kaginari/isekai/loop"
@@ -43,11 +46,12 @@ type PromptOptions struct {
 	Instructions bool // project instruction files (AGENTS.md / CLAUDE.md)
 	Creature     bool // the body's own card: territory, parent, minds, verify
 	Memory       bool // one line on how the tiers are reached (the manifest itself rides the Recall hook)
+	SelfState    bool // the loop's own instruments named: the pulse tool, guts notes, the check-loop law
 }
 
 // DefaultPrompt is everything on.
 func DefaultPrompt() PromptOptions {
-	return PromptOptions{Crest: true, Identity: true, Ontology: OntologyOptions{Enabled: true, Budget: 800}, Instructions: true, Creature: true, Memory: true}
+	return PromptOptions{Crest: true, Identity: true, Ontology: OntologyOptions{Enabled: true, Budget: 800}, Instructions: true, Creature: true, Memory: true, SelfState: true}
 }
 
 // System is the loop's System hook: crest · identity · injected rules · the body's card ·
@@ -65,9 +69,21 @@ func (w *World) System(opt PromptOptions) func(s *loop.Session) string {
 
 // Prompt builds the system prompt for a body outside a session (a dispatcher's preview, the
 // drain's rebuilt context). engine may be nil.
+//
+// w.mu is held over the whole build, not just the lookup below: the roster
+// loop at 129 reads w.Creatures, raceLawPath → RankOf → Creature's locked
+// tail reads w.Creatures, and promptOntoSection projects w.Onto — all three
+// race Creature's mutation of the same two fields when a court-rendered
+// foreign body lands mid-fanout (the app-package shutdown-concurrency race,
+// 2026-10-03). One existing mutex, widened — no new fine-grained lock and no
+// lock-order policy invented (adding onto's own mutex would order the two
+// locks; everything Prompt reaches under it — rankLawText, creaturesOf's
+// memo/Rd readers, engine hooks — takes no world lock of its own).
 func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	var b strings.Builder
-	race := w.RankOf(as).Name
+	race := w.rankOf(as).Name
 	if race == Rimuru {
 		race = ""
 	}
@@ -76,6 +92,14 @@ func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string
 			fmt.Fprintf(&b, "%s — %s\n\n%s\n\n", w.Law.Path, or(w.Lex.Crest, "the crest"), w.Law.Crest)
 		} else {
 			fmt.Fprintf(&b, "@? no crest: %s/%s is missing or has no crest section\n\n", w.Lex.WorldDir, w.Lex.Law)
+		}
+	}
+	// the race's own page of law (Veldora 2026-10-03: global natures stay the crest's; the
+	// per-race page is thin on purpose — it never restates the crest, names only what the race
+	// answers for; every other arm of the code stays consult-on-demand).
+	if rp := raceLawPath(w, as); rp != "" {
+		if data, err := os.ReadFile(rp); err == nil && strings.TrimSpace(string(data)) != "" {
+			fmt.Fprintf(&b, "Law of your race (%s):\n%s\n\n", w.Rel(rp), strings.TrimSpace(string(data)))
 		}
 	}
 	if opt.Identity {
@@ -97,7 +121,7 @@ func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string
 		}
 	}
 	if opt.Creature {
-		if c := w.Creature(as); c != nil {
+		if c := w.creature(as); c != nil {
 			r, _ := w.Ranks.Get(c.Rank)
 			fmt.Fprintf(&b, "You are %s (%s%s). Doc: %s. Territory: %s.", c.Name, c.Rank, jobOf(r), or(c.Doc, "none"), or(strings.Join(c.Territory, ", "), "none declared"))
 			if c.Parent != "" {
@@ -110,7 +134,38 @@ func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string
 				fmt.Fprintf(&b, " Verify: %s.", strings.Join(c.Verify, " · "))
 			}
 			b.WriteString(" A write outside your territory is refused; a change under it changes its doc in the same turn (Vitality).\n\n")
+			// neighbourKnows: a sideways rank's layer-mates are named to it, coded — the
+			// harness reads the bonds, never the body asking. Divine rules of the ascension
+			// rank above a base reach it as absolute rules (coded, not a prompt rule).
+			if nb := w.Ranks.NeighborRanks(c.Rank); len(nb) > 0 {
+				var mates []string
+				for _, other := range w.Creatures {
+					for _, nr := range nb {
+						if other.Rank == nr && other.Name != c.Name {
+							mates = append(mates, other.Name)
+							break
+						}
+					}
+				}
+				if len(mates) > 0 {
+					sort.Strings(mates)
+					fmt.Fprintf(&b, "Neighbors in your layer (%s): %s — work may reach them sideways, but only through dispatch.\n\n", strings.Join(nb, ", "), strings.Join(mates, ", "))
+				}
+			}
+			if dr := w.Ranks.DivineRulesFor(c.Rank); len(dr) > 0 {
+				b.WriteString("Absolute rules from the ascended above you (divine, never overridden):\n")
+				for _, d := range dr {
+					b.WriteString("- " + oneLine(d) + "\n")
+				}
+				b.WriteString("\n")
+			}
 		}
+	}
+	if opt.SelfState {
+		b.WriteString("Self-state (the loop's own instruments, yours to read):\n" +
+			"- `pulse` (tool) returns your live run state: steps, context, momentum, and every bench you have hit with its red/green/muted counts. Read it before re-running a bench you have already struck.\n" +
+			"- A `[guts: …]` note inside a tool result means the run is losing ground; a `[doomLoop: …]` note means it checkpointed. Both are readings, not verdicts.\n" +
+			"- Repeated reds on one bench with no green is a check-loop, not TDD. If the counts say thrash, stop re-running: change the approach, instrument the probe once, or answer on the wire. Never pipe a bench's output through a filter that hides its exit status.\n\n")
 	}
 	if opt.Ontology.Enabled && w.Onto != nil {
 		budget := opt.Ontology.Budget
@@ -118,7 +173,7 @@ func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string
 			budget = 800
 		}
 		name := as
-		if w.Creature(as) == nil {
+		if w.creature(as) == nil {
 			name = "rimuru"
 		}
 		if lines, err := w.Onto.Project(name, budget); err == nil && len(lines) > 0 {
@@ -135,6 +190,27 @@ func (w *World) Prompt(as string, opt PromptOptions, engine *loop.Engine) string
 			w.Lex.Token("law"), w.Lex.Token("colony"), w.Lex.Token("territory"))
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// raceLawPath is <worldDir>/law/race/<rank>.md — "" when the world hasn't authored this race's
+// page. No leak law: a body's page rides its own creature card or the throne — a name the
+// roster doesn't know reads NO race page (RankOf's rimuru fallback is a default for rules
+// filtering, never a warrant to read the throne's law).
+// Callers must hold w.mu — Prompt locks over the whole build and this fans into the
+// unlocked Creature/RankOf bodies through creature / rankOf.
+func raceLawPath(w *World, as string) string {
+	if as != Rimuru && w.creature(as) == nil {
+		return ""
+	}
+	rank := w.rankOf(as).Name
+	if rank == "" {
+		return ""
+	}
+	p := filepath.Join(w.Root, w.Lex.WorldDir, "law", "race", rank+".md")
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		return p
+	}
+	return ""
 }
 
 func jobOf(r Rank) string {

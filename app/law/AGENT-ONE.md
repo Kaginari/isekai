@@ -83,6 +83,8 @@ live register, so context is spent on work, not on words.
 | `@V` | a verdict on a claim, with evidence |
 | `@?` | a hole — named, never guessed |
 | `@U <kind> …` | the unsaid: one piece of knowledge that was in the worker's head and nowhere on disk; kind is `policy`, `team` or `domain` (§The unsaid) |
+| `@$ <agent>: <ask>` | an order one layer down — drained as dispatches at the turn boundary, re-checked against the hierarchy; a fresh line per order |
+| `@FORGE <kind>:<name> \| <text>` | a draft the run proved — kind `tool` or `skill`; rides the report up, lands as a team note tagged `forge`, and mints only at the desk (`/forge mint`) |
 | `@E <bytes>` | closes the response |
 
 **Hygiene**
@@ -240,6 +242,10 @@ stale.
 - Instruments are not tracked the way `log.md` is: they are overwritten freely, since they are
   a window, not a record. What an instrument reveals that matters gets written into a
   document (and the log) — the instrument itself is disposable.
+- **The instinct** (`policy.instinct`, default on) scores every act as it lands and journals the
+  reading; past a slide it speaks once inside the failing act's own result. `lessons` ranks what
+  the journals learned — the instrument aggregates; crystallizing a class into a skill or a law
+  is a writer's act.
 - **The orchestrator's own stress is an instrument reading too, not a feeling.**
   `.agent-one/tools/context-check.sh` reads the running session's own transcript and reports
   its current context occupancy against a conservative, model-independent budget (default
@@ -434,8 +440,9 @@ the two halves carry different halves of life:
 - An agent is the thing that actually runs and holds context. An agent is never registered
   generic — it is registered already named for the rank it will serve: `domain-security`,
   `zone-auth`, `coord-frontend`.
-- Sourced from `.opencode/agents/*.md` and brought over with `/import-agent` into a Claude
-  Code sub-agent (`.claude/agents/<name>.md`).
+- The agent doc IS the agent card: `.agent-one/<role>/<name>/README.md` is the agent. No
+  mirror is minted under `.claude/agents/` — the workspace is self-contained (Veldora decree
+  2026-10-02: agent cards live inside the workspace, never on the host).
 - Two agent modes:
   - **Persistent agent** (`mode: all`) — custodian of this workspace's rules. Persistent: it
     outlives a single task and stands watch over `AGENT-ONE.md` itself. A service owner's
@@ -518,6 +525,14 @@ No change lands without its domain owner's pass. The domain owner checks:
 2. **Invariants hold** — the area's invariants are still true.
 3. **Duties done** — everything the task required was done.
 4. **Doc truthful** — the owning doc changed in the same change (Docs-as-code).
+
+Two seats sit outside authorship policing, checked differently: a member's own doc
+(`<dir>/README.md`) — the orchestrator authors the skel at founding, the member edits it
+after — and the throne's own seat files (the dimension manifest
+`<workspaceDir>/dimension.yaml` and the policy), which are the orchestrator's own work
+product, not any member's ownership. When the orchestrator or an orchestrator-rank mount
+writes a throne seat file, neither *right zone worker authored* nor *doc truthful* fires; a
+non-throne body on the same file still fails right-author.
 
 The verdict (pass / fail + reason) is recorded in `log.md`.
 

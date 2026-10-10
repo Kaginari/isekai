@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Kaginari/isekai/board"
 	"github.com/Kaginari/isekai/compact"
 	"github.com/Kaginari/isekai/config"
 	"github.com/Kaginari/isekai/gate"
@@ -94,12 +95,16 @@ type App struct {
 
 	mount      provider.Provider
 	mountModel config.Model
+	planBoot   time.Time // the interactive session's birth: plan decks penned earlier are stale (memory, never gate-holders)
 	boardAddr  string
-	web        *webBus // the session, for the dashboard (web.go)
+	boardH     *board.Board // board serveBoard retained; its token authorizes dash acts
+	web        *webBus      // the session, for the dashboard (web.go)
 	rules      []world.Rule
 	engines    []*loop.Engine
 	mu         sync.Mutex
 	holes      []string
+	ontoMu     sync.Mutex
+	ontoNudged map[string]bool // run → the unowned-soil nudge already spoken (once, by law)
 	started    time.Time
 	closed     bool
 }
@@ -169,6 +174,22 @@ func New(opt Options) (*App, error) {
 	}
 	for _, h := range cfg.Holes {
 		a.hole(h)
+	}
+	// Boot-time heal of the long-memory index (audit 2026-10-05 F1): stale once meant
+	// nag holes on every recall of every body for the whole run (rebuildOnStale:false
+	// keeps rebuilds off the recall beat — this gate pays them once, before any body
+	// runs, and the relaunch always starts on fresh anchors).
+	if cfg.Memory.Long.Enabled && cfg.Memory.Long.IndexOnBoot && !opt.Quiet {
+		if mw, merr := w.Memory(); merr == nil {
+			idx, why := mw.LoadIndex()
+			if why != "" || len(mw.IndexHoles(idx, "")) > 0 {
+				if res, ierr := mw.Index(); ierr == nil {
+					a.hole(fmt.Sprintf("memory: boot re-indexed %d memories — stale index healed", res.N))
+				} else {
+					a.hole("memory: boot re-index failed — " + ierr.Error())
+				}
+			}
+		}
 	}
 	// the sandbox, the human gate, the shelf, mcp, discoveries
 	a.Sandbox = newSandbox(cfg, a.Root)
@@ -246,6 +267,13 @@ func (a *App) newGate() *gate.Gate {
 			g.Approve[cl] = true
 		}
 	}
+	// law.humanGate.trustContainer: inside the harness's own runtime container the sandbox is
+	// the membrane — every class reads pre-approved. The guard denylist still refuses first.
+	if a.Cfg.Law.HumanGate.TrustContainer && a.Opt.Env != nil && a.Opt.Env(containerEnvVar(a.Cfg.Dist.Name)) != "" {
+		for _, cl := range []tool.Class{tool.Read, tool.Write, tool.Outward, tool.Destructive} {
+			g.Approve[cl] = true
+		}
+	}
 	g.Strict, g.DryRun = a.Cfg.Law.HumanGate.Strict, a.Cfg.Law.HumanGate.DryRun
 	g.In, g.Out, g.IsTTY = a.Opt.In, a.Opt.Err, a.Opt.IsTTY
 	g.Flag = "--approve"
@@ -285,6 +313,17 @@ func (a *App) Build() world.Build {
 	if a.mountModel.Entry != nil {
 		maxOut = a.mountModel.Entry.MaxOutputTokens
 	}
+	// noted is one background Court's bookkeeping on any depth: its @U seats land as world
+	// holes, its court card closes. Wake (depth 0) and Deliver (depth ≥1) both run it first.
+	noted := func(body, report string, failed bool) {
+		// a background report never passes the dispatcher's Record hook: its @U goes home here
+		if rep, ok := wire.ParseReport(report); ok && len(rep.Unsaid) > 0 {
+			for _, h := range a.World.Land(body, rep) {
+				a.hole(h)
+			}
+		}
+		a.Court.Finish(body, report)
+	}
 	b := world.Build{
 		Provider:  a.sessionProvider(),
 		Models:    a.router(),
@@ -292,16 +331,22 @@ func (a *App) Build() world.Build {
 		Shelf:     func(as string, depth int) (*tool.Registry, func()) { return a.Shelf.Build(as) },
 		Budget:    lawBudget(cfg, maxOut),
 		Hooks:     a.withUIGate(hookOptions(cfg, a.rules)),
-		Territory: world.TerritoryOptions{Enabled: cfg.Law.Territory.Enabled},
-		Court: world.CourtOptions{Enabled: a.on("dispatch"), MaxDepth: cfg.Tools.Dispatch.MaxDepth, Cap: cfg.Law.Wire.Cap, Unsaid: cfg.Law.Wire.RequireUnsaid,
-			Background: cfg.Tools.Dispatch.Background, Wake: func(body, report string, failed bool) {
-				// a background report never passes the dispatcher's Record hook: its @U goes home here
-				if rep, ok := wire.ParseReport(report); ok && len(rep.Unsaid) > 0 {
-					for _, h := range a.World.Land(body, rep) {
-						a.hole(h)
-					}
+		Territory: world.TerritoryOptions{Enabled: cfg.Law.Territory.Enabled, ThroneNeverAuthors: cfg.Law.Territory.ThroneNeverAuthors},
+		Guts:      lawGuts(cfg),
+		Doom:      lawDoom(cfg),
+		Court: world.CourtOptions{Enabled: a.on("dispatch"), MaxDepth: cfg.Tools.Dispatch.MaxDepth, Cap: cfg.Law.Wire.Cap, Unsaid: cfg.Law.Wire.RequireUnsaid, StrictFlow: cfg.Tools.Dispatch.StrictFlow, SalvageTokens: cfg.Law.Budget.SalvageTokens, StressEscalateAt: cfg.Law.Stress.EscalateAt, StressMaxConsults: cfg.Law.Stress.MaxConsults, StressRelieveAt: cfg.Law.Stress.RelieveAt, SessionBackground: cfg.Tools.Dispatch.SessionBackground,
+			Background: cfg.Tools.Dispatch.Background, BackgroundTimeout: time.Duration(cfg.Tools.Dispatch.BackgroundTimeout),
+			Noted: noted,
+			// Deliver rides a running body's own inbox (the /send channel) so a deeper body's
+			// background report wakes ITS dispatcher mid-turn; when that dispatcher already
+			// closed (its context died with its task), the report rises to the session queue.
+			Deliver: func(body, line string) {
+				if err := a.Court.Send(body, line); err != nil {
+					a.Court.Wake(line)
 				}
-				a.Court.Finish(body, report)
+			},
+			Wake: func(body, report string, failed bool) {
+				noted(body, report, failed)
 				a.Court.Wake(fmt.Sprintf("[court %s reported]\n%s", body, report))
 			}},
 		Journal: a.journalDir(),
@@ -322,6 +367,7 @@ func (a *App) Build() world.Build {
 		},
 		PreTool:  a.Hooks.PreTool,
 		PostTool: a.Hooks.PostTool,
+		Note:     a.ontoNote(),
 		Budget:   budgetHook,
 		State: func(s *loop.Session, st string) {
 			if a.Court != nil {
@@ -338,6 +384,16 @@ func (a *App) Build() world.Build {
 			return nil
 		},
 		Observe: func(s *loop.Session, st *loop.StepRecord, phase string) {
+			if phase == "start" && st.Tool == "dispatch" && a.Court != nil {
+				var in struct {
+					Body, Ask string
+				}
+				if json.Unmarshal(st.Input, &in) == nil && in.Body != "" {
+					if orders := wire.EnqueuesOf(in.Ask); len(orders) > 0 {
+						a.Court.ExpectRelay(in.Body, orders)
+					}
+				}
+			}
 			if a.OnStep != nil {
 				a.OnStep(s, st, phase)
 			}
@@ -386,6 +442,10 @@ func (a *App) Engine() (*loop.Engine, error) {
 	e := a.World.Engine(world.Rimuru, a.Build())
 	e.OnDelta = a.OnDelta
 	e.Cap = 0 // the human's answer is never capped
+	e.ClosingCheck = a.Cfg.Law.ClosingCheck.Enabled
+	e.Guts = lawGuts(a.Cfg) // throne stays gut-armed even when the Build changes shape
+	e.Doom = lawDoom(a.Cfg)
+	e.PlanOpen = func() string { return planOpenReason(a.planDir(), world.Rimuru, a.plansBoot()) }
 	if a.Court != nil {
 		a.Court.Track(world.Rimuru, "", "", a.mountModel.Ref.Model, nil, 0)
 	}

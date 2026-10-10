@@ -20,7 +20,10 @@ type RankDef struct {
 	Dir         string   `json:"dir"`
 	Prefix      string   `json:"prefix"`
 	AscendsFrom string   `json:"ascendsFrom"`
-	Sideways    *bool    `json:"sideways"` // may speak to its own rank (orc ⇄ orc)
+	Sideways    *bool    `json:"sideways"`    // may speak to its own rank (orc ↔ orc) and name its layer-mates
+	Layer       int      `json:"layer"`       // a rung, 0 when unset; two ranks share a layer iff equal and nonzero
+	DivineRules []string `json:"divineRules"` // an ascended rank's absolute rules, laced into the base rank's prompt
+	AscendsWhen string   `json:"ascendsWhen"` // the ASL condition under which a body of this rank ascends ("" = never)
 }
 
 // Rank is one resolved rank with the origin of each field ("law" for the built-in table).
@@ -38,6 +41,9 @@ type Rank struct {
 	Prefix      string
 	AscendsFrom string
 	Sideways    bool
+	Layer       int
+	DivineRules []string
+	AscendsWhen string
 	Origins     map[string]string // field → origin
 	Builtin     bool
 }
@@ -116,6 +122,9 @@ func (c *Config) buildRanks() error {
 		set("prefix", func() { r.Prefix = def.Prefix })
 		set("ascendsFrom", func() { r.AscendsFrom = def.AscendsFrom })
 		set("sideways", func() { r.Sideways = *def.Sideways })
+		set("layer", func() { r.Layer = def.Layer })
+		set("divineRules", func() { r.DivineRules = def.DivineRules })
+		set("ascendsWhen", func() { r.AscendsWhen = def.AscendsWhen })
 		if def.Body != "" && def.Body != "court" && def.Body != "keeper" {
 			return fmt.Errorf("%s: ranks.%s.body: %q is not court or keeper", c.Where("ranks."+name+".body"), name, def.Body)
 		}
@@ -155,10 +164,36 @@ func (c *Config) buildRanks() error {
 		inherit("dir", func() { r.Dir = base.Dir })
 		inherit("prefix", func() { r.Prefix = base.Prefix })
 		inherit("model", func() { r.Model = base.Model })
+		inherit("layer", func() { r.Layer = base.Layer })
 		for f, dropped := range map[string]bool{"authors": base.Authors && !r.Authors, "holdsGate": base.HoldsGate && !r.HoldsGate, "sideways": base.Sideways && !r.Sideways} {
 			if dropped {
 				return fmt.Errorf("ranks.%s.%s: an ascended rank keeps everything %s held (%s)", name, f, base.Name, r.Origins[f])
 			}
+		}
+		// divineRules and ascendsWhen are the ascended rank's own — never inherited from a base
+		// (a base does not carry its overload's rules or its evolution condition).
+	}
+	// Validations that need every name resolved (ascendsWhen parses and must name its base).
+	for _, name := range order {
+		r := byName[name]
+		if r.AscendsWhen != "" {
+			if r.AscendsFrom == "" {
+				return fmt.Errorf("ranks.%s.ascendsWhen: an ascended rank's field — %s ascends from nothing", name, name)
+			}
+			// the condition's shape is checked at decode; the world parses it again before use.
+			fields := strings.Fields(r.AscendsWhen)
+			if len(fields) < 3 || fields[0] != "ascend" {
+				return fmt.Errorf("ranks.%s.ascendsWhen %q: opens with `ascend <rank> when …`", name, r.AscendsWhen)
+			}
+			if fields[2] != "when" {
+				return fmt.Errorf("ranks.%s.ascendsWhen %q: missing `when` after the ascended rank", name, r.AscendsWhen)
+			}
+			if fields[1] != r.AscendsFrom {
+				return fmt.Errorf("ranks.%s.ascendsWhen: ascends %s, not its base %s", name, fields[1], r.AscendsFrom)
+			}
+		}
+		if len(r.DivineRules) > 0 && r.AscendsFrom == "" {
+			return fmt.Errorf("ranks.%s.divineRules: an ascended rank's field — %s ascends from nothing", name, name)
 		}
 	}
 	// Defaults for new ranks.
@@ -215,7 +250,7 @@ func (c *Config) buildRanks() error {
 	return nil
 }
 
-var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "body", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways"}
+var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "body", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways", "layer", "divineRules", "ascendsWhen"}
 
 func (c *Config) rankWhere(name, field string) string { return c.Where("ranks." + name + "." + field) }
 
@@ -280,8 +315,17 @@ func (c *Config) RankTree() string {
 			if r.Sideways {
 				marks = append(marks, "sideways")
 			}
+			if r.Layer != 0 {
+				marks = append(marks, fmt.Sprintf("layer %d", r.Layer))
+			}
 			if r.AscendsFrom != "" {
 				marks = append(marks, "ascends "+word(r.AscendsFrom))
+			}
+			if len(r.DivineRules) > 0 {
+				marks = append(marks, fmt.Sprintf("%d divine rules", len(r.DivineRules)))
+			}
+			if r.AscendsWhen != "" {
+				marks = append(marks, "when `"+r.AscendsWhen+"`")
 			}
 			marks = append(marks, r.Body)
 			if r.Office != "" {

@@ -3,6 +3,9 @@ package app
 import (
 	"strings"
 	"testing"
+
+	"github.com/Kaginari/isekai/config"
+	"github.com/Kaginari/isekai/tool"
 )
 
 func TestContainerArgsMountTheWorldReadWriteAndTheRestReadOnly(t *testing.T) {
@@ -50,12 +53,44 @@ func TestContaineredIsANoOpInside(t *testing.T) {
 	}
 }
 
+// law.humanGate.trustContainer: inside the harness's own runtime container the sandbox is the
+// membrane — every class pre-approved at the Gate; outside, or with the knob off, outward and
+// destructive still ask. (The guard denylist sits one step earlier and is untouched.)
+func TestTrustContainerPreapprovesInsideOnly(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Dist.Name = "isekai"
+	cfg.Law.HumanGate.TrustContainer = true
+	envIn := func(k string) string {
+		if k == "ISEKAI_CONTAINERED" {
+			return "1"
+		}
+		return ""
+	}
+	envOut := func(string) string { return "" }
+	inside := (&App{Cfg: cfg, Opt: Options{Env: envIn}}).newGate()
+	for _, cl := range []tool.Class{tool.Read, tool.Write, tool.Outward, tool.Destructive} {
+		if !inside.Approve[cl] {
+			t.Fatalf("inside the container every class pre-approves; %s still asks", cl)
+		}
+	}
+	for name, a := range map[string]*App{
+		"outside":       {Cfg: cfg, Opt: Options{Env: envOut}},
+		"knob off":      {Cfg: &config.Config{}, Opt: Options{Env: envIn}},
+		"no env reader": {Cfg: cfg, Opt: Options{}},
+	} {
+		g := a.newGate()
+		if g.Approve[tool.Outward] || g.Approve[tool.Destructive] {
+			t.Fatalf("%s: outward/destructive must still ask (trustContainer only inside the sandbox)", name)
+		}
+	}
+}
+
 func TestSetupYAMLLoads(t *testing.T) {
 	for name, c := range setupPresets {
 		if c.model == "openai/" || c.model == "ollama/" || c.model == "vllm/" {
 			c.model += "some-model"
 		}
-		y := setupYAML(c)
+		y := setupYAML(c, 7411)
 		if !strings.Contains(y, "default:") || !strings.Contains(y, c.provider+":") {
 			t.Fatalf("%s: %s", name, y)
 		}
@@ -71,7 +106,7 @@ func TestSetupConfigOpensTheWorld(t *testing.T) {
 			c.model += "some-model"
 		}
 		w := newTestWorld(t, "isekai", isekaiCreatures())
-		w.write(".isekai/config.yaml", setupYAML(c))
+		w.write(".isekai/config.yaml", setupYAML(c, 7411))
 		a := w.open()
 		if got := a.Cfg.Models.Default.Model; got != c.model {
 			t.Fatalf("%s: the world runs on %q, want %q", name, got, c.model)

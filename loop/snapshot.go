@@ -19,7 +19,7 @@ import (
 // The world dir's own instruments and records are not the model's writes and are not stamped:
 // instruments/, tmp/, memory/ (the tiers the binary maintains), toolbox/registry.json (derived),
 // ontology/graph/unsaid.ttl (where a report's @U lines land) and log.md (the gate's own
-// record). `.git` is never walked.
+// record). `.git` and the dependency/build dirs of heavyDirs are never walked.
 
 type stamp struct {
 	size  int64
@@ -32,8 +32,23 @@ type snapshot map[string]stamp
 // SnapshotCap bounds one walk; a tree past it is not watched, and the hole is named once.
 const SnapshotCap = 200000
 
+// heavyDirs are dependency and build dirs a body never authors: hundreds of thousands of
+// lstats per stamp, zero gate signal. Skipped wherever they sit in the tree (a write inside
+// one through a reporting tool still reaches the gate by its paths).
+var heavyDirs = map[string]bool{
+	"node_modules": true, ".venv": true, "venv": true, "__pycache__": true,
+	"target": true, "dist": true, ".next": true, ".turbo": true, ".cache": true,
+}
+
 func (e *Engine) unwatched(rel string) bool {
 	if rel == ".git" || strings.HasSuffix(rel, "/.git") {
+		return true
+	}
+	base := rel
+	if i := strings.LastIndex(rel, "/"); i >= 0 {
+		base = rel[i+1:]
+	}
+	if heavyDirs[base] {
 		return true
 	}
 	wd := e.Lexicon.worldDir()
