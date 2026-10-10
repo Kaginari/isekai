@@ -315,7 +315,10 @@ func (w *World) derive() error {
 
 	// minds first, so docs can be matched against their names
 	minds := map[string]string{}
-	for _, base := range mindDirs {
+	// the world's own skill dirs first (crafted, then base — the dist names its world dir), then
+	// the hosts': a creature's Minds field names them, so the graph must know them to bond `wears`
+	bases := append([]string{l.WorldDir + "/crafted-skills", l.WorldDir + "/base-skills"}, mindDirs...)
+	for _, base := range bases {
 		ents, err := os.ReadDir(filepath.Join(w.Root, base))
 		if err != nil {
 			continue

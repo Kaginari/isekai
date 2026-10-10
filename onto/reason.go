@@ -46,6 +46,9 @@ var (
 	mindDirs    = []string{".opencode/skills", ".opencode/skill", ".claude/skills"}
 )
 
+// Throne is the session body's term: the top of every world's tree, the one every bond climbs to.
+var Throne = tRimuru
+
 // Infer runs forward chaining to a fixpoint: subClassOf and subPropertyOf
 // closure, type propagation, subproperty entailment, domain and range typing,
 // inverses, and transitive properties. It returns the number of derived

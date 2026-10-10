@@ -252,6 +252,7 @@ func (b *Board) routes() {
 	b.mux.HandleFunc("/api/court", b.apiCourt)
 	b.mux.HandleFunc("/api/usage", b.apiUsage)
 	b.mux.HandleFunc("/api/colony", b.apiColony)
+	b.mux.HandleFunc("/api/activity", b.apiActivity)
 	b.mux.HandleFunc("/api/tree", b.apiTree)
 	b.mux.HandleFunc("/api/tree/children", b.apiTreeChildren)
 	b.mux.HandleFunc("/api/courts", b.apiCourts)
@@ -494,8 +495,20 @@ func (b *Board) laneLabels(c *Colony) []laneLabel {
 	return out
 }
 
-func (b *Board) colony(r *http.Request) (any, string) {
+// colonyNamed is the colony with the lexicon's words on it: the throne wears the dist's name for
+// the session body (Rimuru here; agent-one has its own), never a hard-coded one.
+func (b *Board) colonyNamed() *Colony {
 	c := b.src.Colony()
+	for i := range c.Nodes {
+		if c.Nodes[i].Throne && c.Nodes[i].Label == "" {
+			c.Nodes[i].Label = b.names.get("rank." + c.Nodes[i].Rank)
+		}
+	}
+	return c
+}
+
+func (b *Board) colony(r *http.Request) (any, string) {
+	c := b.colonyNamed()
 	labels := b.laneLabels(c)
 	payload := struct {
 		*Colony
@@ -592,11 +605,23 @@ func (b *Board) apiUsage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Board) apiColony(w http.ResponseWriter, r *http.Request) {
-	c := b.src.Colony()
+	c := b.colonyNamed()
 	writeJSON(w, struct {
 		*Colony
 		Labels []laneLabel `json:"labels"`
 	}{c, b.laneLabels(c)})
+}
+
+// apiActivity is each body's recent work, day by day, for the net's activity tiles and the
+// weight of its bonds: runs from the loop journals, tokens from the usage journal. A body the
+// instruments never saw is absent — its tile stays blank, never a made-up zero.
+func (b *Board) apiActivity(w http.ResponseWriter, r *http.Request) {
+	runs, rr := b.src.Loop()
+	recs, ur := b.src.Usage()
+	a := BuildActivity(runs, recs, b.opt.Now(), ActivityDays)
+	a.Reading = rr.String() + " · " + ur.String()
+	a.Lit = rr.Lit || ur.Lit
+	writeJSON(w, a)
 }
 
 func (b *Board) apiTree(w http.ResponseWriter, r *http.Request) {

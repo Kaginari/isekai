@@ -139,6 +139,14 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **The neural net draws the throne and its tree.** `/api/colony` always carries the throne node
+  (the session body, under the lexicon's word for it) and names every creature's `parent`; a
+  creature with no bond up to a body on disk hangs under the throne by an `implied` reports edge
+  and a note, so the tree is connected and the gap is said. The ontology reads the world's own
+  `crafted-skills/` and `base-skills/` as minds, so a creature's Minds field becomes `wears` bonds.
+  `/api/activity` serves each body's last 28 days (runs from the loop journals, tokens from the
+  usage journal) — what the net's activity tiles and bond weights read.
+
 - **The TUI's input and keys.** A capital `C` (or `c` on a pinned stale deck) no longer vanishes
   from a typed word: the plan snap moved to `alt+n`. The input box grows with a long line's wraps,
   not only its newlines. `ctrl+c` clears a draft first and interrupts a busy turn without arming

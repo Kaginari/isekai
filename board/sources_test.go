@@ -199,3 +199,114 @@ func TestDocIsFenced(t *testing.T) {
 		}
 	}
 }
+
+func TestColonyIsOneTreeUnderTheThrone(t *testing.T) {
+	c := fixtureSources(t, "world").Colony()
+	byID := map[string]Node{}
+	for _, n := range c.Nodes {
+		byID[n.ID] = n
+	}
+	throne, ok := byID[c.Throne]
+	if c.Throne == "" || !ok || !throne.Throne || throne.Kind != "creature" {
+		t.Fatalf("the throne must be a node: %q %+v", c.Throne, throne)
+	}
+	for _, n := range c.Nodes {
+		if n.Kind != "creature" || n.Throne {
+			if n.Parent != "" {
+				t.Errorf("%s (a %s) has a parent %q", n.ID, n.Kind, n.Parent)
+			}
+			continue
+		}
+		seen := map[string]bool{}
+		at := n.ID
+		for at != c.Throne {
+			if seen[at] {
+				t.Fatalf("%s loops at %s", n.ID, at)
+			}
+			seen[at] = true
+			p, ok := byID[byID[at].Parent]
+			if !ok {
+				t.Fatalf("%s: %s's parent %q is not a node", n.ID, at, byID[at].Parent)
+			}
+			at = p.ID
+		}
+	}
+	if byID["slime-auth"].Parent != "orc-core" || byID["orc-core"].Parent != "elf-voice" || byID["elf-voice"].Parent != c.Throne {
+		t.Errorf("the asserted bonds make the tree: %q %q %q", byID["slime-auth"].Parent, byID["orc-core"].Parent, byID["elf-voice"].Parent)
+	}
+	// an orphan hangs under the throne by an implied edge, and a note says so
+	implied := 0
+	for _, e := range c.Edges {
+		if e.Implied {
+			implied++
+			if e.Bond != "reports" || e.To != c.Throne || byID[e.From].Parent != c.Throne {
+				t.Errorf("implied edge: %+v", e)
+			}
+		}
+	}
+	if implied == 0 || !strings.Contains(strings.Join(c.Notes, "\n"), "drawn under "+c.Throne) {
+		t.Errorf("the fixture's orphans must hang under the throne, said: %d %v", implied, c.Notes)
+	}
+	// a mind in the world's own base-skills is a node, and its wearer is bonded to it
+	if byID["mind-slime-auth-craft"].Kind != "mind" {
+		t.Fatalf("base-skills mind missing: %+v", byID["mind-slime-auth-craft"])
+	}
+	wears := false
+	for _, e := range c.Edges {
+		wears = wears || (e.From == "slime-auth" && e.Bond == "wears" && e.To == "mind-slime-auth-craft")
+	}
+	if !wears {
+		t.Error("slime-auth wears slime-auth-craft (its Minds field) — no wears edge")
+	}
+}
+
+func TestTreeUpAddsAMissingThrone(t *testing.T) {
+	c := &Colony{Nodes: []Node{{ID: "elf-a", Kind: "creature", Rank: "elf"}, {ID: "orc-b", Kind: "creature", Rank: "orc"}, {ID: "orc-c", Kind: "creature", Rank: "orc"}, {ID: "m", Kind: "mind"}},
+		Edges: []Edge{{From: "orc-b", To: "elf-a", Bond: "verdict"}, {From: "elf-a", To: "rimuru", Bond: "reports"}, {From: "orc-c", To: "orc-c", Bond: "above"}, {From: "orc-b", To: "m", Bond: "wears"}}}
+	treeUp(c)
+	var throne *Node
+	for i := range c.Nodes {
+		if c.Nodes[i].ID == c.Throne {
+			throne = &c.Nodes[i]
+		}
+	}
+	if throne == nil || !throne.Throne || c.Throne != "rimuru" {
+		t.Fatalf("no throne node added: %+v", c.Nodes)
+	}
+	parents := map[string]string{}
+	for _, n := range c.Nodes {
+		parents[n.ID] = n.Parent
+	}
+	if parents["orc-b"] != "elf-a" || parents["elf-a"] != "rimuru" || parents["orc-c"] != "rimuru" || parents["m"] != "" {
+		t.Errorf("parents: %v", parents)
+	}
+}
+
+func TestActivityByDay(t *testing.T) {
+	s := fixtureSources(t, "world")
+	runs, _ := s.Loop()
+	recs, _ := s.Usage()
+	a := BuildActivity(runs, recs, fixedNow, ActivityDays)
+	if len(a.Days) != ActivityDays || a.Days[ActivityDays-1] != fixedNow.UTC().Format("2006-01-02") {
+		t.Fatalf("days: %v", a.Days)
+	}
+	sa := a.Bodies["slime-auth"]
+	if sa == nil || sa.Total != 1 || sa.Last == "" {
+		t.Fatalf("slime-auth's run: %+v", sa)
+	}
+	i := -1
+	for k, d := range a.Days {
+		if d == "2026-09-25" {
+			i = k
+		}
+	}
+	if i < 0 || sa.Runs[i] != 1 || sa.Tokens[i] != 800+900+500+100 {
+		t.Errorf("slime-auth on 2026-09-25: runs %v tokens %v", sa.Runs, sa.Tokens)
+	}
+	if r := a.Bodies["rimuru"]; r == nil || r.Total != 0 || r.Tokens[i] == 0 {
+		t.Errorf("rimuru spends tokens without a journaled run here: %+v", r)
+	}
+	if _, ok := a.Bodies["orc-core"]; ok {
+		t.Error("a body the instruments never saw must be absent, not zero")
+	}
+}

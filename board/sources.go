@@ -210,6 +210,80 @@ func Rollup(recs []UsageRecord, since time.Time, rng string) UsageReport {
 	return r
 }
 
+// ActivityDays is the window of the net's activity tiles: four weeks, one cell a day.
+const ActivityDays = 28
+
+// Activity is every body's recent work, one cell per UTC day, oldest first.
+type Activity struct {
+	Days    []string                 `json:"days"`
+	Bodies  map[string]*BodyActivity `json:"bodies"`
+	Reading string                   `json:"reading"`
+	Lit     bool                     `json:"lit"`
+}
+
+// BodyActivity is one body's days. Runs counts its loop journals that began that day (a Court's
+// run is one commission: the bond into it carries Runs as its weight); Tokens its usage.
+type BodyActivity struct {
+	Runs   []int  `json:"runs"`
+	Tokens []int  `json:"tokens"`
+	Total  int    `json:"total"`  // runs in the window
+	Failed int    `json:"failed"` // runs in the window whose end was not DONE/PASS
+	Last   string `json:"last,omitempty"`
+}
+
+// BuildActivity folds the journals into days ending at now's UTC day. Runs without a readable
+// start time and records outside the window are left out, never guessed into a day.
+func BuildActivity(runs []Run, recs []UsageRecord, now time.Time, days int) Activity {
+	a := Activity{Bodies: map[string]*BodyActivity{}}
+	end := now.UTC().Truncate(24 * time.Hour)
+	start := end.AddDate(0, 0, -(days - 1))
+	for i := 0; i < days; i++ {
+		a.Days = append(a.Days, start.AddDate(0, 0, i).Format("2006-01-02"))
+	}
+	body := func(name string) *BodyActivity {
+		x := a.Bodies[name]
+		if x == nil {
+			x = &BodyActivity{Runs: make([]int, days), Tokens: make([]int, days)}
+			a.Bodies[name] = x
+		}
+		return x
+	}
+	day := func(t time.Time) int {
+		d := int(t.UTC().Truncate(24*time.Hour).Sub(start).Hours() / 24)
+		if d < 0 || d >= days {
+			return -1
+		}
+		return d
+	}
+	for _, r := range runs {
+		t, err := time.Parse(time.RFC3339Nano, r.At)
+		if err != nil || r.As == "" {
+			continue
+		}
+		d := day(t)
+		if d < 0 {
+			continue
+		}
+		x := body(r.As)
+		x.Runs[d]++
+		x.Total++
+		if s := strings.ToUpper(r.Status); s != "DONE" && s != "PASS" && s != "" {
+			x.Failed++
+		}
+		if r.At > x.Last {
+			x.Last = r.At
+		}
+	}
+	for _, u := range recs {
+		d := day(u.TS)
+		if d < 0 || u.Body == "" {
+			continue
+		}
+		body(u.Body).Tokens[d] += u.Tokens()
+	}
+	return a
+}
+
 // Run is one loop journal, as the board shows it.
 type Run struct {
 	ID     string
@@ -255,6 +329,13 @@ type Node struct {
 	Doc    string   `json:"doc"`
 	Owns   []string `json:"owns"`
 	Shared bool     `json:"shared"`
+	// Parent is the creature's place in the tree: the one it answers to by its upward bond
+	// (truth, verdict, reports, above — the first that holds). A creature with none, or one whose
+	// bond names a body not on disk, hangs under the throne by an implied `reports` edge. ""
+	// for the throne and for a mind.
+	Parent string `json:"parent,omitempty"`
+	Throne bool   `json:"throne,omitempty"` // the session body at the top of the tree
+	Label  string `json:"label,omitempty"`  // the lexicon's word for it (the throne's); "" = Name
 }
 
 // Edge is one typed bond.
@@ -262,6 +343,9 @@ type Edge struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 	Bond string `json:"bond"` // truth | verdict | reports | above | wears
+	// Implied marks a bond the drawing adds and the ontology did not assert: an orphan's
+	// `reports` to the throne, so the tree stays connected and the gap stays visible.
+	Implied bool `json:"implied,omitempty"`
 }
 
 // Colony is the creature graph, projected for drawing.
@@ -269,7 +353,8 @@ type Colony struct {
 	Reading  Reading
 	Nodes    []Node   `json:"nodes"`
 	Edges    []Edge   `json:"edges"`
-	Lanes    []string `json:"lanes"` // drawing order, left to right
+	Lanes    []string `json:"lanes"`  // drawing order, left to right
+	Throne   string   `json:"throne"` // the id of the tree's top node, always among Nodes
 	Findings []string `json:"findings"`
 	Notes    []string `json:"notes"`
 }
@@ -729,6 +814,7 @@ func BuildColony(w *onto.World) *Colony {
 		}
 		c.Nodes = append(c.Nodes, Node{ID: m.Local(), Name: name, Kind: "mind", Lane: laneOf(name, wearers[m.Local()], shared), Doc: docOf(m), Shared: shared})
 	}
+	treeUp(c)
 	sort.Slice(c.Nodes, func(i, j int) bool { return c.Nodes[i].ID < c.Nodes[j].ID })
 	sort.Slice(c.Edges, func(i, j int) bool {
 		a, b := c.Edges[i], c.Edges[j]
@@ -750,6 +836,69 @@ func BuildColony(w *onto.World) *Colony {
 	}
 	c.Lanes = append(c.Lanes, "mind:shared")
 	return c
+}
+
+// treeUp makes the colony one tree: the throne is always a node (a world whose ontology never
+// typed it still has a session at its top), every creature names its parent by the first upward
+// bond that reaches a node, and a creature with no way up — no bond, a bond to a body that is not
+// on disk, or a loop — hangs under the throne by an implied `reports` edge and a note, so the net
+// draws every creature connected and says which links it drew rather than read.
+func treeUp(c *Colony) {
+	c.Throne = onto.Throne.Local()
+	idx := map[string]int{}
+	for i, n := range c.Nodes {
+		idx[n.ID] = i
+	}
+	if i, ok := idx[c.Throne]; ok {
+		c.Nodes[i].Throne = true
+		c.Nodes[i].Kind, c.Nodes[i].Rank, c.Nodes[i].Lane = "creature", c.Throne, c.Throne
+	} else {
+		c.Nodes = append(c.Nodes, Node{ID: c.Throne, Name: c.Throne, Kind: "creature", Rank: c.Throne, Lane: c.Throne, Throne: true})
+		idx[c.Throne] = len(c.Nodes) - 1
+	}
+	order := map[string]int{"truth": 0, "verdict": 1, "reports": 2, "above": 3}
+	up := map[string]Edge{}
+	for _, e := range c.Edges {
+		rank, upward := order[e.Bond]
+		if !upward || e.From == e.To {
+			continue
+		}
+		if j, ok := idx[e.To]; !ok || c.Nodes[j].Kind != "creature" {
+			continue
+		}
+		if have, ok := up[e.From]; !ok || rank < order[have.Bond] {
+			up[e.From] = e
+		}
+	}
+	for i := range c.Nodes {
+		n := &c.Nodes[i]
+		if n.Kind != "creature" || n.Throne {
+			continue
+		}
+		if e, ok := up[n.ID]; ok {
+			n.Parent = e.To
+		}
+	}
+	// a loop never reaches the throne: break it where it is found
+	for i := range c.Nodes {
+		n := &c.Nodes[i]
+		if n.Kind != "creature" || n.Throne {
+			continue
+		}
+		seen := map[string]bool{n.ID: true}
+		for p := n.Parent; p != "" && p != c.Throne; p = c.Nodes[idx[p]].Parent {
+			if seen[p] {
+				n.Parent = ""
+				break
+			}
+			seen[p] = true
+		}
+		if n.Parent == "" {
+			n.Parent = c.Throne
+			c.Edges = append(c.Edges, Edge{From: n.ID, To: c.Throne, Bond: "reports", Implied: true})
+			c.Notes = append(c.Notes, n.ID+" has no bond up to a creature on disk — drawn under "+c.Throne)
+		}
+	}
 }
 
 // isAssertedAbove keeps only the `above` bonds that are one hop (not the transitive closure).

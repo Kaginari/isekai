@@ -394,3 +394,30 @@ func TestSilentReadingNamesTheWorldDir(t *testing.T) {
 		}
 	}
 }
+
+func TestAPIColonyCarriesTheNamedThroneAndActivity(t *testing.T) {
+	b := newBoard(t, "world", Options{Names: Names{"rank.rimuru": "Sovereign"}})
+	_, body := get(t, b, "/api/colony")
+	var c struct {
+		Throne string `json:"throne"`
+		Nodes  []Node `json:"nodes"`
+		Edges  []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(body), &c); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, n := range c.Nodes {
+		if n.ID == c.Throne {
+			found = n.Throne && n.Label == "Sovereign"
+		}
+	}
+	if !found {
+		t.Errorf("the throne must ride the payload under the lexicon's word: %s", body)
+	}
+	code, body := get(t, b, "/api/activity")
+	var a Activity
+	if code != 200 || json.Unmarshal([]byte(body), &a) != nil || len(a.Days) != ActivityDays || a.Bodies["slime-auth"] == nil || !a.Lit {
+		t.Errorf("activity: %d %s", code, body)
+	}
+}
