@@ -173,7 +173,6 @@ law:
   wire: {cap: 4096}
 permissions:
   rules:
-    - {match: "bash:git push*", action: allow}
     - {match: "bash:git push --force*", action: deny}
     - {match: "edit:**/*.lock", action: deny}
 rules:
@@ -189,7 +188,7 @@ tools:
       run: [ls, -la, "{{path}}"]
 `)+"\n")
 	must(filepath.Join(root, ".isekai", "rules", "slime.md"), "Slimes write only in their zone.\n")
-	must(filepath.Join(root, ".isekai", "config.local.json"), `{"compaction": {"trigger": {"tokens": 150000}}}`)
+	must(filepath.Join(root, ".isekai", "config.local.json"), `{"compaction": {"trigger": {"tokens": 150000}}, "permissions": {"rules": [{"match": "bash:git push*", "action": "allow"}]}}`)
 	env := map[string]string{"HOME": home, "ISEKAI_LOG_LEVEL": "DEBUG"}
 	getenv := func(k string) string { return env[k] }
 	check := func(name string, ok bool) error {

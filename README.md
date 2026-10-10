@@ -261,11 +261,14 @@ approval — no rule or `--approve` can run it:
 
 ```yaml
 # permissions.yaml — ask / allow / deny per command. An allow on bash, git or webfetch is a
-# loosening that `config check` lists; a bare bash:* allow is refused.
+# loosening that `config check` lists; a bare bash:* allow is refused. In the tracked project
+# layer an allow never pre-approves an outward or destructive act (a clone would carry it):
+# put those in .isekai/config.local.yaml or the global config.
 rules:
   - { match: "bash:git push*", action: ask }
-  - { match: "bash:kubectl get*", action: allow }
   - { match: "bash:kubectl*", action: ask }
+# and in .isekai/config.local.yaml, the machine's own word:
+#   permissions: { rules: [{ match: "bash:kubectl get*", action: allow }] }
 ```
 
 ### Every other section

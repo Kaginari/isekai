@@ -451,7 +451,10 @@ prefix or a subshell, and `git` with its global options stripped (`git -C . push
 A rule matched on an inner form only tightens: a `deny` or `ask` there holds; an `allow` needs the
 whole command, so it never widens. And an `allow` holds only when every act inside the command
 is allowed too: a chained or nested part the gate would ask about (`npm test && curl …`,
-`npm test $(curl …)`) needs its own allow rule, else the command falls to its class default. An
+`npm test & curl …`, `npm test $(curl …)`) needs its own allow rule, else the command falls to
+its class default. An `allow` from the tracked project layer (3) applies to `read` and `write`
+acts only — it never pre-approves an `outward` or `destructive` one, which a clone would carry;
+that word belongs to layers 2 and 4. An
 argument is not a command: `echo git push` matches no `git push*` rule. A command named by its
 path or escaped from an alias (`/usr/bin/git push`, `\rm`) is matched as its bare name.
 

@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -148,6 +149,24 @@ func TestClaudeStopGatesTheTurn(t *testing.T) {
 	}
 }
 
+// A verify line written in the same turn is the model's own command: under Claude Code too, the
+// gate holds it as a hole and never runs it (each hook is a fresh process — the lines as they
+// stood are taken at the prompt).
+func TestClaudeStopNeverRunsAVerifyLineAddedThisTurn(t *testing.T) {
+	w := claudeWorld(t)
+	w.hook("prompt", map[string]interface{}{"hook_event_name": "UserPromptSubmit", "prompt": "x"})
+	w.write("src/auth/x.go", "package auth\n")
+	w.write(".isekai/slime/auth/README.md", "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `touch PWNED`\n")
+	_, got, _ := w.hook("stop", map[string]interface{}{"hook_event_name": "Stop"})
+	t.Logf("stop answered %v", got)
+	if _, err := os.Stat(filepath.Join(w.root, "PWNED")); err == nil {
+		t.Fatal("the gate ran a verify line the turn wrote")
+	}
+	if msg, _ := got["systemMessage"].(string); !strings.Contains(msg, "was added this turn") {
+		t.Fatalf("no hole for the added line: %v", got)
+	}
+}
+
 // UserPromptSubmit recalls: the anchors that answer the ask reach the model as context.
 func TestClaudePromptRecalls(t *testing.T) {
 	w := claudeWorld(t)
@@ -181,6 +200,13 @@ func TestClaudeInstall(t *testing.T) {
 	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"} {
 		if hooks[ev] == nil {
 			t.Errorf("no %s hook: %v", ev, hooks)
+		}
+	}
+	stop, _ := hooks["Stop"].([]interface{})
+	if e, _ := stop[0].(map[string]interface{}); e != nil {
+		hs, _ := e["hooks"].([]interface{})
+		if h, _ := hs[0].(map[string]interface{}); h["timeout"] != float64(600) {
+			t.Errorf("the gate needs time for its verify lines: %v", h)
 		}
 	}
 	if s["permissions"] == nil {

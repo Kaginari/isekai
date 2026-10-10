@@ -113,7 +113,7 @@ func TestShelfJunction(t *testing.T) {
 	defer srv.Close()
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
 	t.Setenv("ANTHROPIC_API_KEY", "sk-secret-never-crosses")
-	cfg, root := loadCfg(t, `
+	cfg, root := loadCfgAt(t, "config.local.yaml", `
 models: {default: mock/m}
 providers: {mock: {enabled: true}}
 tools:
@@ -174,7 +174,7 @@ mcp:
 	if g, _ := reg.Get("grep"); g.Description != "search text (overridden)" {
 		t.Errorf("override: %q", g.Description)
 	}
-	if why := shelf.Disabled()["webfetch"]; !strings.Contains(why, "tools.webfetch.enabled in") || !strings.Contains(why, "config.yaml:") {
+	if why := shelf.Disabled()["webfetch"]; !strings.Contains(why, "tools.webfetch.enabled in") || !strings.Contains(why, "config.local.yaml:") {
 		t.Errorf("disabled origin: %q", why)
 	}
 	if b, _ := reg.Get("bash"); b.Declare["anthropic"] == nil {

@@ -19,13 +19,19 @@ import (
 // loadCfg writes a project config into a fresh world and loads it with a fake environment.
 func loadCfg(t *testing.T, yamlText string, env map[string]string) (*config.Config, string) {
 	t.Helper()
+	return loadCfgAt(t, "config.yaml", yamlText, env)
+}
+
+// loadCfgAt writes the config as one layer's file: config.local.yaml is the machine's own word.
+func loadCfgAt(t *testing.T, file, yamlText string, env map[string]string) (*config.Config, string) {
+	t.Helper()
 	dir := t.TempDir()
 	root := filepath.Join(dir, "world")
 	home := filepath.Join(dir, "home")
 	_ = os.MkdirAll(filepath.Join(root, ".isekai"), 0o755)
 	_ = os.MkdirAll(home, 0o755)
 	if yamlText != "" {
-		if err := os.WriteFile(filepath.Join(root, ".isekai", "config.yaml"), []byte(yamlText), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, ".isekai", file), []byte(yamlText), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

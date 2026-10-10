@@ -65,10 +65,11 @@ type lawHost struct {
 // ccTurn is what a turn carries between hooks: the ask, the tree as the turn opened, what the
 // file tools wrote, and how often the gate has sent the turn back.
 type ccTurn struct {
-	Ask    string            `json:"ask"`
-	Base   map[string]string `json:"base,omitempty"`
-	Wrote  []string          `json:"wrote,omitempty"`
-	Blocks int               `json:"blocks"`
+	Ask    string              `json:"ask"`
+	Base   map[string]string   `json:"base,omitempty"`
+	Wrote  []string            `json:"wrote,omitempty"`
+	Verify map[string][]string `json:"verify,omitempty"` // the verify lines as the turn opened
+	Blocks int                 `json:"blocks"`
 }
 
 func cmdHook(dist string, args []string, io IO) int {
@@ -235,7 +236,7 @@ func (h *lawHost) watcher() *loop.Engine {
 // ---- prompt
 
 func (h *lawHost) prompt(in ccIn) int {
-	t := ccTurn{Ask: in.Prompt}
+	t := ccTurn{Ask: in.Prompt, Verify: h.w.VerifyLines()}
 	t.Base, _ = h.watcher().Stamps()
 	h.saveTurn(in.SessionID, t)
 	ro := hookOptions(h.cfg, nil).Recall
@@ -409,6 +410,12 @@ func (h *lawHost) stop(in ccIn) int {
 	opt.Sandbox = newSandbox(h.cfg, h.root)
 	opt.DutiesDone = false  // the wire is the binary's; Claude Code answers in prose
 	opt.RightAuthor = false // the session is Rimuru; who should have authored is a hole below
+	// the lines as the turn opened, taken at the prompt: this process opened the world after the
+	// turn wrote, so its roster already holds any line the model added
+	opt.VerifyBefore = t.Verify
+	if opt.VerifyBefore == nil {
+		opt.VerifyBefore = map[string][]string{} // no prompt seen: no line is trusted unconfirmed
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	v := h.w.Gate(ctx, opt, "", wrote, nil, false, t.Ask)
@@ -446,6 +453,7 @@ func (h *lawHost) stop(in ccIn) int {
 	// the turn is over: a next stop in the same turn sees only what changes after it
 	t.Wrote, t.Blocks = nil, 0
 	t.Base, _ = h.watcher().Stamps()
+	t.Verify = h.w.VerifyLines()
 	h.saveTurn(in.SessionID, t)
 	msg := fmt.Sprintf("%s gate %s", h.dist, v.String())
 	if !(v.Word == "pass" || v.Word == "fail") {
@@ -572,7 +580,11 @@ func mergeClaudeHooks(doc []byte, exe string) ([]byte, bool, error) {
 		if hasCommand(list, command) {
 			continue
 		}
-		entry := map[string]interface{}{"hooks": []interface{}{map[string]interface{}{"type": "command", "command": command}}}
+		hk := map[string]interface{}{"type": "command", "command": command}
+		if e.event == "Stop" {
+			hk["timeout"] = 600 // the gate runs verify lines and checks; Claude Code's default is shorter
+		}
+		entry := map[string]interface{}{"hooks": []interface{}{hk}}
 		if e.matcher != "" {
 			entry["matcher"] = e.matcher
 		}

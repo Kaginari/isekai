@@ -43,10 +43,13 @@ All notable changes to Isekai are recorded here. The format follows
 - **The gate runs no command the model wrote this turn.** A verify line added to a creature doc in
   the same turn is a hole for the gate holder, not a reading; every verify line and injected check
   runs under the sandbox (no network, secrets scrubbed, its process group killed at the timeout).
-- **A command is its name however it is called.** `/usr/bin/git push`, `/bin/rm -rf`, `\rm` and
-  `xargs /bin/rm` classify and hit the guard like `git push` and `rm`.
+- **A command is its name however it is called.** `/usr/bin/git push`, `/bin/rm -rf`, `\rm`,
+  `xargs /bin/rm` and `sudo -u root env -i /bin/rm` classify and hit the guard like `git push`
+  and `rm`; `>|` into a system path is outward.
 - **An allow never carries a chained act.** `bash:npm test*` allows `npm test`, not
-  `npm test && curl …` or `npm test $(curl …)`: each outward or destructive part needs its own allow.
+  `npm test && curl …`, `npm test & curl …` or `npm test $(curl …)`: each outward or destructive
+  part needs its own allow. An allow in the tracked project config never pre-approves an outward
+  or destructive act — put it in `config.local.yaml` or the global config.
 - **`/dev/tcp` is the network, system directories are read-only.** A redirect or write into
   `/dev/tcp|udp`, `/etc`, `/usr`, `/opt`… is outward; `/library` is no longer read as `/lib`.
 - **The tracked project config may not loosen the human gate.** `law.humanGate.enabled: false` and

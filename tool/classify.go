@@ -134,6 +134,12 @@ func segments(cmd string) []string {
 			parts = append(parts, cur.String())
 			cur.Reset()
 			i++
+		case c == '|' && i > 0 && rs[i-1] == '>':
+			cur.WriteRune(c) // `>|` is a redirection, not a pipe
+		case c == '&' && !(i > 0 && (rs[i-1] == '>' || rs[i-1] == '<')) && !(i+1 < len(rs) && rs[i+1] == '>'):
+			// a lone & ends a command and starts the next; `2>&1`, `>&2` and `&>` are redirections
+			parts = append(parts, cur.String())
+			cur.Reset()
 		case c == '|' || c == ';' || c == '\n':
 			parts = append(parts, cur.String())
 			cur.Reset()
@@ -192,7 +198,8 @@ func (e Env) ClassifyCommand(cmd string) Classification {
 	if m := netDevice.FindString(cmd); m != "" {
 		bump(Outward, "network through "+m)
 	}
-	for _, seg := range segments(cmd) {
+	// command words first: a wrapper (`env -i /bin/rm`) is still there to show where the command is
+	for _, seg := range segments(guard.CommandWords(cmd)) {
 		seg = guard.CommandWords(seg)
 		for _, t := range writeTargets(seg) {
 			if strings.HasPrefix(t, "/") && writesSystem(filepath.Clean(t)) {

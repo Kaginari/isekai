@@ -438,8 +438,10 @@ machine's own, like `config.local`) or, with `--global`, `~/.claude/settings.jso
 - **SessionStart** injects the crest, the log's last entries and a note on how the law runs here —
   on `startup`, `resume`, `clear` and `compact` alike, so a fresh context reconnects to what was
   written down.
-- **UserPromptSubmit** stamps the tree (the turn's baseline, the same watch a session keeps) and
-  answers with the recall beat: memory anchors and `@T` lines, pointers only.
+- **UserPromptSubmit** stamps the tree (the turn's baseline, the same watch a session keeps),
+  takes the verify lines as the turn opens (each hook is a fresh process, so the gate cannot read
+  them later — a line the model adds in the turn is a hole, never run), and answers with the
+  recall beat: memory anchors and `@T` lines, pointers only.
 - **PreToolUse only tightens.** The guard denies; the world's permission rules deny or ask; with no
   rule, `outward` and `destructive` ask (and `write` under `strict`). An `allow` — a rule's, or a
   class's default — answers nothing, so Claude Code's own permissions still decide.
@@ -450,7 +452,8 @@ machine's own, like `config.local`) or, with `--global`, `~/.claude/settings.jso
   hole names whose body should have authored). A failure answers `decision: block` with the
   reasons, up to `law.gate.retries` times a turn; then the turn may end. The final verdict is
   appended to `log.md` and shown to the human.
-- The turn's state lives in `<dist-dir>/tmp/claude/<session>.json`.
+- The turn's state lives in `<dist-dir>/tmp/claude/<session>.json`. `install` gives the Stop hook
+  a 600 s timeout: the gate runs verify lines and checks, and the host's default is shorter.
 
 ## The board — the world, seen
 

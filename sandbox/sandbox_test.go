@@ -129,7 +129,7 @@ func TestCommandDeadlineKillsTheTree(t *testing.T) {
 // Credentials named the common ways, or carried in a URL's userinfo, never reach a child.
 func TestScrubCommonCredentialNames(t *testing.T) {
 	env := []string{"AWS_SECRET_ACCESS_KEY=a", "GH_PRIVATE_KEY=b", "GOOGLE_APPLICATION_CREDENTIALS=c", "DOCKER_CREDENTIAL=d",
-		"SESSION_TOKEN_V2=e", "DATABASE_URL=postgres://u:p@db/x", "PUBLIC_URL=https://example.com/a@b", "NOTASECRET=1", "TOKENIZER=bpe"}
+		"SESSION_TOKEN_V2=e", "DATABASE_URL=postgres://u:p@db/x", "REDIS_URL=redis://:pw@cache:6379", "PUBLIC_URL=https://example.com/a@b", "NOTASECRET=1", "TOKENIZER=bpe"}
 	got := strings.Join(ScrubEnv(env, nil, nil), " ")
 	if got != "PUBLIC_URL=https://example.com/a@b NOTASECRET=1 TOKENIZER=bpe" {
 		t.Fatalf("scrubbed to %q", got)

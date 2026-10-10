@@ -40,6 +40,9 @@ type GateOptions struct {
 	// TestsBefore is the test files' text as the turn opened; the EndGate hook fills it per call.
 	TestsBefore map[string]string
 	Timeout     time.Duration // per verify command; 0 = 120s
+	// VerifyBefore is each creature's verify lines as the turn opened, when the caller took them
+	// itself (a host whose gate runs in a fresh process); nil reads the roster as it stands
+	VerifyBefore map[string][]string
 	// Sandbox contains every verify line and check: no network, secrets scrubbed; nil runs them
 	// with the scrubbed environment alone
 	Sandbox *sandbox.Sandbox
@@ -69,7 +72,10 @@ func (w *World) Gate(ctx context.Context, opt GateOptions, as string, wrote []st
 	}
 	// the verify lines as they stood before the turn: a body edits its own doc in the same turn
 	// (Vitality), so the post-turn lines alone would let it rewrite the check it is judged by
-	before := w.verifyLines()
+	before := opt.VerifyBefore
+	if before == nil {
+		before = w.verifyLines()
+	}
 	_ = w.Reload() // docs may have changed this turn; the roster is read fresh
 	fail := func(why string) { v.Reasons = append(v.Reasons, why) }
 	orcs := w.GateHolders()
@@ -296,6 +302,12 @@ func firstLine(s string) string {
 		s = s[:120] + "…"
 	}
 	return s
+}
+
+// VerifyLines is each creature's verify commands as the docs hold them now, read fresh.
+func (w *World) VerifyLines() map[string][]string {
+	_ = w.Reload()
+	return w.verifyLines()
 }
 
 // verifyLines is each creature's verify commands as the roster holds them now.

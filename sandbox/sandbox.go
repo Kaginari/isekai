@@ -232,7 +232,7 @@ func (s *Sandbox) Scrub(env []string) []string {
 var (
 	secretName = regexp.MustCompile(`(?i)(^|_)(API_KEY|TOKEN|SECRET|PASSWORD|PASSWD|PRIVATE_KEY|ACCESS_KEY|CREDENTIALS?)(_|$)`)
 	// a URL carrying user:password, as DATABASE_URL usually does
-	secretValue = regexp.MustCompile(`://[^/@\s:]+:[^/@\s]+@`)
+	secretValue = regexp.MustCompile(`://[^/@\s:]*:[^/@\s]+@`)
 )
 
 // ScrubEnv drops secrets from an environment: any name holding API_KEY, TOKEN, SECRET, PASSWORD,
