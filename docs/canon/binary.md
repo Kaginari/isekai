@@ -87,8 +87,9 @@ terminal UI, `canon/tui.md`). Build with
   (`git -C . push`, `git -c k=v push`, `git --no-pager push` are the verb's class). A path is
   read for where it points: a symlink out of the world, and a file yet to be created under
   one, are outward for `read`, `write`, `edit` and `patch` alike; the editor refuses them.
-- **Secrets never cross.** The command's environment drops `*_API_KEY`, `*_TOKEN`, `*_SECRET`,
-  `*_PASSWORD` and every provider's `apiKeyEnv`; config holds an allow-list.
+- **Secrets never cross.** The command's environment drops every name holding `API_KEY`, `TOKEN`,
+  `SECRET`, `PASSWORD`, `PRIVATE_KEY`, `ACCESS_KEY` or `CREDENTIAL` as a whole word, every value that
+  is a URL with a password in it, and every provider's `apiKeyEnv`; config holds an allow-list.
 - **Nothing outlives its call unannounced.** Each command runs in its own process group; a timeout
   kills the group. `background: true` starts a named, logged background job with its own output
   file; jobs are listed in `status` and killed when the session ends.
@@ -252,10 +253,12 @@ The throne never chooses its horse: the session (Rimuru) runs on the model the h
 At the end of any turn that wrote files, before the turn is reported done:
 1. **Right slime authored** — every written path maps to the territory of the body that wrote it.
 2. **Traits hold** — each touched creature's `verify` commands (from its doc) run; exit codes are
-   the reading. The lines that run are the ones the doc held *before* the turn, plus any it added:
-   Vitality makes a body edit its own doc in the same turn, so the post-turn lines alone would let
-   it rewrite the check it is judged by. A pre-turn line the turn removed or changed still runs, and
-   the change is a hole for the gate holder to confirm.
+   the reading. The lines that run are the ones the doc held *before* the turn: Vitality makes a
+   body edit its own doc in the same turn, so the post-turn lines would let it rewrite the check it
+   is judged by. A pre-turn line the turn removed or changed still runs; a line the turn added is
+   the model's own command and does not run — both are holes for the gate holder to confirm. Every
+   verify line and injected check runs under the sandbox: no network, secrets scrubbed, the process
+   group killed at its timeout.
 - **Tests intact** (`law.gate.testsIntact`) — a turn may not pass by making the tests easier. The
    loop keeps the test files' text as the turn opens (Go, JS/TS, Python; bounded); a touched test
    file that lost tests, gained a skip or an `.only`, or was deleted fails the gate. Only the human

@@ -31,6 +31,30 @@ All notable changes to Isekai are recorded here. The format follows
 - The SSH board (`board --ssh`): the board is local only — 127.0.0.1, or the host's loopback from
   `--containered`.
 
+### Security
+
+- **The gate runs no command the model wrote this turn.** A verify line added to a creature doc in
+  the same turn is a hole for the gate holder, not a reading; every verify line and injected check
+  runs under the sandbox (no network, secrets scrubbed, its process group killed at the timeout).
+- **A command is its name however it is called.** `/usr/bin/git push`, `/bin/rm -rf`, `\rm` and
+  `xargs /bin/rm` classify and hit the guard like `git push` and `rm`.
+- **An allow never carries a chained act.** `bash:npm test*` allows `npm test`, not
+  `npm test && curl …` or `npm test $(curl …)`: each outward or destructive part needs its own allow.
+- **`/dev/tcp` is the network, system directories are read-only.** A redirect or write into
+  `/dev/tcp|udp`, `/etc`, `/usr`, `/opt`… is outward; `/library` is no longer read as `/lib`.
+- **The tracked project config may not loosen the human gate.** `law.humanGate.enabled: false` and
+  `approve: [outward|destructive]` are refused from `.isekai/config.yaml` (they travel with every
+  clone) and honored from `config.local.yaml` or the global config; every standing approval is in
+  the off-list.
+- **More secrets scrubbed**: names holding `PRIVATE_KEY`, `ACCESS_KEY`, `CREDENTIAL` (so
+  `AWS_SECRET_ACCESS_KEY`), and URLs carrying a password (`DATABASE_URL`).
+
+### Fixed
+
+- **A deadline is a deadline.** Gate readings, hooks, rule checks, `goal --validate` and custom
+  tools kill their whole process group at the timeout and stop waiting on pipes a backgrounded
+  child kept open.
+
 ## [0.2.0] - 2026-09-27
 
 ### Highlights

@@ -51,12 +51,16 @@ func (c *Config) checkScalars() error {
 }
 
 // checkGate applies the refusals around the human gate: a full gate off is honored only from
-// a config file; standing approvals never come from env; classes must exist.
+// the machine's own config files; standing approvals of the gated classes never come from env or
+// the tracked project layer; classes must exist.
 func (c *Config) checkGate() error {
 	if !c.Law.HumanGate.Enabled {
 		o, _ := c.Origins["law.humanGate.enabled"]
 		if !fileLayers[o.Layer] {
-			return fmt.Errorf("%s: law.humanGate.enabled: false is honored only from a config file (global, project or local) — never env or a flag", o)
+			return fmt.Errorf("%s: law.humanGate.enabled: false is honored only from a config file (global or local) — never env or a flag", o)
+		}
+		if o.Layer == "project" {
+			return fmt.Errorf("%s: law.humanGate.enabled: false %s", o, fromClone)
 		}
 	}
 	for i, a := range c.Law.HumanGate.Approve {
@@ -68,9 +72,16 @@ func (c *Config) checkGate() error {
 		if o.Layer == "env" || o.Layer == "env-file" {
 			return fmt.Errorf("%s: %s: a standing pre-approval is the human's written word — a config file or --approve, never env", o, path)
 		}
+		if o.Layer == "project" && classOrder[a] >= classOrder["outward"] {
+			return fmt.Errorf("%s: %s: %s %s", o, path, a, fromClone)
+		}
 	}
 	return nil
 }
+
+// fromClone is the refusal for a loosening of the human gate in the tracked project layer.
+const fromClone = "is refused from the project config: it travels with the repository, so anyone who clones it " +
+	"would run with the gate loosened — put it in .isekai/config.local.yaml or the global config, which are the machine's own"
 
 func (c *Config) checkCompaction() error {
 	if c.Compaction.Enabled && c.Compaction.Trigger.Tokens >= c.Law.Budget.ContextTokens {
@@ -122,10 +133,8 @@ func (c *Config) Off() []Finding {
 			}
 		}
 	})
-	for i, a := range c.Law.HumanGate.Approve {
-		if a == "destructive" {
-			add(fmt.Sprintf("law.humanGate.approve[%d]", i))
-		}
+	for i := range c.Law.HumanGate.Approve {
+		add(fmt.Sprintf("law.humanGate.approve[%d]", i))
 	}
 	if !c.Instruments.Status.ShowOff {
 		add("instruments.status.showOff")

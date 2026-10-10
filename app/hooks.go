@@ -12,6 +12,7 @@ import (
 
 	"github.com/Kaginari/isekai/config"
 	"github.com/Kaginari/isekai/loop"
+	"github.com/Kaginari/isekai/sandbox"
 	"github.com/Kaginari/isekai/wire"
 )
 
@@ -79,7 +80,7 @@ func (h *ShellHooks) run(ctx context.Context, hooks []*config.Hook, in hookInput
 			continue
 		}
 		cctx, cancel := context.WithTimeout(ctx, timeout)
-		cmd := exec.CommandContext(cctx, "sh", "-c", hk.Command)
+		cmd := sandbox.Contain(exec.CommandContext(cctx, "sh", "-c", hk.Command))
 		cmd.Dir = h.Root
 		payload, _ := json.Marshal(in)
 		cmd.Stdin = bytes.NewReader(payload)

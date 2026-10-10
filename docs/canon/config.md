@@ -98,10 +98,13 @@ refused at load, whatever layer they come from, each naming `file:line` and the 
 - `permissions.rules[]` with `action: allow` and a pattern with no literal character (`*`,
   `**`) on `bash`, `git`, `webfetch`, `websearch` or the tool wildcard `*` (a wildcard
   pre-approval is an auto-approve mode);
-- `law.humanGate.enabled: false` from any layer but 2, 3 or 4 (a standing pre-approval is the
+- `law.humanGate.enabled: false` from any layer but 2 or 4 (a standing pre-approval is the
   human's written word, never an env var or a flag; `--no-human-gate` does not exist and
   `--set law.humanGate.enabled=false` is refused);
-- `law.humanGate.approve` from layers 5 or 6 (a file or the `--approve` flag, never env);
+- `law.humanGate.approve` from layers 5 or 6 (a file or the `--approve` flag, never env), and
+  `outward` or `destructive` in it from layer 3: the project config is tracked and travels with
+  every clone, so it may tighten the gate but never loosen it — the machine's own layers (2, 4)
+  can;
 - a credential in a file: `providers.<p>.apiKey` / `key` / `token` / `secret`, an
   `Authorization` / `X-Api-Key` header, a header or `env` value shaped like a key
   (`sk-…`, `Bearer …`), or an `apiKeyEnv` / `headersEnv` value that is not an environment
@@ -132,8 +135,8 @@ refused at load, whatever layer they come from, each naming `file:line` and the 
 - shown once at REPL start, in human prose.
 
 A feature the binary itself ships off (origin `default`, such as `law.doomLoop`) is not a
-finding: the finding is a switch someone threw. `law.humanGate.approve` containing
-`destructive` and `instruments.status.showOff: false` are listed the same way. `status` also
+finding: the finding is a switch someone threw. Every `law.humanGate.approve` entry and
+`instruments.status.showOff: false` are listed the same way. `status` also
 lists every **loosening**: each `allow` rule on `bash`, `git`, `webfetch` or `websearch`, each
 standing approval, and a gate switched off — one line each with its origin.
 
@@ -361,11 +364,11 @@ document is JSON here; the same keys in YAML are the same config.
 ### Notes on specific keys
 
 - **`law.humanGate.approve`** is the config form of `--approve <class>`. It is honored from
-  layers 2–4 and from the flag, never from env, and each act it silences is logged as
-  `gate: pre-approved by config (<origin>)`. `["destructive"]` is accepted but `status` prints it
+  layers 2 and 4 and from the flag (layer 3 for `read` and `write` only), never from env, and
+  each act it silences is logged as `gate: pre-approved by config (<origin>)`. `["destructive"]` is accepted but `status` prints it
   in the off-list even though the gate is nominally on — a standing approval of the irreversible
   is a switched-off instrument in everything but name.
-- **`law.humanGate.enabled: false`** is honored only from a config file and is always the first
+- **`law.humanGate.enabled: false`** is honored only from the global or local config file and is always the first
   line of the off-list and of the loosening list. With the gate off, `Decide` answers `allow`
   for everything except a matching `deny` rule.
 - **`mcp.servers.<n>.inward`** declares the server never leaves the machine (a local database, a
@@ -446,8 +449,11 @@ For `bash` and `git` the rules are also matched against the command's inner form
 `env`, `sudo`, `xargs`, `nohup`, `timeout`, `eval`, `exec`, a quoted `sh -c` argument, a `cd … &&`
 prefix or a subshell, and `git` with its global options stripped (`git -C . push` → `git push`).
 A rule matched on an inner form only tightens: a `deny` or `ask` there holds; an `allow` needs the
-whole command, so it never widens. An argument is not a command: `echo git push` matches no
-`git push*` rule.
+whole command, so it never widens. And an `allow` holds only when every act inside the command
+is allowed too: a chained or nested part the gate would ask about (`npm test && curl …`,
+`npm test $(curl …)`) needs its own allow rule, else the command falls to its class default. An
+argument is not a command: `echo git push` matches no `git push*` rule. A command named by its
+path or escaped from an alias (`/usr/bin/git push`, `\rm`) is matched as its bare name.
 
 A rule loosens a single pattern without turning the gate off; every `allow` on `bash`, `git`,
 `webfetch`, `websearch` or `*` is a loosening `status` lists. `permissions.enabled: false`

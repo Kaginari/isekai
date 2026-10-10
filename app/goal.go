@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Kaginari/isekai/loop"
+	"github.com/Kaginari/isekai/sandbox"
 )
 
 // A goal is a contract the session keeps working at, turn after turn, until a validation command
@@ -51,7 +52,7 @@ func goalNext(g goalContract, turn, code int, tail string) string {
 func (a *App) validateGoal(ctx context.Context, cmd string) (int, string) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
-	c := exec.CommandContext(ctx, "bash", "-c", cmd)
+	c := sandbox.Contain(exec.CommandContext(ctx, "bash", "-c", cmd))
 	c.Dir = a.Root
 	out, err := c.CombinedOutput()
 	code := 0

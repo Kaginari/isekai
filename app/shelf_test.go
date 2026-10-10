@@ -230,7 +230,8 @@ mcp:
 		approved.Approve[tool.Outward] = true
 		r = driveGate(t, reg, root, hooks, approved,
 			step("bash", map[string]string{"command": "echo x > " + outside + "/probe; echo wrote $?"}),
-			step("bash", map[string]string{"command": "exec 3<>/dev/tcp/127.0.0.1/" + port + " && echo connected"}),
+			// spelled so the classifier cannot see it: only the sandbox is left to stop it
+			step("bash", map[string]string{"command": "p=/dev/tc''p/127.0.0.1/" + port + "; exec 3<>\"$p\" && echo connected"}),
 		)
 		out = outputs(r)
 		if len(out) != 2 {

@@ -315,7 +315,7 @@ func TestParseFlags(t *testing.T) {
 	if c.Mode != "build" || !c.Law.HumanGate.DryRun || c.Law.HumanGate.Approve[0] != "outward" || c.MCP.Enabled || c.Law.Crest.Enabled {
 		t.Errorf("flags applied: %+v", c.Law.HumanGate)
 	}
-	if off := c.OffLines(); len(off) != 2 || !strings.Contains(off[0], "law.crest.enabled — flag:--no-law.crest") {
+	if off := c.OffLines(); len(off) != 3 || !strings.Contains(off[1], "law.humanGate.approve[0] — flag:--approve") || !strings.Contains(off[0], "law.crest.enabled — flag:--no-law.crest") {
 		t.Errorf("off: %v", off)
 	}
 }

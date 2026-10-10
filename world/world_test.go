@@ -328,6 +328,8 @@ func TestGateVerdicts(t *testing.T) {
 	}
 	// traits: a verify command fails
 	os.WriteFile(filepath.Join(dir, "src/auth/BROKEN"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(dir, doc), []byte("# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `test ! -f src/auth/BROKEN`\n"), 0o644)
+	w.Reload()
 	m = mock.New(writeCall("1", "src/auth/t.go", "t"), writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `test ! -f src/auth/BROKEN`\n"), mock.Text("@S DONE\n@U colony c\n@E 0"))
 	e = w.Engine("slime-auth", build(m))
 	if r, _ = e.Run(context.Background(), "x"); r.Status != loop.Fail || !strings.Contains(r.Verdict, "Traits hold: slime-auth verify `test ! -f src/auth/BROKEN` exit 1") {
@@ -341,6 +343,16 @@ func TestGateVerdicts(t *testing.T) {
 		t.Fatalf("a rewritten verify line escaped the gate: %s %q %v", r.Status, r.Verdict, r.Holes)
 	}
 	os.Remove(filepath.Join(dir, "src/auth/BROKEN"))
+	// traits: a verify line added this turn is the model's own command — it never runs unconfirmed
+	m = mock.New(writeCall("1", "src/auth/t3.go", "t"), writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- **Verify:** `test ! -f src/auth/BROKEN`\n- **Verify:** `touch src/auth/PWNED`\n"), mock.Text("@S DONE\n@U colony c\n@E 0"))
+	e = w.Engine("slime-auth", build(m))
+	r, _ = e.Run(context.Background(), "x")
+	if _, err := os.Stat(filepath.Join(dir, "src/auth/PWNED")); err == nil {
+		t.Fatal("a verify line added this turn ran at the gate")
+	}
+	if !strings.Contains(strings.Join(r.Holes, "|"), "verify `touch src/auth/PWNED` was added this turn") {
+		t.Fatalf("an added verify line left no hole: %s %q %v", r.Status, r.Verdict, r.Holes)
+	}
 	// a failed gate goes back to the model once: it fixes what the gate names, the turn passes
 	m = mock.New(writeCall("1", "src/auth/r.go", "package auth"), mock.Text("@S DONE\n@U colony c\n@E 0"),
 		writeCall("2", doc, "# slime-auth\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n- r.go added\n"), mock.Text("@S DONE doc updated\n@U colony c\n@E 0"))

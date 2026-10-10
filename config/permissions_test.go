@@ -147,6 +147,9 @@ func TestPermissionRefusals(t *testing.T) {
 		{"bad match", `permissions: {rules: [{match: "bash", action: allow}]}`, "<tool>:<glob>"},
 		{"gate off via env-file", "", "honored only from a config file"},
 		{"approve via env", "", "never env"},
+		// the tracked project layer travels with a clone: it may tighten the gate, never loosen it
+		{"gate off from the project", "law: {humanGate: {enabled: false}}", "travels with the repository"},
+		{"approve outward from the project", "law: {humanGate: {approve: [outward]}}", "travels with the repository"},
 	}
 	for _, cs := range cases {
 		w := newWorld(t, map[string]string{".isekai/config.yaml": cs.yaml + "\n"})
@@ -179,10 +182,11 @@ func TestPermissionRefusals(t *testing.T) {
 	if len(c.Holes) != 1 || !strings.Contains(c.Holes[0], "names no tool") {
 		t.Errorf("unknown tool: %v", c.Holes)
 	}
-	// approve destructive is accepted but sits in the off-list
-	w = newWorld(t, map[string]string{".isekai/config.yaml": "law: {humanGate: {approve: [destructive]}}\n"})
+	// approve destructive from the machine's own layer is accepted but sits in the off-list; so
+	// does every standing approval
+	w = newWorld(t, map[string]string{".isekai/config.local.yaml": "law: {humanGate: {approve: [destructive, outward]}}\n"})
 	c = w.load()
-	if off := c.Off(); len(off) != 1 || off[0].Key != "law.humanGate.approve[0]" {
-		t.Errorf("approve destructive: %v", off)
+	if off := c.Off(); len(off) != 2 || off[0].Key != "law.humanGate.approve[0]" || off[1].Key != "law.humanGate.approve[1]" {
+		t.Errorf("standing approvals: %v", off)
 	}
 }
