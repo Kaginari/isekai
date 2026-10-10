@@ -65,6 +65,7 @@ type Model struct {
 	pulses        map[string]*courtPulse // a live Court row's motion, keyed by its name (motion.go)
 	files         []RailFile             // the touch ledger: who wrote what, in order, latest last (slice-2 rail)
 	plans         []RailPlan             // plan decks the rail shows; planIdx picks the visible one (ctrl+p)
+	plansBusy     bool                   // a Plans read is in flight
 	planIdx       int
 	planSticky    bool            // the human ctrl+p'd off the elf default: keep their pick
 	courtRows     map[int]string  // rail row → court name; a click there switches the plan card
@@ -130,12 +131,21 @@ type Model struct {
 	bview      *bodyView
 	toasts     []toast
 
-	// the pane-mode chat cache: blocks rendered at cw, rebuilt when dirtied (a new block, a
-	// width change, a theme swap) — never re-rendered per frame
+	// the pane-mode chat cache: the blocks' lines at cw. A new block appends its own lines; a
+	// width change, a theme swap or a reflow rebuilds it from the blocks' own caches
 	paneDirty bool
 	paneCache []string
 	paneW     int
 	paneRef   int
+	paneN     int // blocks[:paneN] are in paneCache
+	paneVer   int // bumps whenever paneCache changes: the viewport's feed key
+	// renderGen bumps on a theme swap: every block's cached render is stale then
+	renderGen int
+	liveMemo  struct {
+		src    string
+		w, gen int
+		out    string
+	}
 	// the chat pane's viewport: transcript scrollback lives here while the panes own the
 	// window (pane_vp.go)
 	vp      viewport.Model
@@ -143,6 +153,8 @@ type Model struct {
 	vpCW    int
 	vpH     int
 	vpLines []string // what the viewport holds: the transcript, then the live rows
+	vpVer   int      // the paneVer and the live rows the viewport was last fed
+	vpLive  []string
 	// the chat pane's drag selection (select.go); mouseTerm hands the mouse to the terminal
 	sel       *selection
 	clickAt   time.Time
@@ -166,6 +178,39 @@ type block struct {
 	src    string
 	answer bool // a piece of the session's answer
 	turn   int  // the turn it belongs to (turnSeq)
+	// the render cache: blocks are append-only and never change once landed (ctrl+o prints an
+	// expanded copy), so one render per width and theme serves every frame and reprint
+	w, gen int
+	ok     bool
+	text   string
+	lines  []string
+}
+
+// rendered is a block at a width, from its cache when the width and theme still hold.
+func (m *Model) rendered(b *block, w int) string {
+	if !b.ok || b.w != w || b.gen != m.renderGen {
+		b.text, b.lines = b.render(w), nil
+		b.w, b.gen, b.ok = w, m.renderGen, true
+	}
+	return b.text
+}
+
+// renderedLines is rendered split into rows.
+func (m *Model) renderedLines(b *block, w int) []string {
+	t := m.rendered(b, w)
+	if b.lines == nil && t != "" {
+		b.lines = strings.Split(t, "\n")
+	}
+	return b.lines
+}
+
+// liveAnswer is the paragraph still being written, rendered once per change of text or width.
+func (m *Model) liveAnswer(s string, w int) string {
+	lm := &m.liveMemo
+	if lm.out == "" || lm.src != s || lm.w != w || lm.gen != m.renderGen {
+		lm.src, lm.w, lm.gen, lm.out = s, w, m.renderGen, m.theme.Assistant(s, w)
+	}
+	return lm.out
 }
 
 type collapsed struct {
@@ -265,6 +310,7 @@ func (m *Model) welcome() tea.Cmd {
 func (m *Model) setTheme(t Theme) {
 	m.theme = t
 	m.paneDirty = true
+	m.renderGen++
 	st := m.input.Styles()
 	st.Focused.Prompt = t.dim
 	st.Focused.Placeholder = t.dim
@@ -401,32 +447,21 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.busy || m.choice != nil {
 			m.footer = m.host.Footer()
 		}
-		if m.railVisible() > 0 {
-			plans := m.host.Plans()
-			m.plans = plans
-			if m.planSticky {
-				if m.planIdx >= len(plans) {
-					m.planIdx = 0
-				}
-			} else if len(plans) > 0 {
-				// the steady state: the throne's own deck rides the rail; ctrl+p walks the others.
-				// A live throne deck is preferred over a stale one (2026-10-13 relay).
-				m.planIdx = 0
-				for i, p := range plans {
-					if (p.Rank == "rimuru" || p.Rank == "orchestrator") && !p.Stale && !p.Archived {
-						m.planIdx = i
-						break
-					}
-				}
-			}
+		// the rail's decks load off the UI goroutine, one read in flight at a time
+		var load tea.Cmd
+		if m.railVisible() > 0 && !m.plansBusy {
+			m.plansBusy = true
+			host := m.host
+			load = func() tea.Msg { return evPlans{plans: host.Plans()} }
 		}
 		if m.message != "" && time.Now().After(m.msgUntil) {
 			m.message = ""
 		}
-		if len(lands) > 0 {
-			return m, tea.Batch(append([]tea.Cmd{tick()}, lands...)...)
-		}
-		return m, tick()
+		return m, tea.Batch(append([]tea.Cmd{tick(), load}, lands...)...)
+	case evPlans:
+		m.plansBusy = false
+		m.setPlans(msg.plans)
+		return m, nil
 	case spinner.TickMsg:
 		if !m.busy {
 			return m, nil
@@ -678,6 +713,30 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// evPlans carries the rail's decks, read by a tea.Cmd.
+type evPlans struct{ plans []RailPlan }
+
+// setPlans takes a fresh read of the decks: a pinned pick holds, else the throne's own deck
+// rides the rail (a live one over a stale one); ctrl+p walks the others.
+func (m *Model) setPlans(plans []RailPlan) {
+	m.plans = plans
+	if m.planSticky {
+		if m.planIdx >= len(plans) {
+			m.planIdx = 0
+		}
+		return
+	}
+	if len(plans) > 0 {
+		m.planIdx = 0
+		for i, p := range plans {
+			if (p.Rank == "rimuru" || p.Rank == "orchestrator") && !p.Stale && !p.Archived {
+				m.planIdx = i
+				break
+			}
+		}
+	}
+}
+
 // noteWrite records a path a body touched; the rail's ledger shows latest-last, one line per
 // path, worn in the writing body's race lane.
 func (m *Model) noteWrite(path, body string) {
@@ -710,18 +769,26 @@ func (m *Model) choiceFloat() bool {
 // width, cached and rebuilt on change (a block landed, the width moved, the theme swapped).
 // Clipping happens in splitPanes.
 func (m *Model) paneChat(cw int) []string {
-	if !m.paneDirty && m.paneCache != nil && m.paneW == cw && m.paneRef == m.reflowSeq {
+	if m.paneDirty || m.paneW != cw || m.paneRef != m.reflowSeq || m.paneN > len(m.blocks) {
+		m.paneCache, m.paneN = nil, 0
+		m.paneW, m.paneRef, m.paneDirty = cw, m.reflowSeq, false
+		m.paneVer++
+	}
+	if m.paneN == len(m.blocks) && m.paneCache != nil {
 		return m.paneCache
 	}
-	var out []string
-	for _, r := range m.blocks {
-		if b := r.render(cw); b != "" {
-			out = append(out, strings.Split(b, "\n")...)
-			out = append(out, "")
+	for _, b := range m.blocks[m.paneN:] {
+		if ls := m.renderedLines(b, cw); len(ls) > 0 {
+			m.paneCache = append(m.paneCache, ls...)
+			m.paneCache = append(m.paneCache, "")
 		}
 	}
-	m.paneCache, m.paneW, m.paneRef, m.paneDirty = out, cw, m.reflowSeq, false
-	return out
+	if m.paneCache == nil {
+		m.paneCache = []string{}
+	}
+	m.paneN = len(m.blocks)
+	m.paneVer++
+	return m.paneCache
 }
 
 // splitPanes is the window's frame: chat left (cw) — the transcript viewport (paneChat) plus
@@ -1016,15 +1083,19 @@ func (m *Model) printAnswer(md string) tea.Cmd {
 }
 
 func (m *Model) push(b *block) tea.Cmd {
-	block := b.render(m.width)
+	if rail := m.railVisible(); rail > 0 {
+		// the pane draws it at the chat's width: render there once, never at the full width too
+		if m.rendered(b, m.width-rail) == "" {
+			return nil
+		}
+		m.blocks = append(m.blocks, b)
+		return nil
+	}
+	block := m.rendered(b, m.width)
 	if block == "" {
 		return nil
 	}
 	m.blocks = append(m.blocks, b)
-	if m.railVisible() > 0 {
-		m.paneDirty = true
-		return nil
-	}
 	if m.board != nil || m.bview != nil {
 		return nil // held: catchUp prints it once the screen comes back
 	}
@@ -1045,7 +1116,7 @@ func (m *Model) reflow() tea.Cmd {
 	}
 	var parts []string
 	for _, r := range m.blocks {
-		if b := r.render(m.width); b != "" {
+		if b := m.rendered(r, m.width); b != "" {
 			parts = append(parts, b)
 		}
 	}
@@ -1062,7 +1133,7 @@ func (m *Model) leave() tea.Cmd {
 	m.board, m.bview = nil, nil // the alternate screen keeps no print: leave it first
 	var parts []string
 	for _, r := range m.blocks[min(m.printedIdx, len(m.blocks)):] {
-		if b := r.render(m.width); b != "" {
+		if b := m.rendered(r, m.width); b != "" {
 			parts = append(parts, b)
 		}
 	}
@@ -1080,7 +1151,7 @@ func (m *Model) catchUp() {
 		return
 	}
 	for _, r := range m.blocks[m.printedIdx:] {
-		if b := r.render(m.width); b != "" {
+		if b := m.rendered(r, m.width); b != "" {
 			m.enqueue(printItem{text: b})
 		}
 	}
@@ -1242,7 +1313,7 @@ func (m *Model) Render() string {
 	}
 	var live []string
 	if s := m.stream.String(); m.busy && strings.TrimSpace(s) != "" {
-		live = append(live, m.theme.Assistant(s, cw), "")
+		live = append(live, m.liveAnswer(s, cw), "")
 	}
 	for _, t := range m.tools {
 		live = append(live, m.theme.Tool(*t, cw), "")

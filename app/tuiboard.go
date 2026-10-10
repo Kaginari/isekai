@@ -2,9 +2,11 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Kaginari/isekai/board"
@@ -26,10 +28,50 @@ func (h *tuiHost) Board(rng string) tui.BoardView { return h.a.BoardView(rng) }
 // session's outstanding work. The boot sweep (LEC-2026-10-04-STALE-PLANS) keeps the live dir
 // to this session's decks; last session's decks merge in from the archive under Archived=true
 // so the rail renders them and alt+n can snap off them (contract: tui/blocks.go:597).
+// The rail asks five times a second (off the UI goroutine); the decks are read again only
+// when a deck file or a live body's office moved.
 func (h *tuiHost) Plans() []tui.RailPlan {
 	dir := h.a.planDir()
 	boot := h.a.plansBoot()
-	return railPlans(h.a, dir, boot)
+	sig := plansSig(h.a, dir, boot)
+	h.plans.mu.Lock()
+	defer h.plans.mu.Unlock()
+	if !h.plans.ok || h.plans.sig != sig {
+		h.plans.out, h.plans.sig, h.plans.ok = railPlans(h.a, dir, boot), sig, true
+	}
+	return append([]tui.RailPlan(nil), h.plans.out...)
+}
+
+// plansMemo is the last read of the decks and the signature it was read under.
+type plansMemo struct {
+	mu  sync.Mutex
+	sig string
+	out []tui.RailPlan
+	ok  bool
+}
+
+// plansSig names what a read of the decks depends on: every deck file's name, size and mtime,
+// live and archived, the live bodies' offices (a deck wears its body's), the session's birth.
+func plansSig(a *App, dir string, boot time.Time) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d;", boot.UnixNano())
+	for _, d := range []string{dir, planArchiveDir(dir)} {
+		es, _ := os.ReadDir(d)
+		for _, e := range es {
+			if !strings.HasSuffix(e.Name(), ".json") {
+				continue
+			}
+			if info, err := e.Info(); err == nil {
+				fmt.Fprintf(&b, "%s/%s %d %d;", d, e.Name(), info.Size(), info.ModTime().UnixNano())
+			}
+		}
+	}
+	if a.Court != nil {
+		for _, x := range a.Court.Bodies() {
+			fmt.Fprintf(&b, "%s=%s;", x.Name, x.Office)
+		}
+	}
+	return b.String()
 }
 
 // railPlans renders one plans dir into rail entries: live decks first (in name order), then

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -13,10 +14,11 @@ import (
 // becomes a scrollback — pgup/pgdn, shift+↑/↓ and the wheel walk it; new content follows the
 // bottom only while the human never scrolled up. Present only while the panes own the window.
 
-// ensureVP builds or resizes the chat viewport for the pane geometry (cw × paneH).
-func (m *Model) ensureVP(cw, paneH int) {
+// ensureVP builds or resizes the chat viewport for the pane geometry (cw × paneH); true when
+// the geometry changed.
+func (m *Model) ensureVP(cw, paneH int) bool {
 	if m.vpOK && m.vpCW == cw && m.vpH == paneH {
-		return
+		return false
 	}
 	if !m.vpOK {
 		m.vp = viewport.New(viewport.WithWidth(cw), viewport.WithHeight(paneH))
@@ -32,23 +34,27 @@ func (m *Model) ensureVP(cw, paneH int) {
 	m.vp.SetWidth(cw)
 	m.vp.SetHeight(paneH)
 	m.vpCW, m.vpH = cw, paneH
+	return true
 }
 
-// feedVP serves the transcript + live rows into the viewport. Follow mode: the pane hugs the
-// bottom while the human hasn't scrolled away (AtBottom before the feed), and leaves them where
-// they climbed when they have. Internal discipline: soft-wrap off, gutter off (block landmarks
-// are a later lift via LeftGutterFunc).
+// feedVP serves the transcript + live rows into the viewport — only when either changed (or
+// the pane did): an idle frame re-reads nothing. Follow mode: the pane hugs the bottom while
+// the human hasn't scrolled away (AtBottom before the feed), and leaves them where they climbed
+// when they have. Internal discipline: soft-wrap off, gutter off.
 func (m *Model) feedVP(live []string, cw, paneH int) []string {
-	m.ensureVP(cw, paneH)
+	resized := m.ensureVP(cw, paneH)
 	lines := m.paneChat(cw)
-	if len(live) > 0 {
-		lines = append(append([]string(nil), lines...), live...)
-	}
-	atBottom := m.vp.AtBottom()
-	m.vpLines = lines
-	m.vp.SetContentLines(lines)
-	if atBottom {
-		m.vp.GotoBottom()
+	if resized || m.vpVer != m.paneVer || !slices.Equal(m.vpLive, live) {
+		if len(live) > 0 {
+			lines = append(lines[:len(lines):len(lines)], live...) // a copy: the cache stays whole
+		}
+		atBottom := m.vp.AtBottom()
+		m.vpLines = lines
+		m.vp.SetContentLines(lines)
+		if atBottom {
+			m.vp.GotoBottom()
+		}
+		m.vpVer, m.vpLive = m.paneVer, append(m.vpLive[:0], live...)
 	}
 	return strings.Split(m.vp.View(), "\n")
 }

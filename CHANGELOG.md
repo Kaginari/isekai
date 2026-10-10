@@ -145,6 +145,11 @@ All notable changes to Isekai are recorded here. The format follows
   the exit; `esc` and `ctrl+c` keep a cleared draft one ↑ away. Under the panes `ctrl+u`/`ctrl+d`
   are the input's again — `pgup`/`pgdn` (now matched), `shift+↑/↓` and the wheel scroll the chat —
   and the shortcuts list says so. The bodies view's pipe gives the draft back.
+- **The TUI stays smooth on a long session.** Each block renders once per width and theme
+  (cached; a new block costs its own render, not the transcript's), the chat viewport is fed only
+  when the transcript or the live rows changed, and the rail's plan decks load in a `tea.Cmd`,
+  read again only when a deck file's size or mtime (or a live body's office) moved — no disk
+  read on the UI goroutine five times a second.
 - **The TUI's transcript.** Quitting in pane mode prints the conversation to the scrollback, so it
   stays in the terminal after exit. A block that finished under the board prints once, not twice.
   `<` and `>` in an answer survive Glamour (`Vec<T>`, `providers.<name>.script`); long errors wrap.

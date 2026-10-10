@@ -3,7 +3,6 @@ package tui
 import (
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -26,9 +25,9 @@ func TestPlanCurrentSwitch(t *testing.T) {
 	if got, ok := mm.(*Model); ok {
 		m = got
 	}
-	m.Update(evTick{at: time.Now()}) // presence refresh populates m.plans (model.go:385)
+	m.Update(evPlans{plans: m.host.Plans()}) // the tick's read, landed
 	if len(m.plans) == 0 {
-		t.Fatal("evTick must populate m.plans — railVisible>0 not satisfied?")
+		t.Fatal("evPlans must populate m.plans")
 	}
 	if got := m.plans[m.planIdx]; got.Body != "rimuru" || got.Archived {
 		t.Fatalf("the throne deck leads by default: %+v", m.plans[m.planIdx])
@@ -102,9 +101,9 @@ func TestPlanCurrentStaleDefaultTypesC(t *testing.T) {
 	if got, ok := mm.(*Model); ok {
 		m = got
 	}
-	m.Update(evTick{at: time.Now()})
+	m.Update(evPlans{plans: m.host.Plans()})
 	if len(m.plans) == 0 {
-		t.Fatal("evTick must populate m.plans — railVisible>0 not satisfied?")
+		t.Fatal("evPlans must populate m.plans")
 	}
 	if got := m.plans[m.planIdx]; !got.Stale {
 		t.Fatalf("setup: the only deck is stale, the default view faces it (fallback preserved): %+v", got)
@@ -137,9 +136,9 @@ func TestPlanCurrentNoLiveDeck(t *testing.T) {
 	if got, ok := mm.(*Model); ok {
 		m = got
 	}
-	m.Update(evTick{at: time.Now()})
+	m.Update(evPlans{plans: m.host.Plans()})
 	if len(m.plans) == 0 {
-		t.Fatal("evTick must populate m.plans — railVisible>0 not satisfied?")
+		t.Fatal("evPlans must populate m.plans")
 	}
 
 	// pin the stale deck, then press alt+n: nothing live to snap to…
@@ -181,9 +180,9 @@ func TestPlanCurrentAltN(t *testing.T) {
 	if got, ok := mm.(*Model); ok {
 		m = got
 	}
-	m.Update(evTick{at: time.Now()})
+	m.Update(evPlans{plans: m.host.Plans()})
 	if len(m.plans) == 0 {
-		t.Fatal("evTick must populate m.plans — railVisible>0 not satisfied?")
+		t.Fatal("evPlans must populate m.plans")
 	}
 	m.planIdx = 0 // view the stale slime deck WITHOUT a sticky pin (boot-style view)
 	m.planSticky = false

@@ -12,7 +12,8 @@ one place the binary takes third-party code; versions pinned in go.sum.
   spinner line, the input box, the footer.
 - **A width change reprints.** A terminal rewraps the live area's full-width lines when it
   narrows, and the renderer, counting the rows it drew, then leaves copies behind. So every
-  finished block is kept as a render at a width; once a drag settles (~120 ms) the screen and the
+  finished block is kept as a render at a width — rendered once per width and theme, then
+  cached, so a frame, a new block or a reprint never runs Glamour over the transcript again; once a drag settles (~120 ms) the screen and the
   scrollback are cleared and the transcript is printed again at the new width — Claude Code's
   answer too. A height-only change reprints nothing; `ctrl+l` reprints on demand; `/clear` empties
   the transcript. The welcome waits for the first size, so it is never drawn at a guessed width.

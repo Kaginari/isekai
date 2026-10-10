@@ -114,6 +114,7 @@ type tuiHost struct {
 	filesAt        time.Time
 	words          tui.Words
 	exit           int
+	plans          plansMemo // the rail's decks, read again only when they moved
 }
 
 func (a *App) tuiWords() tui.Words {

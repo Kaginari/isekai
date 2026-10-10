@@ -40,7 +40,7 @@ func TestPlanChordsNeverEatTypedWords(t *testing.T) {
 	}}
 	m := New(h, NewTheme(false), DefaultWords())
 	m.Update(tea.WindowSizeMsg{Width: 140, Height: 40})
-	m.Update(evTick{at: time.Now()})
+	m.Update(evPlans{plans: m.host.Plans()})
 	typeText(m, "Cat")
 	if got := m.input.Value(); got != "Cat" {
 		t.Fatalf("a capital C was swallowed: %q", got)
