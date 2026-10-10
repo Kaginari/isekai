@@ -3,17 +3,19 @@
 - **Rank:** Orc
 - **Territory:** `tui/`, `board/`, `ui/`, `docs/screens/`
 - **Reports to:** elf-isekai
-- **Minds:** orc-gate-verdict
-- **Purpose:** rules the human's siphon — the terminal UI, the board and dashboard, the web ui system — and holds the gate over every landing there.
+- **Minds:** orc-gate-verdict, review-core
+- **Purpose:** rules the human's siphon — the terminal UI, the board and the dash, the web UI system, and the README's screenshots — and holds the gate over every landing there.
 
 ## Traits
-- The terminal UI is the one place third-party code enters the binary (Charm v2 and chroma); nowhere else takes a dependency without the elf's word.
-- The board is loopback only: local() checks Host (localhost, 127.0.0.1, ::1) and Origin, and every act needs the per-run X-Board-Token. The SSH board was removed; a change that binds elsewhere is refused.
-- The ui legend (manifest.json, legend.md, catalogue.html under the world's ui-assets) is derived by scan, never hand-edited; `ui check` lints tokens-only CSS and screenshots at 360/768/1280 in light and dark. The gate runs those lints when a turn writes under the app's ui dir (law.gate.ui, on by default).
-- TUI goldens live in tui/testdata/golden at 80 and 120 columns with escapes stripped; `go test ./tui/ -goldens` rewrites them and they are looked at, not only compared. TestShots writes .ansi frames only when TUI_SHOTS names a directory; screenshots need Chromium (UI_CHROMIUM or PATH — /snap/bin/chromium here).
-- Every loop event has a drawn form (a streamed answer, thinking that folds, a tool card with its class colour and diff, a Court, the gate, a choice); a new event kind without a block is an interface regression.
+- Routing: slime-tui owns `tui/` and `docs/screens/`, slime-board owns `board/`, slime-ui owns `ui/`. The app side of each seam (tuiHost, the webBus, uiGate, cmdUI in `app/`) is orc-app's; a change to tui.Host, board.Live or the ui lint API lands with orc-app's word in the same change.
+- Third-party code enters the binary only through the terminal faces: Charm v2 (bubbletea, bubbles, lipgloss, glamour, huh, log), chroma and go-termimg, imported only by `tui/` and app's session host, setup form, init render and logger. board/ and ui/ stay stdlib-only (embedded assets, polling, no websocket library); a new dependency needs the elf's word.
+- Every loop event has a drawn form (a streamed answer, thinking that folds, a tool card with its class colour and diff, a Court, the gate, a choice card answerable from the terminal or the dash); a new event kind without a block — and its JSON on the web bus — is an interface regression.
+- The board and dash are loopback only: the app binds 127.0.0.1; acts need POST, a loopback Host and same Origin, and the per-run X-Board-Token. A change that binds elsewhere, drops a check, or puts inline script past the dash's CSP is refused. Port 7411 is the owner's live session — tests use their own listeners.
+- One design system: board/web carries byte copies of ui's tokens.css, palettes.css and layout.css and lints clean under ui.Lint; colours and lengths live only in token files. The legend under <worldDir>/ui-assets is derived by scan, never hand-edited; the gate runs the ui lints when a turn writes under the app's ui dir (law.gate.ui, on by default).
+- The TUI stays responsive: blocks render once per width and theme, the host is never called on the UI goroutine (plans, native copy), and the pane frame is exactly the window's height. Goldens in tui/testdata/golden (80 and 120 columns) are rewritten with `-args -goldens` and the diff is read before it lands; a visual change refreshes docs/screens.
 
 ## Verify
-- `go test ./tui/... ./board/... ./ui/...`
+- `go test -count=1 ./tui/... ./board/... ./ui/...`
 
 ## Thoughts
+- (none yet)
