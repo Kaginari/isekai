@@ -3,19 +3,22 @@
 - **Rank:** Slime
 - **Territory:** `provider/`
 - **Reports to:** orc-engine
-- **Minds:** slime-go-proving, slime-wire-and-journals
-- **Purpose:** the ground truth of the one standing outward act: the Provider interface and its three clients — anthropic (Messages API), openai (chat-completions for OpenAI, OpenRouter, Ollama, vLLM, SGLang, Gemini-compatible endpoints) and mock.
+- **Minds:** slime-go-proving, loop-core, slime-wire-and-journals
+- **Purpose:** the ground truth of the one standing outward act: the Provider interface, its shared retry, and its three clients — anthropic (Messages API), openai (chat-completions for OpenAI, OpenRouter, Ollama, vLLM, SGLang, Gemini-compatible endpoints) and mock.
 
 ## Traits
-- anthropic: POST /v1/messages, anthropic-version 2023-06-01, DefaultModel claude-opus-5, defaultMax 16000 output tokens, FallbackBeta server-side-fallback-2026-07-01 sent when Fallbacks is on. It declares Claude's trained tools schema-less when a ToolDef names them (bash_20250124, text_editor_20250728), puts cache_control on the last stable system block, sends adaptive thinking and output_config.effort, and replays thinking blocks opaque on the next call as tool use requires. It has NO retry: a 429 or 5xx is returned as `anthropic: HTTP n: type: message` at once.
-- openai: ToolCalls "text" makes tools tagged text — textToolIntro is appended to the system prompt, tagRe parses <tool_call> tags, a bad tag becomes a call named `_malformed`; Guided decoding constrains a Court's report to WireSchema and RenderWire turns the JSON back into @-lines; ContextWindow reads GET /models once (max_model_len, context_length or context_window) and errors if the model is not listed; doRetry retries 429/500/502/503/504 up to 3 times, honouring Retry-After ≤ 60 s, else 1 s, 2 s, 4 s; errorText reads OpenAI's and Gemini's error shapes. An empty APIKey is allowed (Ollama).
-- Keys never cross the wire: provider.Getenv is a package var so tests inject an environment; the app passes the key read from the env var config.apiKeyEnv names. Config-declared Headers are set verbatim on every request — config refuses authorization, x-api-key, api-key and sk-/bearer values there, so this package trusts what it is given.
-- Provider.Name() is anthropic/<model> or openai/<model>; the usage journal and the board key spend by that name.
-- Usage.Context() = Input + CacheRead + CacheWrite is the number the instrument reads; Usage.Add sums a Court's spend into its parent.
-- mock.Provider plays scripted Responses in order for tests and selftests; the app's bench uses its own scriptProvider (app/mockscript.go), not this one.
-- Request.SystemText joins the system blocks; provider.Validate refuses a request with no messages or a tool result without its call.
+- provider.Retry (retry.go) is the one retry path, used by both clients: Retryable is 429, 500, 502, 503, 504 and 529; up to 3 retries, waiting Retry-After when it is 1–60 s, else Backoff (1 s, 2 s, 4 s — a package var tests shorten); never past the context; the last response is returned for the caller to read. A non-retryable status comes back at once.
+- Model fallback is not here: app/providers.go wraps a primary and a secondary Provider and tries the secondary only after the primary's error (after its retries) names a transport fault, HTTP 404/429/5xx/529 or `finish_reason error` — never on a refusal. So error strings `anthropic: HTTP n: …` / `openai: HTTP n: …` and openai's errUpstream wording are a contract with that wrapper.
+- anthropic: POST /v1/messages, anthropic-version 2023-06-01, DefaultModel claude-opus-5 (ISEKAI_MODEL overrides), max_tokens 16000 unless set; with Fallbacks on (New's default) it sends body `fallbacks: "default"` and the anthropic-beta FallbackBeta header — the server-side refusal fallback. It declares Claude's trained tools schema-less (bash_20250124, text_editor_20250728), puts cache_control on the last stable system block, sends adaptive thinking and output_config.effort, and replays thinking blocks opaque on the next call.
+- openai: ToolCalls "text" appends textToolIntro and parses <tool_call> tags (a bad tag becomes a call named `_malformed`); native arguments that are not JSON become `{"_malformed": …}`; Guided constrains a Wire request to WireSchema and RenderWire turns the JSON back into @-lines; ContextWindow reads GET /models once; finish_reason "error" under HTTP 200 is a failed call (errUpstream), not an answer; errorText reads OpenAI's and Gemini's error shapes. An empty APIKey is allowed (Ollama).
+- Keys never cross the wire: provider.Getenv is a package var so tests inject an environment. Config-declared Headers are set verbatim on every request — config refuses authorization, x-api-key, api-key and secret-looking values there, so this package trusts what it is given.
+- Provider.Name() is anthropic/<model> or openai/<model> (the fallback wrapper keeps the primary's); the usage journal and the board key spend by that name. Usage.Context() = Input + CacheRead + CacheWrite is what the instrument reads; Usage.Add sums a Court's spend into its parent.
+- provider.Validate refuses before any send: no messages, two user messages in a row, a tool result that answers no call or a call left unanswered, an empty user message, a conversation not ending on the user.
+- mock.Provider plays scripted Responses in order for tests and selftests; the app's bench uses its own scriptProvider (app/mockscript.go).
 
 ## Verify
-- `go test ./provider/...`
+- `go test -count=1 -run 'TestRetriesOverloaded|TestFinishReasonErrorIsAFailure|TestErrorsAndRefusal|TestFeatures|TestValidate' ./provider/...`
+- `go test -count=1 ./provider/...`
 
 ## Thoughts
+- (none yet)

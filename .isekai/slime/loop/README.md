@@ -3,20 +3,23 @@
 - **Rank:** Slime
 - **Territory:** `loop/`, `instrument/`
 - **Reports to:** orc-engine
-- **Minds:** slime-go-proving, slime-class-contract, slime-wire-and-journals
-- **Purpose:** the ground truth of the turn engine (perceive → recall → plan → act → verify → record per tool step, budgets as readings, the journal, resume) and of the context-occupancy instrument.
+- **Minds:** slime-go-proving, loop-core, slime-wire-and-journals
+- **Purpose:** the ground truth of the turn engine (perceive → recall → plan → act → verify → record per tool step, budgets as readings, the guts, the journal, resume) and of the context-occupancy instrument.
 
 ## Traits
-- Session.step runs in this order: step and wall-clock budgets (CHECKPOINT with a resume hint) → a missing tool (Hooks.Missing; the name `_malformed` carries a parse fault from a text-tool-call provider) → t.Settle → Hooks.Guard (status `refused`, by guard) → env.Policy (territory; `refused`, by policy) → Hooks.Decide (deny/allow/ask; allow marks the gate answer By "rule") → gate.Ask → dry-run (`would-ask` / `would-run`) → Hooks.PreTool → t.Run → Hooks.PostTool → verify (res.Err is a failed act) → record. Consecutive failures past Budget.retries() end the run ESCALATE, one hop up.
-- Every beat is journaled to .isekai/instruments/loop/<run-id>.jsonl as events keyed "t" (perceive, gate, act, verify, record, hook, drain-report, drain-abort); loop.State and loop.Runs rebuild a run from the journal, and Engine.Resume re-gates an interrupted outward act instead of replaying it.
-- Writes are detected by stamping the tree (snapshot.go): a shell command never names what it wrote, so any Write-class act diffs the tree before and after. Past SnapshotCap (200000 files) the stamp is skipped with the reason and writes go unseen — a hazard on huge trees. IsTestFile decides what the gate's Tests-intact check watches.
-- A failed end gate (Hooks.EndGate) goes back to the model as the next message up to Hooks.GateRetries times in the same turn (errGateRetry), then the turn fails.
-- Hooks.Guard nil means no guard at all: the app must wire it (app/guard.go); a bare Engine in a test is unguarded by design.
-- Hooks.Stream and Hooks.Observe see every body's text and steps, including Courts'; Hooks.Inbox rides lines typed mid-turn on the next tool result.
-- instrument: DefaultBudget 200000, DefaultStress 180000; zones OK, NEAR (past 75% of stress), STRESS, UNREAD. UNREAD is a finding, never a zero; the reading is provider-reported usage (Input + CacheRead + CacheWrite), not an estimate.
-- Result.Emit(cap) renders the wire report under @CAP; a cut is named as a hole.
+- Session.step runs in this order: step and wall-clock budgets (CHECKPOINT with a resume hint) → a missing or malformed tool (Hooks.Missing may stop the turn ESCALATE; `_malformed` carries a text-call parse fault) → t.Settle → Hooks.Guard (`refused`, by guard) → env.Policy (`refused`, by policy) → Hooks.Decide (deny / allow By "rule" / ask forces the gate) → gate.Ask (Denied ends DENIED, Suspended ends SUSPENDED) → dry-run (`would-ask` / `would-run`) → Hooks.PreTool → t.Run → Hooks.PostTool → gutsNote + Hooks.Note → doom check → record. Consecutive failed acts past Budget.retries() end the run ESCALATE.
+- guts.go is advisory only: gutsValue scores each act in [-2, +1] (failed act, failure lexemes, positive lexemes, the same act twice); a bench (`go test` / `go vet` through bash/shell/exec) whose output carries FAIL scores 0, the red pin. Momentum is the sum over Guts.Window (5); it speaks once at or below Floor (-2), then stays silent for a window. Every reading journals as a `guts` event, spoken or not.
+- Bench thrash: gutsBenchKey is the tool plus the command's first two fields (a `read` keys on its whole input, so page-walks are distinct benches); from BenchThrashVisits (6, negative = off) every further visit costs -1. A piped bench whose result shows neither red nor green counts muted, never green. The echo penalty is separate: a third clean visit to one read/bash bench with no write since costs -1.
+- Session.Pulse() is the one self-state screen (steps, turns, wall, context zone, momentum, top three benches with red/green/muted, writes, failed acts); the `pulse` tool reads it through tool.Env.Self, and every DigestEvery steps (10, negative = off) a `[pulse: …]` line rides the tool result.
+- Doom relief: a landed write resets the spoke streak; when Engine.Doom > 0 and the streak reaches it, the step ends the run CHECKPOINT naming the retire / split / genome-shift arms, journals `budget` why `doomLoop:guts`, and zeroes the streak and the momentum window so the next turn starts unarmed.
+- snapshot.go stamps the tree (size + mtime) at turn start, after every write-class step and at the turn's end, so shell writes reach the gate. It never walks .git or heavyDirs (node_modules, .venv, venv, __pycache__, target, dist, .next, .turbo, .cache) at any depth, nor the world's instruments/, tmp/, memory/, toolbox/registry.json, ontology/graph/unsaid.ttl, log.md; past SnapshotCap (200000 files) shell writes go unseen and the hole is named. IsTestFile feeds the gate's tests-intact check.
+- Every beat journals to .isekai/instruments/loop/<run-id>.jsonl keyed "t"; a run stopped short of DONE/DRY saves its transcript, and Engine.Resume answers a tool call cut mid-flight "interrupted" — never replayed; the model re-issues it and the gate asks again. compactReplay (loop/compact.go) slims only the wire copy — the newest 4 tool results and the last thinking stay — Session.Messages stay whole.
+- finish: an off-the-wire answer from a Wire body is sent back once (errWireRetry), a missing @U under +unsaid once more on its own counter; a failed Hooks.EndGate goes back up to Hooks.GateRetries times; ClosingCheck re-asks once, adding the witness demand when files were written and the @FORGE demand past 12 steps.
+- instrument: DefaultBudget 200000, DefaultStress 180000; zones OK, NEAR (≥ 75% of stress), STRESS, UNREAD. UNREAD is a finding, never a zero; the reading is provider-reported usage (Input + CacheRead + CacheWrite).
 
 ## Verify
-- `go test ./loop/... ./instrument/...`
+- `go test -count=1 -run 'TestGuts|TestDoomLoopReliefLadder|TestSnapshotSkipsHeavyDirs|TestUnwatchedNamesHeavyDirsAtAnyDepth|TestShellWritesReachTheGate|TestBudgetsAreReadings' ./loop/`
+- `go test -count=1 ./loop/... ./instrument/...`
 
 ## Thoughts
+- (none yet)
