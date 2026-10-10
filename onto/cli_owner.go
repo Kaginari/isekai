@@ -8,10 +8,12 @@ import (
 // ownerLine mirrors world.Owner() against the onto graph and returns the
 // winning creature, or "" with no owner. Kept as a helper so CLI can wire it
 // with its `case` + stdout conventions (cli.go is the dispatch surface).
-func ownerLine(p string) (string, error) {
-	root := "."
-	if v := os.Getenv("ISEKAI_ROOT"); v != "" {
-		root = v
+func ownerLine(root, p string) (string, error) {
+	if root == "" {
+		root = "."
+		if v := os.Getenv("ISEKAI_ROOT"); v != "" {
+			root = v
+		}
 	}
 	w, err := Load(root)
 	if err != nil {

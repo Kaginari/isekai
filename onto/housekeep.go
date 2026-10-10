@@ -167,10 +167,10 @@ func healMissingEdge(w *World, l Layout, f Finding) (Repair, bool) {
 
 // seatUncovered mints draft zone homes for tracked top-level dirs no creature covers.
 func seatUncovered(w *World, l Layout, root string) []string {
-	zrank := ""
+	zrank, zdir := "", ""
 	for _, r := range l.Ranks {
 		if ClassOf(r.Name).Local() == "Slime" {
-			zrank = r.Name
+			zrank, zdir = r.Name, r.Dir
 			break
 		}
 	}
@@ -187,7 +187,7 @@ func seatUncovered(w *World, l Layout, root string) []string {
 			continue
 		}
 		base := strings.TrimSuffix(d, "/")
-		dir := filepath.Join(w.Root, l.WorldDir, "zone", base)
+		dir := filepath.Join(w.Root, l.WorldDir, zdir, base)
 		if _, err := os.Stat(filepath.Join(dir, "README.md")); err == nil {
 			continue
 		}
