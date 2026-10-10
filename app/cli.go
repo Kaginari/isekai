@@ -155,6 +155,8 @@ var commands = []struct{ name, summary string }{
 	{"init", "found a world here: init [--level light|medium|complex] [--bench] — light: the law only; medium: a colony sketched from the tree; complex: the model reads all the code and founds the team"},
 	{"board", "serve the board and the dashboard (read-only) without a session, on 127.0.0.1"},
 	{"guard", "the global dangerous-command guard: check, test, show, export, hook, install"},
+	{"install", "run the law inside Claude Code through its hooks: install --claude [--global] [--yes]"},
+	{"hook", "a Claude Code hook (wired by install): hook session-start|prompt|pre-tool|post-tool|stop, the event's JSON on stdin"},
 	{"ui", "the web ui system: init (tokens, layout, components), scan (the legend), check (lint + screenshots)"},
 	{"version", "print the version"},
 	{"help", "this list"},
@@ -242,6 +244,10 @@ func Main(dist string, args []string, io IO, v Version) int {
 		return cmdInstrument(name, dist, f, leftover, io)
 	case "guard":
 		return cmdGuard(dist, rest, io)
+	case "hook":
+		return cmdHook(dist, leftover, io)
+	case "install":
+		return cmdInstall(dist, f, rest, io)
 	case "ui":
 		return cmdUI(dist, f, rest, io)
 	case "selftest":

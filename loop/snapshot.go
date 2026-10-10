@@ -171,3 +171,35 @@ func (e *Engine) readTests(snap snapshot) map[string]string {
 	}
 	return out
 }
+
+// Stamps is the write watch for a host that runs the loop itself (a Claude Code hook): the tree
+// as "size:mtime" per root-relative path, the same files a session stamps, or why it cannot be
+// read. Changed compares two readings.
+func (e *Engine) Stamps() (map[string]string, string) {
+	snap, why := e.stampTree()
+	if why != "" {
+		return nil, why
+	}
+	out := make(map[string]string, len(snap))
+	for p, s := range snap {
+		out[p] = fmt.Sprintf("%d:%d", s.size, s.mtime)
+	}
+	return out, ""
+}
+
+// Changed lists what differs from a to b: new, changed or removed paths, sorted.
+func Changed(a, b map[string]string) []string {
+	var out []string
+	for p, s := range b {
+		if a[p] != s {
+			out = append(out, p)
+		}
+	}
+	for p := range a {
+		if _, ok := b[p]; !ok {
+			out = append(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}

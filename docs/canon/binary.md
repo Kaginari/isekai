@@ -426,6 +426,32 @@ server — and writes the world's `config.yaml` (the key's *name* only; the key 
 saying so when that variable is not set in the shell. A pipe, `--plain`, a world that already has a
 config, or `<PREFIX>NO_SETUP` skips it.
 
+## Claude Code — the law as hooks
+
+A host can run the loop and leave the law to the binary. Under Claude Code the model, the tools
+and the session are Claude Code's; `<dist> hook <event>` answers its hooks from the hook's JSON
+on stdin, and `<dist> install --claude` wires them into `.claude/settings.local.json` (the
+machine's own, like `config.local`) or, with `--global`, `~/.claude/settings.json`.
+- **No model, no key.** A hook reads config, the world and the instruments, and answers; it never
+  calls a provider. Outside a world it answers nothing, so a machine-wide install is free
+  elsewhere. A broken config in a world is a non-blocking error the human sees.
+- **SessionStart** injects the crest, the log's last entries and a note on how the law runs here —
+  on `startup`, `resume`, `clear` and `compact` alike, so a fresh context reconnects to what was
+  written down.
+- **UserPromptSubmit** stamps the tree (the turn's baseline, the same watch a session keeps) and
+  answers with the recall beat: memory anchors and `@T` lines, pointers only.
+- **PreToolUse only tightens.** The guard denies; the world's permission rules deny or ask; with no
+  rule, `outward` and `destructive` ask (and `write` under `strict`). An `allow` — a rule's, or a
+  class's default — answers nothing, so Claude Code's own permissions still decide.
+- **Stop is the gate.** What the turn changed — the file tools' paths and everything the stamps
+  show differs, shell writes included — goes through the gate with Rimuru as the author: Vitality,
+  verify lines (under the sandbox), injected checks. Duties-done is off (Claude Code answers in
+  prose, not on the wire); right-author is a hole, not a failure (the session is Rimuru, and the
+  hole names whose body should have authored). A failure answers `decision: block` with the
+  reasons, up to `law.gate.retries` times a turn; then the turn may end. The final verdict is
+  appended to `log.md` and shown to the human.
+- The turn's state lives in `<dist-dir>/tmp/claude/<session>.json`.
+
 ## The board — the world, seen
 
 `isekai` lights the board when it starts (`ui.board.autostart`, default on; `isekai board` alone

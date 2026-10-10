@@ -65,6 +65,26 @@ isekai                           # the live session — the board opens at http:
 isekai run "add a health check endpoint and its test"
 ```
 
+## Inside Claude Code
+
+You can keep Claude Code as the agent and let isekai hold the law. Claude Code runs the model, the
+tools and the session on your own plan; the binary runs from Claude Code's hooks, where the model
+cannot skip it. It never calls a model itself, so it needs no API key.
+
+```sh
+cd your-project && isekai init   # found the world, if it is not one yet
+isekai install --claude          # shows the hooks; --yes writes .claude/settings.local.json
+isekai install --claude --global --yes   # or for every world on this machine (silent elsewhere)
+```
+
+| Claude Code event | What the law does |
+|---|---|
+| `SessionStart` (also after `/clear` and compaction) | the crest, the log's last entries and how the law runs here, as context |
+| `UserPromptSubmit` | the turn's baseline, and recall for the ask: memory anchors and the tools that fit |
+| `PreToolUse` | the guard refuses the catastrophic; outward and destructive acts ask — it only ever tightens Claude Code's own permissions |
+| `PostToolUse` | the paths a file tool wrote, for the gate |
+| `Stop` | the gate over everything the turn changed (shell writes too): a territory changed without its doc, or a failing verify line, sends the turn back with the reasons; the verdict lands in `log.md` |
+
 ## The terminal
 
 A terminal UI in the class of Claude Code, built on the Charm libraries: the conversation flows into
@@ -119,6 +139,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `goal --validate "<cmd>" "<objective>"` | work turn after turn until the command passes; the binary runs it, the model cannot skip it |
 | `review [range]` | two reviewers on two models in parallel, one merged shortlist; nothing fixed before you approve |
 | `handoff [focus]` | a handoff note for a fresh session (`/handoff read` picks it up) |
+| `install --claude [--global] [--yes]` · `hook <event>` | run the law inside Claude Code through its hooks (§Inside Claude Code) |
 | `guard check\|test\|show\|export\|hook\|install` | the global dangerous-command guard; `install --yes` wires it into Claude Code and OpenCode |
 | `ui init\|scan\|check` | web pages built from one token system: lay the foundation, regenerate the legend, lint and screenshot at 360/768/1280 in both themes |
 | `dash [--open]` | the session in the browser: the console, the neural net, metrics, relations; approvals answered there |

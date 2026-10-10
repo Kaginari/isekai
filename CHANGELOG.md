@@ -8,6 +8,13 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The law inside Claude Code.** `isekai install --claude` wires `isekai hook` into Claude Code's
+  hooks: the crest and the log's last entries at every session start (and after `/clear` and
+  compaction), recall on every prompt, the guard and the human gate before every tool (it only
+  tightens), and the gate when a turn ends — a territory changed without its doc sends the turn
+  back with the reasons, and the verdict lands in `log.md`. Claude Code runs the model on your plan;
+  the hooks never call one and need no key.
+
 - **Web UIs from one token system.** A built-in `ui` Mind (method + design craft, offline), and
   `isekai ui init|scan|check`: a foundation (tokens in three tiers, 13 OKLCH palettes checked for
   WCAG AA, layout primitives, cascade layers, two example components), a derived legend under
