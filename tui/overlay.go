@@ -266,10 +266,11 @@ func (m *Model) overlay(base string) string {
 		box = Gradient(ansi.Strip(first), false, m.theme.accent.GetForeground(), m.theme.border.GetForeground()) + "\n" + rest
 		box = m.pinChoice(box) // growth-only pin: the card never reflows as the cursor moves
 		bw, bh := lipgloss.Width(box), strings.Count(box, "\n")+1
-		x, y := centerRect(m.width, m.height, bw, bh)
+		fh := m.frameH()
+		x, y := centerRect(m.width, fh, bw, bh)
 		y += dropOffset(time.Since(m.choiceAt))
-		if y+bh > m.height {
-			y = max(0, m.height-bh)
+		if y+bh > fh {
+			y = max(0, fh-bh)
 		}
 		layers = append(layers, lipgloss.NewLayer(box).X(x).Y(y).Z(3))
 	}

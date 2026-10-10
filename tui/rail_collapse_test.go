@@ -56,11 +56,11 @@ func TestRailCollapseClickToggle(t *testing.T) {
 		t.Fatalf("railCardRows must name the plan card's border row: %v", m.railCardRows)
 	}
 	railX := m.width - m.railVisible() + 2
-	m.Update(tea.MouseClickMsg{X: railX, Y: y, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: railX, Y: y + paneTop, Button: tea.MouseLeft}) // the window row: the headroom sits above the pane rows
 	if !m.railCollapsed["plan"] {
 		t.Fatalf("click on the plan card's border collapses it, got %v", m.railCollapsed)
 	}
-	m.Update(tea.MouseClickMsg{X: railX, Y: y, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: railX, Y: y + paneTop, Button: tea.MouseLeft}) // the window row: the headroom sits above the pane rows
 	if m.railCollapsed["plan"] {
 		t.Fatalf("click again re-expands it, got %v", m.railCollapsed)
 	}

@@ -612,7 +612,8 @@ func TestChoiceFloatsOverDarkenedBackdrop(t *testing.T) {
 	// sidebar's cards own borders of their own in the frame now)
 	box := m.theme.Choice(m.view, min(m.width*3/5, 100))
 	bw, bh := lipgloss.Width(box), strings.Count(box, "\n")+1
-	ex, ey := centerRect(130, 36, bw, bh)
+	ex, ey := centerRect(130, 36-paneTop, bw, bh) // centred in the panes, under the headroom row
+	ey += paneTop
 	if got := cellAt(strip, ex+2, ey+1); got != 'A' { // border + one padding, then "Approval"
 		runes := []rune(strings.Split(strip, "\n")[ey+1])
 		t.Fatalf("the card must centre: want 'A' at (%d,%d), got %q (row %q)", ex+2, ey+1, got, string(runes))

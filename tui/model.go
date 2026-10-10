@@ -374,6 +374,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok && m.bview != nil {
 		return m, m.bodiesKey(k)
 	}
+	msg = m.paneMouse(msg)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if msg.Width <= 0 || msg.Height <= 0 {
@@ -899,6 +900,14 @@ func (m *Model) splitPanes(live []string, rail, cw, paneH int) string {
 	return strings.Join(rows, "\n")
 }
 
+// paneHeadroom is the panes' empty top row: the chat's blank cells, the shadow, the divider
+// and the rail's background, so the split still reaches the window's top edge.
+func (m *Model) paneHeadroom(rail, cw int) string {
+	bg := lipgloss.NewStyle().Background(m.theme.paneBg())
+	sep := lipgloss.NewStyle().Background(m.theme.paneBg()).Foreground(m.theme.border.GetForeground()).Render("│")
+	return strings.Repeat(" ", cw) + m.theme.paneShadow() + sep + bg.Render(strings.Repeat(" ", rail-3))
+}
+
 // padRight returns the plain spaces that take a (possibly styled) line to exactly w cells;
 // truncate first, then pad.
 func padRight(s string, w int) string {
@@ -1286,8 +1295,8 @@ func (m *Model) View() tea.View {
 }
 
 // Render is the frame's text: the live area, or the board. With the sidebar on, the frame is
-// an invariant: chat pane │ divider │ sidebar rows, then the home rows — the total is always
-// m.height (crush's own lesson: its fullscreen layout is rectangle-exact; our inline mode pays
+// an invariant: the headroom row (paneTop), chat pane │ divider │ sidebar rows, then the home
+// rows — the total is always m.height (crush's own lesson: its fullscreen layout is rectangle-exact; our inline mode pays
 // the same discipline or the terminal ghosts). Without the sidebar the session flows as
 // before, one column into the scrollback.
 func (m *Model) Render() string {
@@ -1367,8 +1376,9 @@ func (m *Model) Render() string {
 		if m.choice != nil && !m.choiceFloat() {
 			live = append(live, m.theme.Choice(m.view, cw), "")
 		}
-		paneH := max(m.height-lines(home), 4)
+		paneH := max(m.height-paneTop-lines(home), 4)
 		parts = append(parts, m.splitPanes(live, rail, cw, paneH), strings.Join(home, "\n"))
+		return strings.Repeat(m.paneHeadroom(rail, cw)+"\n", paneTop) + m.overlay(strings.Join(parts, "\n"))
 	} else {
 		parts = live
 		if m.choice != nil && !m.choiceFloat() {
@@ -1377,6 +1387,45 @@ func (m *Model) Render() string {
 		parts = append(parts, home...)
 	}
 	return m.overlay(strings.Join(parts, "\n"))
+}
+
+// paneTop is the headroom the panes leave above themselves: the frame still fills the window
+// (rectangle-exact), but its first row stays blank. The launching command line has scrolled
+// above the window by then, and a terminal that pins the running command over the viewport's
+// top row (VS Code's sticky scroll, on by default with shell integration) paints it there —
+// over a blank row instead of the slime's head and the welcome's top border.
+const paneTop = 1
+
+// paneMouse moves a mouse event from window rows to pane rows while the panes own the window:
+// every hit map (the selection, the rail's cards and courts) counts from the pane's first row.
+func (m *Model) paneMouse(msg tea.Msg) tea.Msg {
+	if m.board != nil || m.bview != nil || m.railVisible() == 0 {
+		return msg
+	}
+	switch e := msg.(type) {
+	case tea.MouseClickMsg:
+		e.Y -= paneTop
+		return e
+	case tea.MouseReleaseMsg:
+		e.Y -= paneTop
+		return e
+	case tea.MouseMotionMsg:
+		e.Y -= paneTop
+		return e
+	case tea.MouseWheelMsg:
+		e.Y -= paneTop
+		return e
+	}
+	return msg
+}
+
+// frameH is the height the live frame's own rows may use: the window, less the panes'
+// headroom while they own it.
+func (m *Model) frameH() int {
+	if m.board == nil && m.bview == nil && m.railVisible() > 0 {
+		return m.height - paneTop
+	}
+	return m.height
 }
 
 // lines is the row count of a joined multi-line string list.
