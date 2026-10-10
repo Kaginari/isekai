@@ -252,6 +252,11 @@ func (h *tuiHost) Welcome() tui.Welcome {
 	w.Offices = offices
 	w.Off = len(a.Cfg.Off())
 	w.Holes = a.Holes()
+	a.mu.Lock()
+	if a.boardAddr != "" {
+		w.Dash = "http://" + a.boardAddr + "/dash"
+	}
+	a.mu.Unlock()
 	return w
 }
 

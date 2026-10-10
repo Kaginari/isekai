@@ -36,13 +36,17 @@ var paletteActions = []MenuItem{
 	{Name: "help", Description: "commands and shortcuts"},
 	{Name: "copy", Description: "copy the last answer's markdown"},
 	{Name: "mouse", Description: "the mouse to the terminal (its own selection) or back to the panes"},
+	{Name: "sidebar", Description: "hide or show the sidebar (alt+s)"},
+	{Name: "offices", Description: "every office and the model it runs on"},
+	{Name: "settings", Description: "theme, mouse and sidebar in one form"},
 	{Name: "clear", Description: "clear the screen"},
 	{Name: "quit", Description: "end the session"},
 }
 
 // noArgs are the commands the palette runs at once; the others land in the input to be finished.
 var noArgs = map[string]bool{"board": true, "clear": true, "help": true, "quit": true, "agents": true, "usage": true,
-	"status": true, "sessions": true, "compact": true, "theme": true, "copy": true, "mouse": true}
+	"status": true, "sessions": true, "compact": true, "theme": true, "copy": true, "mouse": true,
+	"sidebar": true, "offices": true, "settings": true}
 
 func (m *Model) openPalette() {
 	seen := map[string]bool{}
@@ -149,6 +153,11 @@ func (m *Model) paletteView() string {
 		p.cursor = max(0, len(hs)-1)
 	}
 	start := max(0, p.cursor-7)
+	namew := 0
+	for i := start; i < len(hs) && i < start+8; i++ {
+		namew = max(namew, len([]rune(hs[i].item.Name))+1)
+	}
+	namew = min(namew, 16)
 	for i := start; i < len(hs) && i < start+8; i++ {
 		h := hs[i]
 		name := []rune(h.item.Name)
@@ -164,6 +173,7 @@ func (m *Model) paletteView() string {
 			}
 		}
 		nameStr := sb.String()
+		nameStr += strings.Repeat(" ", max(namew-lipgloss.Width(nameStr), 0))
 		desc := ansi.Truncate(h.item.Description, w-lipgloss.Width(nameStr)-8, "…")
 		row := "  " + nameStr + "  " + t.dim.Render(desc)
 		if i == p.cursor {
@@ -171,9 +181,8 @@ func (m *Model) paletteView() string {
 		}
 		lines = append(lines, row)
 	}
-	lines = append(lines, t.dim.Render("↑↓ choose · enter runs · esc closes"))
-	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(t.accent.GetForeground()).Padding(0, 1).Width(w)
-	return box.Render(strings.Join(lines, "\n"))
+	lines = append(lines, "", t.keys("↑↓ choose · enter runs · esc closes"))
+	return t.panelIn(t.accent, t.title("palette"), lines, w)
 }
 
 // --- the toasts ---
@@ -238,19 +247,47 @@ func (m *Model) stepToasts() bool {
 // row to the frame — toasts and palette draw over the base's own rows. The inline renderer
 // tracks height exactly; a frame whose height waves at it leaves ghosts in the scrollback.
 func (m *Model) overlay(base string) string {
-	if m.palette == nil && len(m.toasts) == 0 && !m.choiceFloat() && !m.burstOn {
+	l := m.lay
+	popup := l.pane && (m.menu != nil || m.comp != nil || m.shortcuts)
+	form := l.pane && m.settings != nil
+	if m.palette == nil && len(m.toasts) == 0 && !m.choiceFloat() && !m.burstOn && !popup && !form {
 		return base
 	}
 	var layers []*lipgloss.Layer
 	baseH := strings.Count(base, "\n") + 1
+	// toasts slide in over the conversation's top-right rows (the window's, inline) — the base
+	// keeps its height; the part still off-stage is clipped at the pane's edge
+	right, y0 := m.width-1, 0
+	if l.pane {
+		right, y0 = l.chat.X+l.chat.W, l.chat.Y-l.topY
+	}
 	for i, tt := range m.toasts {
-		// toasts slide over the frame's top-right rows — the base keeps its height
 		pill := tt.style.Padding(0, 1).Render(tt.text)
-		x := m.width - lipgloss.Width(pill) - 1 + int(tt.x)
-		if x >= m.width {
+		x := right - lipgloss.Width(pill) + int(tt.x)
+		if x >= right {
 			continue
 		}
-		layers = append(layers, lipgloss.NewLayer(ansi.Truncate(pill, m.width-x, "")).X(x).Y(i).Z(2))
+		layers = append(layers, lipgloss.NewLayer(ansi.Truncate(pill, right-x, "")).X(max(x, 0)).Y(y0+i).Z(2))
+	}
+	if popup {
+		// the slash menu, the @completions and the keys sheet rise from the input's top edge,
+		// over the conversation's last rows — the frame never reflows for them
+		w := min(l.mc, 84)
+		room := l.inputSepY - l.chat.Y
+		var box string
+		switch {
+		case m.shortcuts:
+			box = m.theme.keysSheet(DefaultShortcuts(), w, room)
+		case m.menu != nil:
+			box = m.theme.panel(m.theme.title("commands"), []string{m.theme.Menu(m.menu.items, m.menu.cursor, w-4)}, w)
+		default:
+			box = m.theme.panel(m.theme.title("files"), []string{m.theme.Completions(m.comp.items, m.comp.cursor, w-4)}, w)
+		}
+		rows := strings.Split(box, "\n")
+		if len(rows) > room {
+			rows = rows[len(rows)-room:]
+		}
+		layers = append(layers, lipgloss.NewLayer(strings.Join(rows, "\n")).X(1).Y(l.inputSepY-l.topY-len(rows)).Z(3))
 	}
 	if m.choiceFloat() {
 		// the darkened backdrop: the frame, stripped and worn again in dim — an honest
@@ -274,6 +311,11 @@ func (m *Model) overlay(base string) string {
 		}
 		layers = append(layers, lipgloss.NewLayer(box).X(x).Y(y).Z(3))
 	}
+	if form {
+		sv := m.settingsView()
+		x, y := centerRect(l.mc+2, l.H-l.topY, lipgloss.Width(sv), strings.Count(sv, "\n")+1)
+		layers = append(layers, lipgloss.NewLayer(sv).X(x).Y(y).Z(4))
+	}
 	if m.palette != nil {
 		pv := m.paletteView()
 		h := strings.Count(pv, "\n") + 1
@@ -281,6 +323,10 @@ func (m *Model) overlay(base string) string {
 		// ride, busy frames it simply covers (it is a modal focus)
 		y := max(0, baseH-4-h)
 		x := max(0, (m.width-lipgloss.Width(pv))/2)
+		if l.pane {
+			y = max(0, l.inputSepY-l.topY-h)
+			x = max(0, 1+(l.mc-lipgloss.Width(pv))/2)
+		}
 		layers = append(layers, lipgloss.NewLayer(pv).X(x).Y(y).Z(4))
 	}
 	if burst := m.burstRain(baseH); burst != nil {
@@ -361,5 +407,9 @@ func (t Theme) pill(kind string) lipgloss.Style {
 	case "bad":
 		bg = t.bad.GetForeground()
 	}
-	return lipgloss.NewStyle().Background(bg).Foreground(lipgloss.Color("#0d1117")).Bold(true)
+	fg := lipgloss.Color("#0d1117")
+	if !t.Dark {
+		fg = lipgloss.Color("#ffffff")
+	}
+	return lipgloss.NewStyle().Background(bg).Foreground(fg).Bold(true)
 }

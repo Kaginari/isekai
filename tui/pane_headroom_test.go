@@ -9,13 +9,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The first screen (2026-10-10, VS Code): the panes fill the window, but the window's top row
+// The first screen (2026-10-10, VS Code): the frame fills the window, but the window's top row
 // is not ours to keep — once the launching command line scrolls above the viewport, VS Code's
 // sticky scroll pins it over that row, and it covered the slime's head and the welcome's top
 // border ("everything is one line down"). The frame keeps the window's height exactly (the
-// inline renderer's rectangle) and leaves its first row as headroom: the pane edge only, no
-// content. Every row is exactly the window's width, the divider sits at one column all the way
-// down, and the mascot's rows sit whole right under the headroom.
+// inline renderer's rectangle) and leaves its first row blank; the frame's laws hold under it
+// (checkFrame), the welcome's card opens the conversation pane, and the sprite sits whole in the
+// sidebar.
 func TestPaneFirstScreenMatrix(t *testing.T) {
 	head, _ := mascotArt("isekai", false)
 	if len(head) == 0 {
@@ -27,49 +27,21 @@ func TestPaneFirstScreenMatrix(t *testing.T) {
 				m := New(&fakeHost{}, NewTheme(true), DefaultWords())
 				m.Update(tea.WindowSizeMsg{Width: w, Height: h})
 				m.Update(evBgWait{}) // the welcome lands
-				rail := m.railVisible()
-				if rail == 0 {
-					t.Fatalf("%dx%d must carry the sidebar", w, h)
+				checkFrame(t, m, "first screen")
+				l := m.lay
+				strip := strings.Split(ansi.Strip(m.Render()), "\n")
+				if l.topY != paneTop || l.chat.Y != paneTop+3 {
+					t.Fatalf("the frame must start under the headroom: top %d, chat %d", l.topY, l.chat.Y)
 				}
-				cw := w - rail
-				f := m.Render()
-				rows := strings.Split(f, "\n")
-				if len(rows) != h {
-					t.Fatalf("frame is %d rows, want exactly the window's %d", len(rows), h)
+				if r := []rune(strip[l.chat.Y]); r[l.chat.X] != '╭' {
+					t.Fatalf("the welcome card must open the conversation: %q", strip[l.chat.Y])
 				}
-				for i, l := range rows {
-					if got := ansi.StringWidth(l); got != w {
-						t.Fatalf("row %d is %d cells, want %d: %q", i, got, w, ansi.Strip(l))
-					}
-				}
-				strip := strings.Split(ansi.Strip(f), "\n")
-				// the headroom: nothing but the pane edge
-				r0 := []rune(strip[0])
-				if strings.TrimSpace(string(r0[:cw])) != "" || strings.TrimSpace(string(r0[cw+3:])) != "" {
-					t.Fatalf("the headroom row carries content: %q", strip[0])
-				}
-				// the divider at one column on every pane row, headroom included
-				for i := 0; i < h-4; i++ {
-					r := []rune(strip[i])
-					if string(r[cw:cw+3]) != "░▒│" {
-						t.Fatalf("row %d: pane edge at col %d is %q, want ░▒│: %q", i, cw, string(r[cw:cw+3]), strip[i])
-					}
-				}
-				// the welcome's top border opens the chat pane right under the headroom
-				if !strings.HasPrefix(strip[paneTop], "╭") {
-					t.Fatalf("row %d must open the welcome card: %q", paneTop, strip[paneTop])
-				}
-				// the mascot, every row whole, from the first pane row
-				if h >= 30 && ansi.StringWidth(head[0])+6 <= rail-3 {
-					for i, a := range head {
-						want := strings.TrimSpace(ansi.Strip(a))
-						if want == "" {
-							continue
-						}
-						got := strings.TrimSpace(string([]rune(strip[paneTop+i])[cw+3:]))
-						if got != want {
-							t.Fatalf("mascot row %d: got %q, want %q", i, got, want)
-						}
+				// the sprite, every row whole, in the sidebar
+				side := strings.Join(strip[l.rail.Y:l.rail.Y+l.rail.H], "\n")
+				for i, a := range head {
+					want := strings.TrimSpace(ansi.Strip(a))
+					if want != "" && !strings.Contains(side, want) {
+						t.Fatalf("mascot row %d missing from the sidebar: %q", i, want)
 					}
 				}
 			})
@@ -82,8 +54,8 @@ func TestPaneMouseCountsFromBelowTheHeadroom(t *testing.T) {
 	stubCopy(t)
 	m := selModel(t)
 	y := rowOf(t, m, "bravo line") // a window row (the frame includes the headroom)
-	m.Update(tea.MouseClickMsg{X: 0, Y: y, Button: tea.MouseLeft})
-	m.Update(tea.MouseClickMsg{X: 0, Y: y, Button: tea.MouseLeft}) // a double click: the word
+	m.Update(tea.MouseClickMsg{X: m.lay.chat.X, Y: y, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: m.lay.chat.X, Y: y, Button: tea.MouseLeft}) // a double click: the word
 	if m.sel == nil || !m.sel.shown {
 		t.Fatal("the double click selected nothing")
 	}

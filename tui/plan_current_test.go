@@ -45,7 +45,7 @@ func TestPlanCurrentSwitch(t *testing.T) {
 	if strings.Contains(view, "the throne's slice") {
 		t.Fatal("the live deck is not the view")
 	}
-	if !strings.Contains(view, "ᴀʟᴛ+ɴ —") || !strings.Contains(view, "ᴄᴜʀʀᴇɴᴛ") {
+	if !strings.Contains(view, "stale · alt+n for the current deck") {
 		t.Fatalf("the stale banner names the hint:\n%s", view)
 	}
 

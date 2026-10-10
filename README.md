@@ -227,6 +227,8 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `esc` · `ctrl+c` | interrupt the turn · clear the input (↑ brings it back) |
 | `pgup` · `pgdn` · wheel | scroll the chat |
 | drag · `ctrl+y` · `/mouse` | select and copy · copy the last answer · the mouse to the terminal |
+| `alt+s` · `alt+c` / `alt+p` / `alt+f` | hide the sidebar · fold its courts / plan / files |
+| `/settings` · `/offices` | theme, mouse and sidebar in one form · every office and its model |
 
 ## The CLI
 

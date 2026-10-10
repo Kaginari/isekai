@@ -8,6 +8,22 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The terminal UI is one frame.** A window of 60×26 or more is a single box-drawn grid under the
+  headroom row: a header (the brand on its gradient, the world, the model, the session and its
+  state), the conversation titled in its edge, the input inside the main column only (never under
+  the sidebar), a full-height sidebar, and a status bar (the context meter, tokens, cost, live
+  bodies, key hints) — shared edges with real junctions, every row the window's width at every
+  size. The sidebar is ruled sections (vitals beside the sprite, courts with their state as a
+  chip, the plan deck in its office's lane, the files as a tree) that fold on a click or
+  `alt+c`/`alt+p`/`alt+f`; `alt+s` or `/sidebar` hides it. The welcome is a compact card — the
+  sprite beside the name, the lane legend as chips, a label/value grid with the offices folded to
+  one line (`/offices` has them whole) and a row of where to start. The human's ask wears a
+  magenta bar, the answer a `✦` in the gutter. The slash menu, completions and the `?` sheet rise
+  over the conversation instead of reflowing it; `/settings` is a huh form for the theme, the
+  mouse and the sidebar. The palette follows the dashboard's neon HUD — cyan primary, magenta for
+  the human, borders quieter than text, deep-ink twins on light terminals, every text role at
+  4.5:1. Clicks and drags read the frame's own geometry.
+
 - **The dashboard's overview is a cockpit.** The neural net is the hero, the console docks beside
   it (drag the splitter to resize, fold it to a rail — both remembered), and a timeline of Courts
   and verdicts sits under the net (`/api/activity` now carries the newest runs, their wire headers

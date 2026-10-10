@@ -40,12 +40,15 @@ const clickGap = 400 * time.Millisecond
 
 type evSelScroll struct{}
 
-// selSpot maps a frame cell to the chat's content, clamped to the chat pane: the rail and the
-// divider never enter a selection. ok false when the cell is not in the chat pane.
+// selSpot maps a window cell to the chat's content, clamped to the chat pane: the borders, the
+// input and the sidebar never enter a selection. ok false when the cell is not in the chat
+// pane. The pane's origin comes from the last frame's layout.
 func (m *Model) selSpot(x, y int, clamp bool) (spot, bool) {
 	if !m.vpOK || m.vpCW <= 0 || m.vpH <= 0 {
 		return spot{}, false
 	}
+	c := m.geom().chat
+	x, y = x-c.X, y-c.Y
 	if !clamp && (x < 0 || x >= m.vpCW || y < 0 || y >= m.vpH) {
 		return spot{}, false
 	}
@@ -59,7 +62,7 @@ func (m *Model) selSpot(x, y int, clamp bool) (spot, bool) {
 
 // mouseSelect handles the chat pane's mouse: ok false leaves the event to the rail.
 func (m *Model) mouseSelect(msg tea.Msg) (tea.Cmd, bool) {
-	if m.railVisible() == 0 || m.mouseTerm || m.choice != nil || m.palette != nil {
+	if !m.paneMode() || m.mouseTerm || m.choice != nil || m.palette != nil {
 		return nil, false
 	}
 	switch msg := msg.(type) {
@@ -100,9 +103,9 @@ func (m *Model) mouseSelect(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		m.sel.edge = 0
 		switch {
-		case msg.Y <= 0 && !m.vp.AtTop():
+		case msg.Y <= m.geom().chat.Y && !m.vp.AtTop():
 			m.sel.edge = -1
-		case msg.Y >= m.vpH-1 && !m.vp.AtBottom():
+		case msg.Y >= m.geom().chat.Y+m.vpH-1 && !m.vp.AtBottom():
 			m.sel.edge = 1
 		}
 		if m.sel.edge != 0 && !m.sel.ticking {

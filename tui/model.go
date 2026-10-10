@@ -68,10 +68,15 @@ type Model struct {
 	plansBusy     bool                   // a Plans read is in flight
 	planIdx       int
 	planSticky    bool            // the human ctrl+p'd off the elf default: keep their pick
-	courtRows     map[int]string  // rail row → court name; a click there switches the plan card
-	railCardRows  map[string]int  // rail card key ("courts" | "plan" | "files") → its header row; a click there toggles its collapse
+	courtRows     map[int]string  // window row → the court a roster row shows; a click there switches the plan card
+	railCardRows  map[string]int  // sidebar section key ("courts" | "plan" | "files") → its rule's window row; a click there folds it
 	railScroll    int             // the rail's scroll offset in rows: the wheel over the rail column walks it
+	railMore      bool            // rows lie below the sidebar's last visible one (the ▼ on its edge)
+	railOff       bool            // the human hid the sidebar (alt+s, /sidebar): the frame keeps one column
 	railCollapsed map[string]bool // rail card key ("courts" | "plan" | "files") → collapsed to its header
+	lay           layout          // the last frame's geometry: the mouse reads it back
+	settings      *settingsState  // /settings: the huh form floating over the frame (settings.go)
+	wel           Welcome         // the welcome's facts: the header and /offices read them
 	lastBlock     *collapsed      // the last collapsed block, for ctrl+o
 
 	// the choice
@@ -144,6 +149,7 @@ type Model struct {
 	liveMemo  struct {
 		src    string
 		w, gen int
+		first  bool
 		out    string
 	}
 	// the chat pane's viewport: transcript scrollback lives here while the panes own the
@@ -155,6 +161,7 @@ type Model struct {
 	vpLines []string // what the viewport holds: the transcript, then the live rows
 	vpVer   int      // the paneVer and the live rows the viewport was last fed
 	vpLive  []string
+	inputW  int // the width the textarea was last sized to
 	// the chat pane's drag selection (select.go); mouseTerm hands the mouse to the terminal
 	sel       *selection
 	clickAt   time.Time
@@ -207,8 +214,9 @@ func (m *Model) renderedLines(b *block, w int) []string {
 // liveAnswer is the paragraph still being written, rendered once per change of text or width.
 func (m *Model) liveAnswer(s string, w int) string {
 	lm := &m.liveMemo
-	if lm.out == "" || lm.src != s || lm.w != w || lm.gen != m.renderGen {
-		lm.src, lm.w, lm.gen, lm.out = s, w, m.renderGen, m.theme.Assistant(s, w)
+	first := m.firstPiece()
+	if lm.out == "" || lm.src != s || lm.w != w || lm.gen != m.renderGen || lm.first != first {
+		lm.src, lm.w, lm.gen, lm.first, lm.out = s, w, m.renderGen, first, m.theme.answer(s, w, first)
 	}
 	return lm.out
 }
@@ -240,7 +248,7 @@ func New(host Host, theme Theme, words Words) *Model {
 	ta.Prompt = ""
 	ta.SetPromptFunc(2, func(p textarea.PromptInfo) string {
 		if p.LineNumber == 0 {
-			return "> "
+			return "› "
 		}
 		return "  "
 	})
@@ -255,7 +263,7 @@ func New(host Host, theme Theme, words Words) *Model {
 	st := ta.Styles()
 	st.Focused.CursorLine = lipgloss.NewStyle()
 	st.Focused.Base = lipgloss.NewStyle()
-	st.Focused.Prompt = theme.dim
+	st.Focused.Prompt = theme.accent
 	st.Focused.Placeholder = theme.dim
 	st.Blurred = st.Focused
 	ta.SetStyles(st)
@@ -303,6 +311,10 @@ func (m *Model) welcome() tea.Cmd {
 	}
 	m.welcomed = true
 	wel := m.host.Welcome()
+	if wel.Dash == "" {
+		wel.Dash = m.footer.Dash
+	}
+	m.wel = wel
 	return m.print(func(w int) string { return m.theme.Welcome(wel, w) })
 }
 
@@ -312,7 +324,7 @@ func (m *Model) setTheme(t Theme) {
 	m.paneDirty = true
 	m.renderGen++
 	st := m.input.Styles()
-	st.Focused.Prompt = t.dim
+	st.Focused.Prompt = t.accent
 	st.Focused.Placeholder = t.dim
 	st.Blurred = st.Focused
 	m.input.SetStyles(st)
@@ -355,6 +367,16 @@ func tick() tea.Cmd {
 
 // Update is the event loop.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.settings != nil && m.board == nil && m.bview == nil {
+		cmd, handled := m.settingsUpdate(msg)
+		if handled {
+			return m, cmd
+		}
+		if cmd != nil {
+			mm, next := m.update(msg)
+			return mm, tea.Batch(cmd, next)
+		}
+	}
 	var boardCmd tea.Cmd
 	if m.board != nil {
 		cmd, done := m.boardUpdate(msg)
@@ -374,7 +396,6 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok && m.bview != nil {
 		return m, m.bodiesKey(k)
 	}
-	msg = m.paneMouse(msg)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if msg.Width <= 0 || msg.Height <= 0 {
@@ -384,7 +405,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.width < 20 {
 			m.width = 20
 		}
-		m.input.SetWidth(m.width - 4)
+		m.sizeInput()
 		if !m.ready {
 			m.ready = true
 			m.lastWidth = m.width
@@ -485,32 +506,26 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if cmd, ok := m.mouseSelect(msg); ok {
 			return m, cmd
 		}
-		// a click on a courts-card row switches the plan card to that body's deck — the body's
-		// office lane tints the card (that's the office that turn is running under)
-		if msg.Button == tea.MouseLeft && m.railVisible() > 0 && m.choice == nil {
-			cw := m.width - m.railVisible()
-			if msg.X > cw && len(m.courtRows) > 0 {
-				if name, ok := m.courtRows[msg.Y]; ok {
-					for i, p := range m.plans {
-						if p.Body == name {
-							m.planIdx = i
-							m.planSticky = true
-							m.say("plan · " + p.Body)
-							break
-						}
+		// the sidebar's hit regions come from its last frame (railRowsAt): a roster row
+		// switches the plan card to that body's deck, a section's rule folds the section
+		if l := m.geom(); msg.Button == tea.MouseLeft && m.choice == nil && l.rc > 0 && msg.X >= l.divX {
+			if name, ok := m.courtRows[msg.Y]; ok {
+				for i, p := range m.plans {
+					if p.Body == name {
+						m.planIdx = i
+						m.planSticky = true
+						m.say("plan · " + p.Body)
+						break
 					}
 				}
 			}
-			// a click on a card's top border collapses/expands it
-			if msg.X > cw && len(m.railCardRows) > 0 {
-				for key, y := range m.railCardRows {
-					if y == msg.Y {
-						if m.railCollapsed == nil {
-							m.railCollapsed = map[string]bool{}
-						}
-						m.railCollapsed[key] = !m.railCollapsed[key]
-						break
+			for key, y := range m.railCardRows {
+				if y == msg.Y {
+					if m.railCollapsed == nil {
+						m.railCollapsed = map[string]bool{}
 					}
+					m.railCollapsed[key] = !m.railCollapsed[key]
+					break
 				}
 			}
 		}
@@ -754,10 +769,27 @@ func (m *Model) noteWrite(path, body string) {
 	m.files = append(m.files, RailFile{Path: path, Body: body, Lane: m.theme.lane(rank)})
 }
 
-// railVisible: the sidebar's width for this window (railSize) — 0 keeps the session one
-// column. A choice no longer dismisses it: the modal's dim veil covers both panes evenly.
+// railVisible: the sidebar's claim on this window (railSize: its column, the divider and the
+// right border) — 0 when the window is too small for the frame or the human hid it. A choice
+// never dismisses it: the modal's dim veil covers both columns evenly.
 func (m *Model) railVisible() int {
+	if m.railOff {
+		return 0
+	}
 	return railSize(m.width, m.height)
+}
+
+// sizeInput fits the textarea to where it lives: the main column's content width under the
+// frame, the inline box's inner width otherwise.
+func (m *Model) sizeInput() {
+	w := m.width - 4
+	if l := m.layout(); l.pane {
+		w = l.input.W
+	}
+	if w != m.inputW {
+		m.inputW = w
+		m.input.SetWidth(w)
+	}
 }
 
 // choiceFloat: on windows with room the ask card is a true overlay (N16 slice 3) — the frame
@@ -792,120 +824,53 @@ func (m *Model) paneChat(cw int) []string {
 	return m.paneCache
 }
 
-// splitPanes is the window's frame: chat left (cw) — the transcript viewport (paneChat) plus
-// the live rows — one │ divider, the sidebar right (rail) — both padded to the pane height, so
-// the split reads as two regions, not floating text. The sidebar's cells carry its background
-// all the way down; the chat pads with terminal background. The newest chat lines win the
-// clip: the pane never scrolls the old away first.
-func (m *Model) splitPanes(live []string, rail, cw, paneH int) string {
-	cl := m.feedVP(live, cw, paneH) // the viewport's own rows: exact-height, scroll-carried
-	if len(cl) > paneH {
-		cl = cl[len(cl)-paneH:]
+// chatRows is the conversation pane's visible rows: the viewport over the transcript and the
+// live rows, the selection painted, each row truncated to the pane's width.
+func (m *Model) chatRows(live []string, l layout) []string {
+	cl := m.feedVP(live, l.chat.W, l.chat.H)
+	if len(cl) > l.chat.H {
+		cl = cl[len(cl)-l.chat.H:]
 	}
-	for len(cl) < paneH {
+	for len(cl) < l.chat.H {
 		cl = append([]string{""}, cl...)
 	}
-	for i, l := range cl {
-		cl[i] = ansi.Truncate(l, cw, "")
+	for i, r := range cl {
+		cl[i] = ansi.Truncate(r, l.chat.W, "")
 	}
 	m.highlight(cl, m.vp.YOffset())
-	for i, l := range cl {
-		cl[i] = l + padRight(l, cw)
-	}
-	rv := m.railView(rail - 3)
-	rl := strings.Split(m.theme.Rail(rv, rail-3), "\n")
-	// the rail's scroll: the wheel over its column walks the rows. Never scroll below the
-	// content's end — the last row may be a trailing pad we drop so the content always
-	// fills the pane; ▲/▼ on the rail's edge rows say what lies beyond.
-	content := len(rl)
-	if content > 0 && strings.TrimSpace(ansi.Strip(rl[content-1])) == "" {
-		content--
-	}
-	maxScroll := max(content-paneH, 0)
-	m.railScroll = min(max(m.railScroll, 0), maxScroll)
-	if off := m.railScroll; off > 0 && off < len(rl) {
-		rl = rl[off:]
-	}
-	// court hit-rows for clicks: each courts-card row (`◆ <name>`) answers which plan to show
-	m.courtRows = map[int]string{}
-	m.railCardRows = map[string]int{}
-	floor := 0
-	if m.bview == nil && m.board == nil {
-		for i, rl0 := range rl {
-			raw := ansi.Strip(rl0)
-			if !strings.Contains(raw, "◆ ") {
-				continue
-			}
-			for _, c := range rv.Courts {
-				if strings.Contains(raw, "◆ "+c.Name) {
-					m.courtRows[i+floor] = c.Name
-					break
-				}
-			}
-		}
-		// each collapsible rail card answers its top border row — a click there collapses it
-		if rv.Plan != nil || len(rv.Courts) > 0 || len(rv.Files) > 0 {
-			// the rail card order is fixed: vitals (always), courts (when any mind), plan (when Penned), files
-			var cardKeys []string
-			cardKeys = append(cardKeys, "vitals") // exempt from collapse, skipped
-			if len(rv.Courts) > 0 {
-				cardKeys = append(cardKeys, "courts")
-			}
-			if rv.Plan != nil {
-				cardKeys = append(cardKeys, "plan")
-			}
-			cardKeys = append(cardKeys, "files")
-			y := 0
-			for i, rl0 := range rl {
-				raw := ansi.Strip(rl0)
-				if !strings.HasPrefix(strings.TrimSpace(raw), "╭") {
-					continue
-				}
-				if y < len(cardKeys) {
-					key := cardKeys[y]
-					if key != "vitals" {
-						m.railCardRows[key] = i + floor
-					}
-				}
-				y++
-			}
-		}
-	}
-	if len(rl) > paneH {
-		rl = rl[:paneH]
-	}
-	bg := lipgloss.NewStyle().Background(m.theme.paneBg())
-	for len(rl) < paneH {
-		rl = append(rl, bg.Render(strings.Repeat(" ", rail-3)))
-	}
-	mut := m.theme.dim
-	if !m.theme.Color {
-		mut = m.theme.dim
-	}
-	// the rail's scroll markers: ▲/▼ on the edge rows say what lies beyond
-	if m.railScroll > 0 && paneH > 0 {
-		rl[0] = bg.Render(strings.Repeat(" ", rail-3-1)) + mut.Render("▲")
-	}
-	if m.railScroll < maxScroll && paneH > 0 {
-		rl[paneH-1] = bg.Render(strings.Repeat(" ", rail-3-1)) + mut.Render("▼")
-	}
-	// the pane edge: a two-column soft shadow the rail casts on the chat (density-gradient
-	// runes tinted like the pane's sunk light), then the divider itself riding the pane's bg
-	shadow := m.theme.paneShadow()
-	sep := lipgloss.NewStyle().Background(m.theme.paneBg()).Foreground(m.theme.border.GetForeground()).Render("│")
-	rows := make([]string, paneH)
-	for i := 0; i < paneH; i++ {
-		rows[i] = cl[i] + shadow + sep + rl[i]
-	}
-	return strings.Join(rows, "\n")
+	return cl
 }
 
-// paneHeadroom is the panes' empty top row: the chat's blank cells, the shadow, the divider
-// and the rail's background, so the split still reaches the window's top edge.
-func (m *Model) paneHeadroom(rail, cw int) string {
-	bg := lipgloss.NewStyle().Background(m.theme.paneBg())
-	sep := lipgloss.NewStyle().Background(m.theme.paneBg()).Foreground(m.theme.border.GetForeground()).Render("│")
-	return strings.Repeat(" ", cw) + m.theme.paneShadow() + sep + bg.Render(strings.Repeat(" ", rail-3))
+// railRowsAt is the sidebar's visible rows for the layout: scrolled (never past the content's
+// end), and its hit regions recorded in window rows — the section rules a click folds, the
+// roster rows a click opens the plan of.
+func (m *Model) railRowsAt(l layout) []railRow {
+	m.courtRows = map[int]string{}
+	m.railCardRows = map[string]int{}
+	m.railMore = false
+	if l.rc == 0 {
+		return nil
+	}
+	rows := m.theme.railRows(m.railView(l.rc-2), l.rc)
+	maxScroll := max(len(rows)-l.rail.H, 0)
+	m.railScroll = min(max(m.railScroll, 0), maxScroll)
+	rows = rows[m.railScroll:]
+	if len(rows) > l.rail.H {
+		rows = rows[:l.rail.H]
+	}
+	m.railMore = m.railScroll < maxScroll
+	if m.bview == nil && m.board == nil {
+		for i, r := range rows {
+			y := l.rail.Y + i
+			if r.sep && r.key != "" {
+				m.railCardRows[r.key] = y
+			}
+			if r.court != "" {
+				m.courtRows[y] = r.court
+			}
+		}
+	}
+	return rows
 }
 
 // padRight returns the plain spaces that take a (possibly styled) line to exactly w cells;
@@ -960,15 +925,11 @@ func (m *Model) railView(rw int) RailView {
 		v.MaxFiles = 5
 		v.MaxCourts = 4
 	}
-	if m.height >= 30 {
-		if art, _ := mascotArt(m.words.Dist, m.blinkOn); len(art) > 0 {
-			w := 0
-			for _, l := range art {
-				w = max(w, ansi.StringWidth(l))
-			}
-			if w+6 <= rw { // the sprite only rides where it fits inside a card's inner width
-				v.Mascot = art
-			}
+	if art, _ := mascotArt(m.words.Dist, m.blinkOn); len(art) > 0 {
+		// the sprite rides beside the vitals where the column is wide enough (no rows spent),
+		// above them on tall windows, not at all otherwise
+		if rw >= mascotWidth+2+18 || m.height >= 30 && rw >= mascotWidth {
+			v.Mascot = art
 		}
 	}
 	for _, n := range m.courtSeq {
@@ -1088,13 +1049,28 @@ func (m *Model) print(render func(w int) string) tea.Cmd {
 
 // printAnswer prints a piece of the session's answer, its markdown kept for ctrl+y.
 func (m *Model) printAnswer(md string) tea.Cmd {
-	return m.push(&block{render: func(w int) string { return m.theme.Assistant(md, w) }, src: md, answer: true, turn: m.turnSeq})
+	first := m.firstPiece()
+	return m.push(&block{render: func(w int) string { return m.theme.answer(md, w, first) }, src: md, answer: true, turn: m.turnSeq})
+}
+
+// firstPiece: no piece of this turn's answer has landed yet — the next one wears the gutter's ✦.
+func (m *Model) firstPiece() bool {
+	for i := len(m.blocks) - 1; i >= 0; i-- {
+		b := m.blocks[i]
+		if b.answer && b.turn == m.turnSeq {
+			return false
+		}
+		if b.answer && b.turn < m.turnSeq {
+			break
+		}
+	}
+	return true
 }
 
 func (m *Model) push(b *block) tea.Cmd {
-	if rail := m.railVisible(); rail > 0 {
+	if m.paneMode() {
 		// the pane draws it at the chat's width: render there once, never at the full width too
-		if m.rendered(b, m.width-rail) == "" {
+		if m.rendered(b, m.chatW()) == "" {
 			return nil
 		}
 		m.blocks = append(m.blocks, b)
@@ -1118,7 +1094,7 @@ func (m *Model) push(b *block) tea.Cmd {
 func (m *Model) reflow() tea.Cmd {
 	m.lastWidth = m.width
 	m.sel = nil // the transcript rewraps: content coordinates move
-	if m.railVisible() > 0 {
+	if m.paneMode() {
 		m.paneDirty = true
 		m.reflowSeq++
 		return nil
@@ -1286,7 +1262,7 @@ func (m *Model) View() tea.View {
 	v.WindowTitle = m.words.Dist + " · " + filepath.Base(m.footer.World) + " · " + state
 	if m.board != nil {
 		v.MouseMode = tea.MouseModeCellMotion
-	} else if m.railVisible() > 0 && !m.mouseTerm {
+	} else if m.paneMode() && !m.mouseTerm {
 		// the chat pane scrolls its transcript with the wheel and selects with a drag while the
 		// panes own the window; /mouse gives the mouse back to the terminal
 		v.MouseMode = tea.MouseModeCellMotion
@@ -1312,13 +1288,15 @@ func (m *Model) Render() string {
 	if m.intro != nil && m.ready {
 		return m.introView()
 	}
-	cw := m.width
-	rail := m.railVisible()
-	if rail == 0 {
+	l := m.layout()
+	m.lay = l
+	if !l.pane {
 		m.catchUp() // pane exit (or an always-narrow run): the scrollback gets the blocks it never saw
 	}
-	if rail > 0 {
-		cw = m.width - rail // the rail's width carries its divider cell
+	m.sizeInput()
+	cw := m.width
+	if l.pane {
+		cw = l.chat.W
 	}
 	var live []string
 	if s := m.stream.String(); m.busy && strings.TrimSpace(s) != "" {
@@ -1344,48 +1322,62 @@ func (m *Model) Render() string {
 		}
 		live = append(live, m.statusLines(m.theme.Spinner(m.spin.View(), m.theme.Shimmer(m.verb, shimmerPhase(m.shimmer, len([]rune(m.verb)))), time.Since(m.turnStart), tokens, cw)))
 	}
-	// the home rows: shortcuts (when open), the input (its textarea can grow), menu or
-	// completions under it, the footer — the panes own everything above
-	var home []string
-	if m.shortcuts {
-		home = append(home, m.theme.Shortcuts(DefaultShortcuts(), m.width))
-	}
-	home = append(home, m.theme.InputBox(m.input.View(), m.width, m.choice != nil))
-	switch {
-	case m.menu != nil:
-		home = append(home, m.theme.Menu(m.menu.items, m.menu.cursor, m.width))
-	case m.comp != nil:
-		home = append(home, m.theme.Completions(m.comp.items, m.comp.cursor, m.width))
-	}
 	f := m.footer
 	f.Queued = m.queued
-	f.Hint = "? for shortcuts · ctrl+p plans"
-	if m.mouseTerm && rail > 0 {
+	f.Hint = "? keys · ctrl+k palette · ctrl+t bodies"
+	if m.mouseTerm && l.pane {
 		f.Badge = "mouse: terminal"
 	}
 	f.Message = m.message
 	if f.Courts == "" {
 		f.Courts = m.words.Courts
 	}
-	home = append(home, m.theme.Footer(f, m.width))
 
-	var parts []string
-	if rail > 0 {
-		// an inline ask (window under the modal tripwire) belongs to the chat pane — inside
-		// paneH, never below it, or the frame's height would lie again
+	if l.pane {
+		// an inline ask (window under the modal tripwire) belongs to the conversation pane
 		if m.choice != nil && !m.choiceFloat() {
 			live = append(live, m.theme.Choice(m.view, cw), "")
 		}
-		paneH := max(m.height-paneTop-lines(home), 4)
-		parts = append(parts, m.splitPanes(live, rail, cw, paneH), strings.Join(home, "\n"))
-		return strings.Repeat(m.paneHeadroom(rail, cw)+"\n", paneTop) + m.overlay(strings.Join(parts, "\n"))
-	} else {
-		parts = live
-		if m.choice != nil && !m.choiceFloat() {
-			parts = append(parts, m.theme.Choice(m.view, m.width), "")
+		chat := m.chatRows(live, l)
+		input := strings.Split(m.input.View(), "\n")
+		rail := m.railRowsAt(l)
+		aside := ""
+		if m.vpOK && !m.vp.AtBottom() {
+			below := max(m.vp.TotalLineCount()-m.vp.YOffset()-m.vp.Height(), 0)
+			aside = m.theme.accent.Render(fmt.Sprintf("↓ %d more", below))
 		}
-		parts = append(parts, home...)
+		ask, askAside := m.theme.title("ask"), ""
+		switch {
+		case m.choice != nil:
+			ask = m.theme.dim.Render(smallCap("ask") + " · answer the card first")
+		case m.busy:
+			askAside = m.theme.dim.Render("enter queues for " + m.words.Session())
+		}
+		rows := m.frame(l, m.header(l.W-4), chat, input, rail, aside, ask, askAside, m.theme.StatusBar(f, l.W-4))
+		return strings.Repeat(strings.Repeat(" ", l.W)+"\n", paneTop) + m.overlay(strings.Join(rows, "\n"))
 	}
+
+	// the inline layout: the live rows, the input box, the menu or completions under it, the
+	// footer — everything finished flows into the terminal's scrollback above
+	parts := live
+	if m.choice != nil && !m.choiceFloat() {
+		parts = append(parts, m.theme.Choice(m.view, m.width), "")
+	}
+	if m.shortcuts {
+		parts = append(parts, m.theme.Shortcuts(DefaultShortcuts(), m.width))
+	}
+	if m.settings != nil {
+		parts = append(parts, m.settingsView())
+	}
+	parts = append(parts, m.theme.InputBox(m.input.View(), m.width, m.choice != nil))
+	switch {
+	case m.menu != nil:
+		parts = append(parts, m.theme.Menu(m.menu.items, m.menu.cursor, m.width))
+	case m.comp != nil:
+		parts = append(parts, m.theme.Completions(m.comp.items, m.comp.cursor, m.width))
+	}
+	f.Hint = "? for shortcuts · ctrl+p plans"
+	parts = append(parts, m.theme.Footer(f, m.width))
 	return m.overlay(strings.Join(parts, "\n"))
 }
 
@@ -1396,33 +1388,10 @@ func (m *Model) Render() string {
 // over a blank row instead of the slime's head and the welcome's top border.
 const paneTop = 1
 
-// paneMouse moves a mouse event from window rows to pane rows while the panes own the window:
-// every hit map (the selection, the rail's cards and courts) counts from the pane's first row.
-func (m *Model) paneMouse(msg tea.Msg) tea.Msg {
-	if m.board != nil || m.bview != nil || m.railVisible() == 0 {
-		return msg
-	}
-	switch e := msg.(type) {
-	case tea.MouseClickMsg:
-		e.Y -= paneTop
-		return e
-	case tea.MouseReleaseMsg:
-		e.Y -= paneTop
-		return e
-	case tea.MouseMotionMsg:
-		e.Y -= paneTop
-		return e
-	case tea.MouseWheelMsg:
-		e.Y -= paneTop
-		return e
-	}
-	return msg
-}
-
 // frameH is the height the live frame's own rows may use: the window, less the panes'
 // headroom while they own it.
 func (m *Model) frameH() int {
-	if m.board == nil && m.bview == nil && m.railVisible() > 0 {
+	if m.board == nil && m.bview == nil && m.paneMode() {
 		return m.height - paneTop
 	}
 	return m.height

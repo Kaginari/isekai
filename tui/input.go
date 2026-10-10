@@ -37,6 +37,9 @@ func (m *Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.railCollapsed[key] = !m.railCollapsed[key]
 		return m, nil
 	}
+	if k.String() == "alt+s" {
+		return m, m.toggleSidebar()
+	}
 	if k.String() == "ctrl+k" {
 		m.openPalette()
 		return m, nil
@@ -372,6 +375,17 @@ func (m *Model) slash(line string) tea.Cmd {
 		return m.copyAnswer()
 	case "mouse":
 		return m.toggleMouse()
+	case "sidebar":
+		return m.toggleSidebar()
+	case "settings":
+		return m.openSettings()
+	case "theme":
+		t := NewTheme(!m.theme.Dark)
+		t.Forced = true
+		m.setTheme(t)
+		return m.reflow()
+	case "offices":
+		return m.print(func(w int) string { return m.theme.Offices(m.wel.Offices, w) })
 	case "clear":
 		m.blocks, m.printedIdx = nil, 0
 		return m.reflow()
@@ -383,6 +397,18 @@ func (m *Model) slash(line string) tea.Cmd {
 		lines, quit := host.Slash(line)
 		return evSlashDone{lines: lines, quit: quit}
 	})
+}
+
+// toggleSidebar hides the sidebar (the conversation takes the whole frame) or brings it back.
+// The transcript rewraps at the new width.
+func (m *Model) toggleSidebar() tea.Cmd {
+	m.railOff = !m.railOff
+	if m.railOff {
+		m.say("sidebar hidden · alt+s brings it back")
+	} else {
+		m.say("sidebar shown")
+	}
+	return m.reflow()
 }
 
 // history

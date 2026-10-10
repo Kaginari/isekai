@@ -128,7 +128,7 @@ func (m *Model) release() tea.Cmd {
 		seq := m.reflowSeq
 		return func() tea.Msg { return evReflow{seq} }
 	}
-	if m.railVisible() == 0 {
+	if !m.paneMode() {
 		m.catchUp()
 	}
 	return nil

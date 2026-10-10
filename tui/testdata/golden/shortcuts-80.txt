@@ -17,5 +17,6 @@
 │ ctrl+o        expand the last collapsed block                │
 │ ctrl+l        redraw                                         │
 │ ?             this list                                      │
-│ alt+p/c/f     fold the plan / courts / files cards           │
+│ alt+p/c/f     fold the plan / courts / files sections        │
+│ alt+s         hide or show the sidebar (/sidebar)            │
 ╰──────────────────────────────────────────────────────────────╯

@@ -63,7 +63,7 @@ func (m *Model) feedVP(live []string, cw, paneH int) []string {
 // popup or completion owns the key line: pgup/pgdn page, shift+↑/↓ walk a line. ctrl+u/ctrl+d
 // stay the textarea's; shift+↑/↓ stay its selection while the input spans several rows.
 func (m *Model) vpKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
-	if m.railVisible() == 0 || m.menu != nil || m.comp != nil || m.shortcuts || !m.vpOK {
+	if !m.paneMode() || m.menu != nil || m.comp != nil || m.shortcuts || !m.vpOK {
 		return nil, false
 	}
 	switch k.String() {
@@ -90,10 +90,10 @@ func (m *Model) vpKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // the rail column walks the rail instead — the clamp lives in splitPanes, where content height
 // is known.
 func (m *Model) vpWheel(msg tea.MouseWheelMsg) (tea.Cmd, bool) {
-	if m.railVisible() == 0 {
+	if !m.paneMode() {
 		return nil, false
 	}
-	if msg.Mouse().X > m.width-m.railVisible() {
+	if l := m.geom(); l.rc > 0 && msg.Mouse().X >= l.divX {
 		switch msg.Button {
 		case tea.MouseWheelUp:
 			m.railScroll--

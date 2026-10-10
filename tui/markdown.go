@@ -195,27 +195,27 @@ func (t Theme) styleConfig() ansi.StyleConfig {
 	return sc
 }
 
-// brandStyleConfig re-paints the stock dark/light config into the world palette (the same
-// tokens the blocks wear — board.css carried to the terminal): the gold global lane on
-// headings and strong text, the verdant elf lane on links, the ember orc lane on emphasis,
-// the chartreuse slime lane on inline code, code blocks resting on the pane's own honest
-// background, and quotes sunk into the dim. no-tricks law: colours only, never a fake.
+// brandStyleConfig re-paints the stock dark/light config into the theme's roles: headings in
+// the primary, strong text bold in the text tone (weight, not colour), emphasis italic, links
+// in the primary underlined, inline code in the human's magenta (the answer's one second hue),
+// code blocks resting on the panel ground, quotes sunk into the dim. Colours only, never a fake.
 func (t Theme) brandStyleConfig(sc ansi.StyleConfig) ansi.StyleConfig {
-	gold := hexOf(t.accent.GetForeground())
-	verdant := hexOf(t.lane("elf"))
-	ember := hexOf(t.lane("orc"))
-	chartreuse := hexOf(t.lane("slime"))
+	primary := hexOf(t.accent.GetForeground())
+	code := hexOf(t.magenta.GetForeground())
 	dimC := hexOf(t.dim.GetForeground())
 	paneBgHex := hexOf(t.paneBg())
+	yes := true
 
-	sc.Heading.Color = &gold
-	sc.Strong.Color = &gold
-	sc.Emph.Color = &ember
-	sc.Link.Color = &verdant
-	sc.LinkText.Color = &verdant
-	ital := true
-	sc.LinkText.Italic = &ital
-	sc.Code.Color = &chartreuse
+	sc.Heading.Color = &primary
+	sc.Strong.Color = nil
+	sc.Strong.Bold = &yes
+	sc.Emph.Color = nil
+	sc.Emph.Italic = &yes
+	sc.Link.Color = &primary
+	sc.Link.Underline = &yes
+	sc.LinkText.Color = &primary
+	sc.LinkText.Italic = nil
+	sc.Code.Color = &code
 
 	sc.BlockQuote.Color = &dimC
 	sep := "▎ "

@@ -180,7 +180,7 @@ func TestBlocksGolden(t *testing.T) {
 		}},
 		{"shortcuts", func(w int) string { return th.Shortcuts(DefaultShortcuts(), w) }},
 		{"queued", func(w int) string { return th.Queued("also check the api zone", w) }},
-		{"input", func(w int) string { return th.InputBox("> write a test for the login zone\n  ", w, false) }},
+		{"input", func(w int) string { return th.InputBox("› write a test for the login zone\n  ", w, false) }},
 	}
 	dir := filepath.Join("testdata", "golden")
 	if *update {
@@ -304,10 +304,10 @@ func TestMarkdownFallsBackAndTrims(t *testing.T) {
 	}
 }
 
-// The branded glamour config re-paints the stock palette into the world's lanes: headings
-// and strong text wear the gold global lane, links the elf verdant lane, and code blocks
-// rest on the pane's honest background. no-tricks law: this test fails loudly the day
-// someone brands with a colour the world doesn't already carry.
+// The branded glamour config re-paints the stock palette into the theme's roles: headings and
+// links wear the primary, inline code the human's magenta, strong text is weight (no colour),
+// and code blocks rest on the panel ground. no-tricks law: this test fails loudly the day
+// someone brands with a colour the theme doesn't already carry.
 func TestGlamourBrandRidesThePalette(t *testing.T) {
 	th := NewTheme(true)
 	th.Color = true // the suite runs without a tty; brand asserts still matter
@@ -315,11 +315,14 @@ func TestGlamourBrandRidesThePalette(t *testing.T) {
 	if got, want := *sc.Heading.Color, hexOf(th.accent.GetForeground()); got != want {
 		t.Fatalf("headings wear %s, want the accent's %s", got, want)
 	}
-	if got, want := *sc.Link.Color, hexOf(th.lane("elf")); got != want {
-		t.Fatalf("links wear %s, want the elf lane %s", got, want)
+	if got, want := *sc.Link.Color, hexOf(th.accent.GetForeground()); got != want {
+		t.Fatalf("links wear %s, want the primary %s", got, want)
 	}
-	if got, want := *sc.Code.Color, hexOf(th.lane("slime")); got != want {
-		t.Fatalf("inline code wears %s, want the slime lane %s", got, want)
+	if got, want := *sc.Code.Color, hexOf(th.magenta.GetForeground()); got != want {
+		t.Fatalf("inline code wears %s, want the magenta %s", got, want)
+	}
+	if sc.Strong.Color != nil || sc.Strong.Bold == nil || !*sc.Strong.Bold {
+		t.Fatal("strong text is weight, not colour")
 	}
 	if sc.CodeBlock.BackgroundColor == nil {
 		t.Fatal("code blocks must rest on the pane's background")

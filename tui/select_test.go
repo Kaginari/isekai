@@ -87,13 +87,13 @@ func TestDragSelectsAndCopiesPlainText(t *testing.T) {
 	copied := stubCopy(t)
 	m := selModel(t)
 	y0, y1 := rowOf(t, m, "alpha line"), rowOf(t, m, "charlie line")
-	m.Update(tea.MouseClickMsg{X: 0, Y: y0, Button: tea.MouseLeft})
-	m.Update(tea.MouseMotionMsg{X: 3, Y: y1, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: m.lay.chat.X, Y: y0, Button: tea.MouseLeft})
+	m.Update(tea.MouseMotionMsg{X: m.lay.chat.X + 3, Y: y1, Button: tea.MouseLeft})
 	frame := m.Render()
 	if !strings.Contains(frame, m.theme.sel.Render("alpha line 0")) {
 		t.Fatalf("the selection is not drawn:\n%q", frame)
 	}
-	_, cmd := m.Update(tea.MouseReleaseMsg{X: 3, Y: y1, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseReleaseMsg{X: m.lay.chat.X + 3, Y: y1, Button: tea.MouseLeft})
 	msgs := run(cmd)
 	want := "alpha line 0\n\nbravo line 1\n\nchar" // the head's cell is in
 	if got := copied(); len(got) != 1 || got[0] != want {
@@ -120,12 +120,12 @@ func TestDragSelectsAndCopiesPlainText(t *testing.T) {
 	}
 }
 
-// The rail and the divider never enter a selection: a drag past the chat's edge is clamped.
+// The borders, the divider and the sidebar never enter a selection: a drag past the chat's edge is clamped.
 func TestDragClampsToTheChatPane(t *testing.T) {
 	stubCopy(t)
 	m := selModel(t)
 	y := rowOf(t, m, "bravo line")
-	m.Update(tea.MouseClickMsg{X: 0, Y: y, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: m.lay.chat.X, Y: y, Button: tea.MouseLeft})
 	m.Update(tea.MouseMotionMsg{X: m.width - 2, Y: y, Button: tea.MouseLeft})
 	if got := m.selText(); got != "bravo line 1" {
 		t.Fatalf("the selection left the chat pane: %q", got)
@@ -143,8 +143,8 @@ func TestDoubleAndTripleClick(t *testing.T) {
 	m := selModel(t)
 	y := rowOf(t, m, "charlie line")
 	click := func() {
-		m.Update(tea.MouseClickMsg{X: 2, Y: y, Button: tea.MouseLeft})
-		m.Update(tea.MouseReleaseMsg{X: 2, Y: y, Button: tea.MouseLeft})
+		m.Update(tea.MouseClickMsg{X: m.lay.chat.X + 2, Y: y, Button: tea.MouseLeft})
+		m.Update(tea.MouseReleaseMsg{X: m.lay.chat.X + 2, Y: y, Button: tea.MouseLeft})
 	}
 	click()
 	if m.sel != nil {
@@ -169,8 +169,8 @@ func TestDragAutoScrolls(t *testing.T) {
 	}
 	m.Render()
 	top := m.vp.YOffset()
-	m.Update(tea.MouseClickMsg{X: 1, Y: 10, Button: tea.MouseLeft})
-	_, cmd := m.Update(tea.MouseMotionMsg{X: 1, Y: 0, Button: tea.MouseLeft})
+	m.Update(tea.MouseClickMsg{X: m.lay.chat.X + 1, Y: m.lay.chat.Y + 8, Button: tea.MouseLeft})
+	_, cmd := m.Update(tea.MouseMotionMsg{X: m.lay.chat.X + 1, Y: m.lay.chat.Y, Button: tea.MouseLeft})
 	if cmd == nil || m.sel.edge != -1 {
 		t.Fatal("a drag on the top edge arms the autoscroll")
 	}

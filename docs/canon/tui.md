@@ -24,9 +24,15 @@ one place the binary takes third-party code; versions pinned in go.sum.
 - **Colour in motion** — the title on the mascot's gradient; the spinner's verb shimmers (a soft
   highlight sweeps across it with each spinner frame); the footer's context is a meter, each cell
   coloured along green → amber → red.
-- **Welcome** — one framed box at start: the world, the model (and each office's), the board URL,
-  the off-list count, "/help for commands".
-- **Your message** — a `>`-prefixed block, dim, as sent.
+- **Welcome** — one card at start: the mascot beside the name on its gradient, the tagline and the
+  lane legend as chips; then a label/value grid (small-caps labels) — the world (its tail kept
+  when cut), the model, the offices folded to one line (`3 · great-sage raphael → flash · ciel →
+  ultra`; `/offices` has them whole), the session, the board URL, a waiting handoff, the off-list
+  count; what the engine could not settle, one `▲` line each; one row of where to start (`⏎ ask
+  · / commands · ctrl+k palette · ? keys`). It reads at 80 columns.
+- **Your message** — a bar (`▌`) in the human's magenta down its left edge, the words beside it.
+- **The answer** — the turn's first piece wears the primary's `✦` in the gutter; the text sits
+  two cells in, so asks, answers and cards each own a column-0 marker.
 - **Assistant text** — streamed, rendered as markdown (Glamour, a theme that follows the terminal's
   dark/light background), code blocks highlighted.
 - **Tool calls** — one compact line each while running and after: `● bash  go test ./...` with the
@@ -41,11 +47,54 @@ one place the binary takes third-party code; versions pinned in go.sum.
   own tool steps are not drawn; its block's state says `tool`.
 - **Courts** — a dispatched Court is one block with its rank, office and model, a live state, and
   on return its report rendered (status, findings, holes, the unsaid) — not the raw wire text.
-- **The gate verdict** — one quiet line after a turn that wrote: `✓ gate · n/a (no orcs) · log.md`.
+- **The gate verdict** — one quiet line after a turn that wrote: a chip in the verdict's colour
+  (`✓ gate · n/a (no orcs)`), then the log it went to, dim.
 - **Spinner line** — while a turn runs: a spinner, a verb for the current beat (`Thinking…`,
   `Running bash…`, `Waiting for approval…`), elapsed time, tokens so far, `esc to interrupt`.
 - **Footer** — under the input: the model · context % · cost (or "no calls yet") · live courts ·
-  the world dir; `? for shortcuts`.
+  the world dir; `? for shortcuts`. Under the frame it is the status bar (below).
+
+## The frame
+
+A window of at least 60×26 is owned by one box-drawn grid (`tui/frame.go`) under a blank first
+row — the headroom VS Code's sticky scroll paints the launching command over:
+
+- **Header** — the brand on its gradient and the version, the world, the model; on the right the
+  session's short id and its state chip (`○ idle`, `● thinking 12s` in the primary, `◆ waiting for
+  you` in magenta). Items yield right to left as the window narrows.
+- **Conversation** — the main column, titled in its top edge: the transcript in a viewport
+  (pgup/pgdn, shift+↑/↓, the wheel), the live rows under it. Scrolled up, the edge says `↓ N more`.
+- **Ask** — the input lives inside the main column, under the conversation, its own rule titled
+  `ask` (the aside says `enter queues for rimuru` while a turn runs). It never reaches under the
+  sidebar. The slash menu, `@` completions and the `?` keys sheet rise from its top edge as cards
+  over the conversation's last rows — the frame never reflows for them.
+- **Sidebar** — the right third, full height from header to status bar, titled `session`: the
+  vitals (the sprite beside the world, the model, the context meter, the spend, each race's spend
+  as a lane chip, the board's link), then a ruled section each for the courts (a roster, the
+  state a chip on the right edge), the plan deck (titled in its office's lane), the files touched
+  (a Lip Gloss tree). A section's rule carries a fold glyph and a count: `alt+c` / `alt+p` /
+  `alt+f` or a click on the rule folds it; a click on a roster row shows that body's plan; the
+  wheel over the column scrolls it, `▲`/`▼` on its right edge say what lies beyond. `alt+s` or
+  `/sidebar` hides it — the conversation takes the whole frame.
+- **Status bar** — the context meter (and raw counts on wide windows), the session's tokens, the
+  cost, live bodies, queued lines, a mode badge; on the right a transient message or the key hints.
+
+Boxes share their edges: one line where two meet, `┬ ┤ ┼ ┴` where three do, one border tone. Every
+row is exactly the window's width and the frame is exactly the window's height less the headroom
+— the inline renderer counts rows, and a frame that lies leaves ghosts. The geometry is computed
+once per frame and the mouse reads it back: the selection's origin, the sidebar's hit rows, where
+the wheel goes — nothing scans glyphs. Below 60×26 the session flows inline as above.
+
+## Type and colour
+
+Inside the cell grid type is weight, case and tone: bold is for titles only; region and section
+titles are small caps (`ᴄᴏɴᴠᴇʀꜱᴀᴛɪᴏɴ`), as are the welcome's labels; text, then label, then dim
+carry the hierarchy. The palette has roles — the terminal's own ground; borders quieter than any
+text; cyan the primary (brand, focus, the live state, headings and links); magenta the human's
+accent (the ask's bar, the waiting chip, inline code), never a second accent in a region that
+wears the primary; green/amber/red for verdicts; the race lanes for bodies. Dark wears the HUD
+neons softened to read as text; light wears their deep-ink twins; every text role holds 4.5:1 on
+its ground. Nothing glows: chips are a hue over a tint of itself, never a neon slab.
 
 ## Interaction
 
@@ -105,13 +154,18 @@ one place the binary takes third-party code; versions pinned in go.sum.
 
 Drawn as Lip Gloss v2 layers over the live area (the scrollback above is the terminal's, never
 overdrawn):
-- **The palette — `ctrl+k`.** Every command, the UI's own (board, theme, help, clear, quit) and
+- **The palette — `ctrl+k`.** Every command, the UI's own (board, theme, settings, sidebar,
+  offices, help, clear, quit) and
   the host's, fuzzy-matched as you type: a subsequence, word starts and runs scoring higher, the
   matched letters lit. Enter runs a command that takes nothing at once; one that takes arguments
   lands in the input to be finished. `theme` switches dark and light and reprints the transcript.
 - **Toasts.** A Court landing (✓ done / ✗ failed) and the gate's verdict raise a one-line pill at
   the live area's top right; it slides in on a spring and leaves after four seconds, three at most.
   The block it echoes is in the scrollback already — a toast is a glance, never the record.
+- **Settings — `/settings`.** A huh form floating over the frame: the theme, who owns the mouse,
+  the sidebar — inline selects (`←→` change, `tab` next, `enter` saves, `esc` closes unchanged).
+  The form is a Bubble Tea model inside the session's: while it is open every message reaches it
+  first.
 
 ## Blocks as cards
 
@@ -136,8 +190,9 @@ overdrawn):
   detail), on a graph node selects it; the wheel scrolls.
 - **Mouse under the panes** — on a window wide enough for the sidebar the transcript lives in the
   chat pane, so the program takes the mouse: the wheel scrolls the chat (the sidebar over its own
-  column), a click on a sidebar card row or header acts on it. A drag selects in the chat pane
-  only — never the sidebar or the divider — scrolling when it rests on the pane's edge; a double
+  column), a click on a sidebar section's rule or a roster row acts on it. A drag selects in the
+  conversation only — never a border, the input or the sidebar — scrolling when it rests on the
+  pane's edge; a double
   click takes a word, a triple click a line; `esc` clears it. The release copies the plain text
   (escapes stripped, each line's pad trimmed) by OSC 52, to the primary selection too, and —
   off SSH — through the desktop's own tool (`wl-copy`, `xclip`, `xsel`, `pbcopy`), as some
