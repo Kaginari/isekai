@@ -1,6 +1,7 @@
 package board
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -86,7 +87,14 @@ func TestOldAddressesRedirectOrAreGone(t *testing.T) {
 			t.Errorf("%s: %d, want 404", path, code)
 		}
 	}
-	if code, _ := get(t, b, "/dash/stream?probe"); code == 301 {
+	// the stream answers a loopback request by streaming: a short deadline ends the probe
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/dash/stream?probe", nil).WithContext(ctx)
+	req.Host = "127.0.0.1:7411"
+	b.ServeHTTP(rec, req)
+	if rec.Code == 301 {
 		t.Error("the session stream keeps its path")
 	}
 }
@@ -113,7 +121,8 @@ func TestPrefixMount(t *testing.T) {
 // The world's records answer only a request addressed to this machine (DNS rebinding).
 func TestWorldAPIsRefuseAReboundHost(t *testing.T) {
 	b := newBoard(t, "world", Options{Sources: Sources{Config: func() any { return map[string]any{"a": 1} }}})
-	for _, p := range []string{"/api/config", "/api/memory", "/api/memory/recall?q=auth", "/api/memory/review", "/api/toolbox", "/api/runs", "/api/run?id=r1"} {
+	for _, p := range []string{"/api/config", "/api/memory", "/api/memory/recall?q=auth", "/api/memory/review", "/api/toolbox", "/api/runs", "/api/run?id=r1",
+		"/events", "/api/doc?path=README.md", "/api/court", "/api/usage", "/api/colony", "/api/activity", "/api/tree", "/api/tree/children?path=.", "/api/courts", "/api/plan"} {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", p, nil)
 		req.Host = "evil.example:7485"

@@ -240,16 +240,18 @@ func (b *Board) routes() {
 	for page, tab := range movedPages {
 		b.mux.HandleFunc("/"+page, b.moved(tab))
 	}
-	b.mux.HandleFunc("/events", b.events)
-	b.mux.HandleFunc("/api/doc", b.apiDoc)
-	b.mux.HandleFunc("/api/court", b.apiCourt)
-	b.mux.HandleFunc("/api/usage", b.apiUsage)
-	b.mux.HandleFunc("/api/colony", b.apiColony)
-	b.mux.HandleFunc("/api/activity", b.apiActivity)
-	b.mux.HandleFunc("/api/tree", b.apiTree)
-	b.mux.HandleFunc("/api/tree/children", b.apiTreeChildren)
-	b.mux.HandleFunc("/api/courts", b.apiCourts)
-	b.mux.HandleFunc("/api/plan", b.apiPlan)
+	// every read of the world's records answers a loopback Host only: a rebound DNS name
+	// (a page on the open web pointed at 127.0.0.1) reads nothing
+	b.mux.HandleFunc("/events", guarded(b.events))
+	b.mux.HandleFunc("/api/doc", guarded(b.apiDoc))
+	b.mux.HandleFunc("/api/court", guarded(b.apiCourt))
+	b.mux.HandleFunc("/api/usage", guarded(b.apiUsage))
+	b.mux.HandleFunc("/api/colony", guarded(b.apiColony))
+	b.mux.HandleFunc("/api/activity", guarded(b.apiActivity))
+	b.mux.HandleFunc("/api/tree", guarded(b.apiTree))
+	b.mux.HandleFunc("/api/tree/children", guarded(b.apiTreeChildren))
+	b.mux.HandleFunc("/api/courts", guarded(b.apiCourts))
+	b.mux.HandleFunc("/api/plan", guarded(b.apiPlan))
 	b.liveRoutes()
 	b.worldRoutes()
 }

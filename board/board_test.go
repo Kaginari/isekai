@@ -29,7 +29,9 @@ func newBoard(t *testing.T, world string, o Options) *Board {
 func get(t *testing.T, h http.Handler, path string) (int, string) {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+	req := httptest.NewRequest("GET", path, nil)
+	req.Host = "127.0.0.1:7411" // as the browser addresses the board; any other Host is refused
+	h.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
 }
 

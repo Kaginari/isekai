@@ -35,7 +35,11 @@ instrument.
 
 ## The world's own pages — the board
 
-The board and the world's reports follow the rules below.
+The board is one page — isekai's dashboard at the root, its views as tabs — built on this UI
+system itself: the foundation's tokens, palettes and layout copied byte for byte into board/web,
+its components linted like any project's, and a page theme (board/web/theme.css, the "realm" neon
+HUD) holding the literal values. The Bootstrap grid and pages below remain the guidance for the
+pages a world builds for its own project when it has no system of its own.
 
 ## Layout: the Bootstrap grid
 
