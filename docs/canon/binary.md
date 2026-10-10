@@ -478,12 +478,18 @@ components — held to `ui check` by a test). Its overview is a cockpit: the liv
 hero; the session's console docks beside it (the transcript read like a page, tool calls, Courts
 and verdicts as folded cards, approvals and questions as choice cards, one input: Enter sends, ↑
 recalls, Esc interrupts, `/` runs a command) — a splitter resizes it, a button folds it to a rail,
-both remembered; under the net a timeline lists the Courts and verdicts, newest first (the journals'
-recent runs under what the page saw live; a row focuses its neuron, and a pinned neuron's card
-takes the same band). The header carries the vitals: model, state, context, the plan's progress,
+both remembered; over the net a "now" strip shows the session's state, the ask it is on, every
+live body as a chip with its context use, and a wait on the human as an inline banner; under the
+net a timeline lists the Courts and verdicts, newest first (the journals' recent runs and what the
+page saw live, merged by time — a journaled run is folded into its live row only when it is the
+same run, started within seconds of it; the throne is named by the lexicon; a row focuses its
+neuron, and a pinned neuron's card takes the same band; in 3D the band folds to two rows). The
+header carries the vitals: model, state, context, the plan's progress,
 cost, live bodies, a wait on the human. The folder tree is a drawer over every view (the files
 button, `t`, or Alt+T from the prompt; Esc or a click away closes it); hovering a path lights the
-neuron that owns it. Narrow, the cockpit stacks: net, timeline, console. The net, metrics (tokens,
+neuron that owns it; open, the drawer is a modal dialog that keeps the focus inside it. Narrow,
+the cockpit stacks: net, timeline, console; the header's vitals become one row that scrolls, and
+a row that scrolls sideways (the vitals, the tabs) fades at the edge that has more. The net, metrics (tokens,
 cost, calls, context, cache; by day, model and body), relations (the bond matrix and its
 dimensions: by rank, lane and bond) and the tree keep their own full-size views.
 With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
@@ -500,23 +506,41 @@ elves and the kijin, the orcs, the slimes — and the minds as a side layer, joi
 by anima-threads that stay hairlines until a focus lights them. `/api/colony` guarantees the shape:
 the throne is always a node, every creature names its `parent` by its first upward bond (truth,
 verdict, reports, above), and a creature with no way up hangs under the throne by an `implied`
-reports edge and a note — the tree is connected and the gap is said. Wide, the layers are columns
-and the tree is tidy (a parent sits at the middle of its children); narrow, it is an outline, one
-row per neuron, indented by depth. Each neuron is a rank-coloured tile whose 28 cells are its last
+reports edge and a note — the tree is connected and the gap is said (a cycle is broken where it
+is found; an empty world is the throne alone, every list a list). Wide, the layers are columns
+and the tree is tidy (a parent sits at the middle of its children, each upper layer centred in its
+column); each subtree under the throne is a lane — an elf with its orcs and their slimes — set
+apart by a gap and drawn as one band; a leaf under the throne (the kijin, an elf with no orcs) is a
+satellite stacked just under the throne. In the cockpit the net fills exactly the box its panel
+gives it, the legend always in view: rows tighten and tiles shrink first, then the deepest layer
+wraps into staggered sub-columns, and no label is cut below six ems — a world too large for the
+box grows and its stage scrolls. The minds keep out of the way as a strip of brains under the
+layers (their names on hover or focus), a column only when that alone lets the layers fit.
+Narrow, it is an outline, one row per neuron, indented by depth. `board/testdata/netlayout`
+holds a ~60-creature fixture and a check that lays it out at the boxes 1280, 1440 and 1920 wide
+give the net (`TestNetLayoutHolds` runs it when node is on the PATH). Each neuron is a rank-coloured tile whose 28 cells are its last
 four weeks (`/api/activity`: runs from the loop journals, tokens from the usage journal — blank
 where no instrument saw any, never a made-up zero); each tree bond is as thick as the commissions
 it carried. Hover or keyboard focus lights a neuron's path to the throne and its subtree, the rest
 steps back; a click pins it and the side card reads its doc, territory, minds, bonds and work. Every action pulses on its own neuron — a session step on the throne, a Court's step on its
-creature: a read is a soft accent ripple, a write the rank's own pulse, an outward or destructive
-act and a waiting gate an amber ring, a passing verdict a green flare, a failure or denial a red
-one (bursts coalesce to one ripple a neuron a quarter second). A Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
+creature: a read is a soft accent ripple, a write and a plain turn's end the rank's own pulse, an
+outward or destructive act and a waiting gate an amber ring; green and red are for real verdicts
+only — a passing one flares green, a failure or denial red. Bursts coalesce: within a burst (acts
+under a second and a half apart) a neuron ripples again only when something louder arrives and
+otherwise just breathes, so a twenty-step Court is one breathing neuron. A Court on the stream sends a spark down the tree from its dispatcher (the nearest running ancestor,
 else the throne) and its report back up, green for DONE, amber or red otherwise; a running body
 breathes. The **3D** stage (`net3d.js`, WebGL2 written here, no library) stands the same tree as
-planes — the throne on top, each rank a ring, the minds a halo beneath — with additive glow on the
-dark theme, particles drifting down the bonds, a slow idle turn, drag to orbit, wheel or pinch to
-zoom, click to focus (the camera eases there); it falls back to 2D without WebGL2. Both animate
-only while the net is seen, at a frame budget, and stand still under `prefers-reduced-motion`;
-every colour is a token (the canvas reads them through probe elements).
+layers — the throne on top, each rank a ring on its own faint plane (set apart by about 0.6 of the
+widest ring, captioned with the lexicon's rank words), the minds a halo beneath — with additive
+glow on the dark theme (smaller halos on the light one), depth fog, particles drifting down the
+bonds, a slow idle turn, drag to orbit, wheel or pinch to zoom, click to focus (the camera eases
+there), arrows to walk the tree with the camera following (Enter pins, Shift+arrows turn), and a
+"reset view" button; the camera's home fits the whole stack in the stage, which takes the panel's
+real height. Labels show for the upper layers, on hover and focus, and for every neuron once 24 or
+fewer are in view. It falls back to 2D without WebGL2. Both animate only while the net is seen, at
+a frame budget (the 3D stage drops to 12 frames a second after ten idle seconds and stops turning
+after an idle minute), and stand still under `prefers-reduced-motion`; every colour is a token
+(the canvas reads them through probe elements, its fonts once per theme or size).
 
 The command's own output — the board, each session — is a Charm Log: levelled, coloured, timed.
 

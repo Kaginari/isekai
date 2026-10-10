@@ -10,7 +10,6 @@
   let WORDS = {};
   try { WORDS = JSON.parse(document.body.dataset.words || '{}'); } catch (_) { /* default words */ }
   const word = (k, d) => WORDS[k] || d || k;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function el(tag, attrs, ...kids) {
     const n = document.createElement(tag);
@@ -73,11 +72,27 @@
     const kc = document.getElementById('kcard'), slot = document.getElementById('timeline-slot'), side = document.querySelector('.net-side');
     const nl = document.getElementById('net-layout');
     if (nl) nl.toggleAttribute('data-side', v !== 'overview');
+    // the cockpit keeps the net's findings on the net's own page (the note counts them) and
+    // shows the now strip
+    const nf = document.getElementById('net-findings'), nw = document.getElementById('now');
+    if (nf) nf.hidden = v === 'overview';
+    if (nw) nw.hidden = v !== 'overview';
+    const nn = document.getElementById('net-note');
+    if (nn) nn.hidden = v === 'overview';
     if (kc && slot && side) { (v === 'overview' ? slot : side).append(kc); try { if (colony) knowledge(focus); } catch (_) { /* booting: the net's state is not declared yet */ } }
     if (v === 'tree' && document.querySelector('.shell[data-drawer]')) document.querySelector('.shell').removeAttribute('data-drawer');
     requestAnimationFrame(() => netDraw());
   }
   for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => view(t.dataset.view));
+  // a row that scrolls sideways says so: the edge with more past it fades
+  function edgeFade(row) {
+    if (!row) return;
+    const f = () => { row.toggleAttribute('data-more-start', row.scrollLeft > 2); row.toggleAttribute('data-more-end', row.scrollLeft + row.clientWidth < row.scrollWidth - 2); };
+    row.addEventListener('scroll', f, { passive: true });
+    new ResizeObserver(f).observe(row);
+    f();
+  }
+  edgeFade($('.tabs')); edgeFade($('.topbar-meta'));
   const HASH = new URLSearchParams(location.hash.slice(1));
   if (HASH.get('theme')) theme(HASH.get('theme') === 'system' ? '' : HASH.get('theme'));
   view(HASH.get('view') || store.get('view') || 'overview');
@@ -281,17 +296,23 @@
         break;
       }
       case 'state': if (e.state === 'waiting on gate' || e.state === 'gating') net.act(e.body === throneName() ? '' : e.body, 'gate'); break;
-      case 'turndone':
-        if (e.verdict || e.status) timelineAdd({ as: throneName() || 'session', ask: (lastAsk || 'turn') + (e.verdict ? ' — verdict: ' + e.verdict : ''), at: new Date().toISOString(), status: /fail/i.test(e.verdict || '') ? 'FAIL' : (e.status || 'DONE') });
-        if (/fail/i.test(e.verdict || '') || /FAIL/.test(e.status || '')) net.act('', 'fail');
-        else if (e.verdict || /^DONE$/i.test(e.status || '')) net.act('', 'pass');
+      case 'turndone': {
+        // green and red are for real verdicts; a plain turn's end is a calm ping in the rank's colour
+        const failed = /fail|denied/i.test(e.verdict || '') || /FAIL|DENIED/.test(e.status || '');
+        if (e.verdict || e.status) timelineAdd({ as: throneName() || 'session', ask: (lastAsk || 'turn') + (e.verdict ? ' — verdict: ' + e.verdict : ''), at: new Date().toISOString(), started: turnAt, status: failed && e.verdict ? 'FAIL' : (e.status || 'DONE') });
+        if (failed) net.act('', 'fail');
+        else if (e.verdict) net.act('', /pass/i.test(e.verdict) ? 'pass' : 'gate');
+        else net.act('', 'done');
         break;
+      }
     }
   }
-  let lastAsk = '';
+  let lastAsk = '', turnAt = '';
   const throneName = () => { const m = net.model(); return m && m.throne ? m.throne.name : ''; };
+  // a body as the reader knows it: the throne by the lexicon's word, never its internal name
+  const labelOf = name => { const n = colony && colony.nodes.find(x => x.name === name && x.kind !== 'mind'); return n && n.throne ? (n.label || n.name) : name; };
   function onEvent(e) {
-    if ((e.type === 'ask' && !e.queued) || e.type === 'turnstart') lastAsk = String(e.text || '').slice(0, 160);
+    if ((e.type === 'ask' && !e.queued) || e.type === 'turnstart') { lastAsk = String(e.text || '').slice(0, 160); turnAt = new Date().toISOString(); now(); }
     treeEvent(e);
     netEvent(e);
     switch (e.type) {
@@ -387,14 +408,14 @@
     const text = field.value.trim();
     if (!text) return;
     history.unshift(text); hIdx = -1;
-    field.value = ''; grow();
+    field.value = '';
     post('api/ask', { text }).catch(err => note('not sent: ' + err.message, 'danger'));
   });
-  function grow() { /* the field grows by itself (field-sizing: content in console.css) */ }
+  // (the field grows by itself: field-sizing: content in console.css)
   field.addEventListener('keydown', ev => {
     if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); form.requestSubmit(); }
-    else if (ev.key === 'ArrowUp' && field.selectionStart === 0 && history.length) { ev.preventDefault(); hIdx = Math.min(hIdx + 1, history.length - 1); field.value = history[hIdx]; grow(); }
-    else if (ev.key === 'ArrowDown' && hIdx >= 0 && field.selectionStart === field.value.length) { ev.preventDefault(); hIdx--; field.value = hIdx >= 0 ? history[hIdx] : ''; grow(); }
+    else if (ev.key === 'ArrowUp' && field.selectionStart === 0 && history.length) { ev.preventDefault(); hIdx = Math.min(hIdx + 1, history.length - 1); field.value = history[hIdx]; }
+    else if (ev.key === 'ArrowDown' && hIdx >= 0 && field.selectionStart === field.value.length) { ev.preventDefault(); hIdx--; field.value = hIdx >= 0 ? history[hIdx] : ''; }
     else if (ev.key === 'Escape') { ev.preventDefault(); interrupt(); }
   });
   function interrupt() { if (!stopBtn.disabled) post('api/interrupt').catch(err => note('interrupt: ' + err.message, 'danger')); }
@@ -443,7 +464,29 @@
       if (tn && liveNames.has(tn) !== !!s.running) { if (s.running) liveNames.add(tn); else liveNames.delete(tn); netLive(); }
       if (s.session && form.dataset.state !== 'waiting') setAsk(s.running ? 'running' : 'idle');
       if (!s.session) { field.disabled = sendBtn.disabled = true; }
+      now();
     }).catch(() => { const p = pill('board offline'); p.id = 'state'; $('#state').replaceWith(p); });
+  }
+
+  // ---------- the cockpit's now strip: state, the current ask, live bodies, a wait on you ----------
+  function now() {
+    const box = $('#now');
+    if (!box || box.hidden) return;
+    const st = form.dataset.state || 'idle';
+    const running = live.session && (live.running || st === 'running');
+    const kids = [pill(st === 'waiting' ? 'waiting on you' : running ? 'running' : live.session ? 'idle' : 'no session')];
+    kids.push(el('span', Object.assign({ class: 'now-ask', 'data-idle': !running }, lastAsk ? { text: (running ? '' : 'last: ') + lastAsk, title: lastAsk } : { text: running ? '…' : 'nothing asked yet' })));
+    const bodies = court.filter(b => b.state && !/^(done|idle)$/.test(b.state) && b.name !== throneName());
+    if (bodies.length) kids.push(el('span', { class: 'now-bodies' }, bodies.map(b => {
+      const pct = b.contextLimit ? Math.round(100 * (b.contextTokens || 0) / b.contextLimit) : -1;
+      return el('button', { class: 'now-chip', type: 'button', 'data-rank': rankOfName(b.name) || false, title: b.name + ' · ' + b.state + (pct >= 0 ? ' · context ' + pct + '%' : ''),
+        onclick: () => { const n = colony && colony.nodes.find(x => x.name === b.name && x.kind !== 'mind'); if (n) setFocus(n.id); } },
+        labelOf(b.name), pct >= 0 ? el('span', { class: 'now-ctx', 'data-level': pct >= 85 ? 'danger' : pct >= 65 ? 'warn' : false, text: pct + '%' }) : null);
+    })));
+    const gw = $('#gatewait');
+    if (!gw.hidden) kids.push(el('button', { class: 'now-wait', type: 'button', 'data-tone': gw.dataset.tone || 'warn', text: gw.textContent, title: gw.title,
+      onclick: () => { const c = log.querySelector('.choice:not([data-answered]) button, .choice:not([data-answered]) input'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } else field.focus(); } }));
+    box.replaceChildren(...kids);
   }
 
   // ---------- the neural net: the hierarchy as layers, minds beside (components/net/net.js) ----------
@@ -457,7 +500,16 @@
   const keeper = b => b && (b.mode === 'all' || b.mode === 'primary');
   // in the cockpit the net is the hero: it fits the panel it is given instead of the window
   const netBody = netBox.closest('.panel-body');
-  const netFit = () => main.dataset.view === 'overview' && innerWidth >= 1024 ? netBody.clientHeight - 40 - ($('.net-legend').offsetHeight || 0) - ($('#net-findings').offsetHeight || 0) : 0;
+  // the box is measured, not guessed: the panel body's content height less everything else in the
+  // net's stack (the legend, and the gaps between); 0 when the cockpit is not laid out (narrow,
+  // or another view), and the net then takes the height it wants
+  const netFit = () => {
+    if (main.dataset.view !== 'overview' || getComputedStyle($('#dock-split')).display === 'none') return 0;
+    const cs = getComputedStyle(netBody);
+    const stack = netBox.parentElement;
+    const others = stack.getBoundingClientRect().height - netBox.getBoundingClientRect().height;
+    return Math.floor(netBody.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - others);
+  };
   const net = window.isekaiNet.create(netBox, { word, onFocus: id => setFocus(id, true), fit: netFit });
   let fitT = 0, fitH = 0;
   new ResizeObserver(() => { const h = netBody.clientHeight; if (Math.abs(h - fitH) < 8) return; fitH = h; clearTimeout(fitT); fitT = setTimeout(netDraw, 120); }).observe(netBody);
@@ -467,6 +519,8 @@
   const modeBtns = [...document.querySelectorAll('#net-mode button')];
   function netMode(v) {
     const got = net.mode(v);
+    // in 3D the cockpit gives the stage the timeline's room: the band folds to two rows
+    main.dataset.net = got;
     for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === got));
     if (v) store.set('netmode', got);
   }
@@ -573,7 +627,9 @@
       netLive();
       const bodies = m.creatures.length, minds = m.minds.length;
       const lit = act && act.lit ? Object.keys(act.bodies || {}).length + ' with journaled work' : 'no activity journal yet';
-      $('#net-note').textContent = bodies + ' ' + word('creatures', 'creatures') + ' · ' + minds + ' ' + word('minds', 'minds') + ' · ' + m.tree.length + ' tree bonds · ' + (m.maxDepth + 1) + ' layers · ' + lit;
+      const nn = $('#net-note');
+      nn.textContent = bodies + ' ' + word('creatures', 'creatures') + ' · ' + minds + ' ' + word('minds', 'minds') + ' · ' + m.tree.length + ' tree bonds · ' + (m.maxDepth + 1) + ' layers · ' + lit + (c.findings.length ? ' · ' + c.findings.length + ' findings' : '');
+      nn.title = nn.textContent;
       findingsList();
       if (focus) knowledge(focus); else knowledge('');
       timeline();
@@ -585,7 +641,7 @@
   function netSignal(e) {
     const was = courtPhase.get(e.name);
     const done = e.state === 'done' || !!e.report || e.failed;
-    if (!done && !was) { courtPhase.set(e.name, 'down'); net.signal('down', e.name); timelineAdd({ as: e.name, ask: e.ask, at: new Date().toISOString(), live: true }); }
+    if (!done && !was) { courtPhase.set(e.name, 'down'); net.signal('down', e.name); const at = new Date().toISOString(); timelineAdd({ as: e.name, ask: e.ask, at, started: at, live: true }); }
     if (done && was !== 'up') {
       courtPhase.set(e.name, 'up');
       const st = String((e.report && e.report.Status) || e.exit || '').toUpperCase();
@@ -596,33 +652,65 @@
   }
 
   // ---------- the timeline: courts and verdicts, newest first ----------
-  // journaled runs (/api/activity's recent) under what this page saw live (court starts and
-  // reports, the session's verdicts); a row focuses its neuron
+  // journaled runs (/api/activity's recent) beside what this page saw live (court starts and
+  // reports, the session's turns), merged by time; a journal row is dropped only when it is the
+  // same run as a live one (same body, started within a few seconds of it). A row focuses its
+  // neuron. Rows are keyed: a refresh rebuilds only the rows that changed, and a polite announcer
+  // says only what is new — the list itself is not a live region.
   const liveRows = [];
+  const SAME_RUN_MS = 8000;
   const tone = st => { const x = String(st || '').toUpperCase(); return !x ? 'info' : /^(DONE|PASS)/.test(x) ? 'ok' : /FAIL|DENIED/.test(x) ? 'danger' : /RUNNING/.test(x) ? 'info' : 'warn'; };
   const rankOfName = name => { const n = colony && colony.nodes.find(x => x.name === name && x.kind !== 'mind'); return n ? n.rank : ''; };
   function timelineAdd(row) {
     row.ask = String(row.ask || '').split('\n').filter(l => l.trim() && !/^\s*@/.test(l)).join(' ');
     const i = liveRows.findIndex(r => r.as === row.as && r.live);
-    if (i >= 0) liveRows.splice(i, 1);
+    if (i >= 0) { row.started = row.started || liveRows[i].started; liveRows.splice(i, 1); }
+    row.key = 'L' + row.as + '|' + (row.started || row.at);
     liveRows.unshift(row);
     if (liveRows.length > 40) liveRows.length = 40;
     timeline();
   }
+  const tlEls = new Map();
+  let tlSaid = new Set();
+  const announcer = el('p', { class: 'visually-hidden', 'aria-live': 'polite' });
+  document.body.append(announcer);
   function timeline() {
     const box = $('#timeline');
     if (!box) return;
-    const seen = new Set(liveRows.map(r => r.as + '|' + (r.ask || '')));
-    const rows = [...liveRows, ...((activity && activity.recent) || []).filter(r => !seen.has(r.as + '|' + (r.ask || '')))].slice(0, 40);
-    if (!rows.length) { box.replaceChildren(el('li', {}, el('p', { class: 'timeline-empty', text: 'no journaled run in four weeks — a Court or a turn lands here as it happens' }))); return; }
+    const t = x => { const v = Date.parse(x || ''); return isNaN(v) ? 0 : v; };
+    const journal = ((activity && activity.recent) || []).filter(j => !liveRows.some(r => r.as === j.as && Math.abs(t(r.started || r.at) - t(j.at)) < SAME_RUN_MS))
+      .map(j => Object.assign({ key: 'J' + (j.id || j.as + '|' + j.at) }, j));
+    const rows = [...liveRows, ...journal].sort((a, b) => t(b.at) - t(a.at)).slice(0, 40);
+    if (!rows.length) { tlEls.clear(); box.replaceChildren(el('li', {}, el('p', { class: 'timeline-empty', text: 'no journaled run in four weeks — a Court or a turn lands here as it happens' }))); return; }
     const hm = at => { const d = new Date(at); return isNaN(d) ? '' : (Date.now() - d < 864e5 ? d.toTimeString().slice(0, 5) : d.toISOString().slice(5, 10)); };
-    box.replaceChildren(...rows.map(r => el('li', {}, el('button', { class: 'timeline-item', type: 'button', 'data-rank': rankOfName(r.as) || false, 'data-live': !!r.live,
-      'aria-label': r.as + ' — ' + (r.ask || '') + ' — ' + (r.status || 'running'),
-      onclick: () => { const n = colony && colony.nodes.find(x => x.name === r.as && x.kind !== 'mind'); if (n) { setFocus(n.id); } },
-      onpointerenter: () => { const n = colony && colony.nodes.find(x => x.name === r.as && x.kind !== 'mind'); net.hover(n ? n.id : ''); },
-      onpointerleave: () => net.hover('') },
-      el('span', { class: 'timeline-time', text: hm(r.at) }), el('span', { class: 'timeline-dot' }), el('span', { class: 'timeline-who', text: r.as }),
-      el('span', { class: 'timeline-what', text: r.ask || '' }), el('span', { class: 'timeline-end', 'data-tone': r.live ? 'info' : tone(r.status), text: r.live ? 'running' : (r.status || '—').split(/\s/)[0] })))));
+    const fresh = [];
+    const items = rows.map(r => {
+      const who = labelOf(r.as), end = r.live ? 'running' : (r.status || '—').split(/\s/)[0];
+      const sig = [who, r.ask, end, hm(r.at), rankOfName(r.as)].join('|');
+      let it = tlEls.get(r.key);
+      if (it && it.sig === sig) return it.li;
+      const nodeOf = () => colony && colony.nodes.find(x => x.name === r.as && x.kind !== 'mind');
+      const li = el('li', {}, el('button', { class: 'timeline-item', type: 'button', 'data-rank': rankOfName(r.as) || false, 'data-live': !!r.live,
+        'aria-label': who + ' — ' + (r.ask || '') + ' — ' + end,
+        onclick: () => { const n = nodeOf(); if (n) setFocus(n.id); },
+        onpointerenter: () => { const n = nodeOf(); net.hover(n ? n.id : ''); },
+        onpointerleave: () => net.hover('') },
+        el('span', { class: 'timeline-time', text: hm(r.at) }), el('span', { class: 'timeline-dot' }), el('span', { class: 'timeline-who', text: who }),
+        el('span', { class: 'timeline-what', text: r.ask || '' }), el('span', { class: 'timeline-end', 'data-tone': r.live ? 'info' : tone(r.status), text: end })));
+      tlEls.set(r.key, { li, sig });
+      if (r.key[0] === 'L' && !tlSaid.has(r.key + end)) fresh.push(who + ' ' + end + (r.ask ? ': ' + r.ask : ''));
+      return li;
+    });
+    const keep = new Set(rows.map(r => r.key));
+    for (const k of [...tlEls.keys()]) if (!keep.has(k)) tlEls.delete(k);
+    // move only what moved: walk the wanted order, inserting where the dom differs
+    let at = box.firstChild;
+    if (at && !items.includes(at)) { box.replaceChildren(); at = null; }
+    for (const li of items) { if (li !== at) box.insertBefore(li, at); else at = at.nextSibling; }
+    while (at) { const nx = at.nextSibling; at.remove(); at = nx; }
+    for (const r of rows) if (r.key[0] === 'L') tlSaid.add(r.key + (r.live ? 'running' : (r.status || '—').split(/\s/)[0]));
+    if (tlSaid.size > 400) tlSaid = new Set([...tlSaid].slice(-200));
+    if (fresh.length) announcer.textContent = fresh.slice(0, 2).join(' · ');
     $('#timeline-note').textContent = rows.length + ' · courts and verdicts, newest first';
   }
   // the instruments moved: tiles, bond weights and the timeline follow (at most every few seconds)
@@ -640,7 +728,12 @@
     dockBtn.textContent = open ? '⇥' : '⇤';
     dockBtn.title = open ? 'fold the console to a rail' : 'open the console';
     if (save) store.set('dock', open ? 'open' : 'closed');
-    requestAnimationFrame(() => netDraw());
+    requestAnimationFrame(() => {
+      netDraw();
+      // the separator's value is the console's real width, in rem
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, w = $('#console-panel').getBoundingClientRect().width / rem;
+      if (w > 0) split.setAttribute('aria-valuenow', String(Math.round(w)));
+    });
   }
   function dockWidth(rem, save) {
     rem = Math.max(20, Math.min(60, rem));
@@ -672,6 +765,9 @@
     if (main.dataset.view === 'tree') open = false;
     shellEl.toggleAttribute('data-drawer', open);
     drawerBtn.setAttribute('aria-expanded', String(open));
+    // open, the drawer is a modal dialog: the rest of the page is out of reach until it closes
+    const panel = $('#tree-panel');
+    if (open) { panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); } else { panel.removeAttribute('role'); panel.removeAttribute('aria-modal'); }
     if (open) { drawerFrom = document.activeElement; setTimeout(() => ($('#tree').querySelector('.tree-node') || $('#drawer-close')).focus(), 50); }
     else { net.hover(''); if (drawerFrom && drawerFrom.focus) drawerFrom.focus(); drawerFrom = null; }
   }
@@ -681,6 +777,17 @@
   document.addEventListener('keydown', ev => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName) || (document.activeElement && document.activeElement.isContentEditable);
     if (ev.key === 'Escape' && shellEl.hasAttribute('data-drawer')) { ev.preventDefault(); ev.stopImmediatePropagation(); drawer(false); return; }
+    // the focus stays inside the open drawer: Tab and Shift+Tab wrap around it
+    if (ev.key === 'Tab' && shellEl.hasAttribute('data-drawer')) {
+      const panel = $('#tree-panel');
+      const f = [...panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1], at = document.activeElement;
+      if (!panel.contains(at)) { ev.preventDefault(); first.focus(); }
+      else if (ev.shiftKey && at === first) { ev.preventDefault(); last.focus(); }
+      else if (!ev.shiftKey && at === last) { ev.preventDefault(); first.focus(); }
+      return;
+    }
     // `t` anywhere but a field; Alt+T even from the prompt
     const key = ev.code === 'KeyT' || ev.key === 't' || ev.key === 'T';
     if (key && ((!typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey) || (ev.altKey && !ev.ctrlKey && !ev.metaKey))) { ev.preventDefault(); drawer(!shellEl.hasAttribute('data-drawer')); }
@@ -818,6 +925,7 @@
       court = c.bodies || [];
       for (const b of court) { if (b.state && !/^(done|idle)$/.test(b.state)) liveNames.add(b.name); else liveNames.delete(b.name); }
       netLive();
+      now();
       bars($('#live-bodies'), court.map(b => ({ k: b.name, v: (b.input || 0) + (b.output || 0) + (b.cacheRead || 0) + (b.cacheWrite || 0), b })),
         r => (r.b.state || '—') + (r.b.contextLimit ? ' · ctx ' + Math.round(100 * r.b.contextTokens / r.b.contextLimit) + '%' : ''));
     }).catch(() => { /* no live court */ });

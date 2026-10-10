@@ -131,15 +131,19 @@
 
   // ---------- the 2D layout ----------
   // wide: TF-playground columns, one per layer, the tree tidy (a parent sits at the middle of its
-  // children); narrow: an outline, one row per neuron, indented by depth — the tree still reads.
+  // children, each upper layer centred in its own column); narrow: an outline, one row per neuron,
+  // indented by depth — the tree still reads. availH is the box the net is given (the cockpit's
+  // panel) or the height it would like; the layout fills it exactly when it can, and only grows
+  // past it (the stage then scrolls) when even the tightest legible packing will not fit.
+  const LABEL_EM = 6; // no label is cut to fewer than this many ems
   function layout2d(m, W, availH, fonts) {
     const narrow = W < 640;
     const label = n => n.throne ? (n.label || n.name) : (n.rank && n.name.startsWith(n.rank + '-') ? n.name.slice(n.rank.length + 1) : n.name);
     const pos = new Map();
     const cols = [];
-    const T = narrow ? 24 : 26, TT = narrow ? 32 : 38, TM = 18;
+    const TT = narrow ? 32 : 38, TM = 18;
     if (narrow) {
-      const G = 40, indent = clamp((W - 190) / Math.max(1, m.maxDepth), 18, 34), top = 16;
+      const T = 24, G = 40, indent = clamp((W - 190) / Math.max(1, m.maxDepth), 18, 34), top = 16;
       let y = top + TT / 2;
       for (const id of m.order) {
         const n = m.byId.get(id), d = m.depth.get(id) || 0, size = n.throne ? TT : T;
@@ -162,97 +166,224 @@
       }
       return { pos, cols, W, H: H + 8, narrow };
     }
-    // columns: the tidy tree's leaves take consecutive slots; a parent sits at its children's middle
-    const leaves = [];
-    const slot = new Map();
-    const place = id => {
+    const px = parseFloat((String(fonts.label).match(/([\d.]+)px/) || [])[1]) || 14;
+    const em6 = LABEL_EM * px;
+    // rows: the deepest layer's leaves take consecutive slots and a parent sits at its children's
+    // middle. Each subtree under the throne is a lane (an elf with its orcs and their slimes): the
+    // lanes are set apart by a gap and drawn as bands. A shallow leaf takes no row: under the
+    // throne (the kijin, an elf with no orcs) it is a satellite drawn just below the throne in its
+    // own column; deeper, it hangs just below (or above) its nearest sibling that has a subtree.
+    const leaves = [], slot = new Map(), shallow = new Map(), laneOf = new Map(), satellites = [];
+    const isLeaf = id => !(m.kids.get(id) || []).length;
+    const throneId = m.throne ? m.throne.id : '';
+    let laneN = 0;
+    const place = (id, lane) => {
       const ks = m.kids.get(id) || [];
-      if (!ks.length) { slot.set(id, leaves.length); leaves.push(id); return; }
-      ks.forEach(place);
-      slot.set(id, ks.reduce((a, k) => a + slot.get(k), 0) / ks.length);
+      if (!ks.length) { slot.set(id, leaves.length); leaves.push(id); laneOf.set(id, lane); return; }
+      const anchored = ks.some(k => !isLeaf(k));
+      const real = [];
+      ks.forEach((k, i) => {
+        if (!anchored || !isLeaf(k)) { place(k, id === throneId && anchored ? laneN++ : lane); real.push(k); return; }
+        if (id === throneId) { satellites.push(k); slot.set(k, -1 + satellites.length * 1e-3); return; }
+        let a = -1, n = 0;
+        for (let j = i - 1; j >= 0 && a < 0; j--) if (!isLeaf(ks[j])) { a = j; n = i - j; }
+        for (let j = i + 1; j < ks.length && a < 0; j++) if (!isLeaf(ks[j])) { a = j; n = i - j; }
+        shallow.set(k, { anchor: ks[a], n });
+      });
+      slot.set(id, real.reduce((s, k) => s + slot.get(k), 0) / real.length);
+      for (const [k, sh] of shallow) if (!slot.has(k) && ks.includes(k)) slot.set(k, slot.get(sh.anchor) + sh.n * 1e-3);
     };
-    if (m.throne) place(m.throne.id);
-    for (const id of m.order) if (!slot.has(id)) place(id);
+    if (m.throne) place(m.throne.id, -1);
+    for (const id of m.order) if (!slot.has(id)) place(id, laneN++);
+    // the virtual row of each leaf: its index plus the lane gaps before it (0.8 of a row each)
+    const LANE_GAP = 0.8;
+    const breaks = [];
+    let nb = 0;
+    leaves.forEach((id, i) => { if (i && laneOf.get(id) !== laneOf.get(leaves[i - 1])) nb++; breaks.push(nb); });
+    const sat = new Set(satellites);
     const D = m.maxDepth + 1;
-    const top = 44;
-    // the deepest layer wraps into k sub-columns when one column would not fit the height given
-    const room = Math.max(160, availH - top - 16), Gmin = leaves.length > 40 ? 24 : 30;
-    const k = clamp(Math.ceil(leaves.length * Gmin / room), 1, 4);
-    const rows = Math.max(1, Math.ceil(leaves.length / k), Math.ceil(m.minds.length * 22 / Math.max(Gmin, 1) / 1.4));
-    const G = clamp(room / rows, Gmin, 42);
-    const H = top + rows * G + 16;
-    const deep = d => k > 1 && d === m.maxDepth;
-    // column widths: the tile, its label, and room for the bonds between
-    const want = [];
-    for (let d = 0; d < D; d++) want.push(0);
-    for (const id of m.order) {
-      const n = m.byId.get(id), d = m.depth.get(id) || 0;
-      want[d] = Math.max(want[d], (n.throne ? TT : T) + 8 + measure(label(n), n.throne ? fonts.bold : fonts.label));
+    const top = 44, bottom = 16, subGap = 22, STRIP = 46;
+    const fontOf = n => n.throne ? fonts.bold : fonts.label;
+    const layerIds = [];
+    for (let d = 0; d < D; d++) layerIds.push([]);
+    for (const id of m.order) if (!sat.has(id)) layerIds[m.depth.get(id) || 0].push(id);
+    const labelW = new Map();
+    for (const id of m.order) labelW.set(id, measure(label(m.byId.get(id)), fontOf(m.byId.get(id))));
+    const deepIds = new Set(leaves.filter(id => (m.depth.get(id) || 0) === m.maxDepth));
+    // a column is at least as wide as its title (upper case, tracked: measured, then widened)
+    const titleW = layerIds.map((ids, d) => {
+      const rs = [];
+      for (const id of ids) { const r = m.byId.get(id).rank || ''; if (!rs.includes(r)) rs.push(r); }
+      return measure(rs.map(r => m.word('rank.' + r, r)).join(' · ').toUpperCase() + ' ' + ids.length, fonts.small) * 1.15 + 8;
+    });
+    let mindLabel = 0;
+    for (const n of m.minds) mindLabel = Math.max(mindLabel, measure(n.name, fonts.small));
+    const nCols = strip => D + (m.minds.length && !strip ? 1 : 0);
+    // one candidate packing: the minds as a column or a strip, the deepest layer in k sub-columns
+    function trial(strip, k) {
+      const room = availH - top - bottom - (strip && m.minds.length ? STRIP : 0);
+      const rows = Math.max(1, Math.ceil((leaves.length + nb * LANE_GAP * k) / k));
+      const Gmin = Math.max(18, px * 1.35);
+      const G = clamp(room / rows, Gmin, 42);
+      const fitsV = room / rows >= Gmin && (strip || !m.minds.length || m.minds.length * 22 <= room);
+      const T = clamp(Math.round(G - 7), 14, 26);
+      const want = [], floor = [];
+      for (let d = 0; d < D; d++) {
+        let w = 0, f = 0;
+        for (const id of layerIds[d]) {
+          const n = m.byId.get(id), size = n.throne ? TT : deepIds.has(id) ? T : 26, lw = labelW.get(id);
+          w = Math.max(w, size + 8 + lw); f = Math.max(f, size + 8 + Math.min(lw, em6));
+        }
+        if (d === 0) for (const id of satellites) {
+          const lw = labelW.get(id);
+          w = Math.max(w, TT / 2 + 12 + 26 + 8 + lw); f = Math.max(f, TT / 2 + 12 + 26 + 8 + Math.min(lw, em6));
+        }
+        if (k > 1 && d === D - 1) { w = w * k + subGap * (k - 1); f = f * k + subGap * (k - 1); }
+        w = Math.max(w, titleW[d]); f = Math.max(f, titleW[d]);
+        want.push(w); floor.push(f);
+      }
+      if (m.minds.length && !strip) { want.push(TM + 34 + mindLabel); floor.push(TM + 34 + Math.min(mindLabel, em6)); }
+      const minGap = k > 1 ? 24 : 36, n = nCols(strip);
+      const extra = minGap * (n - 1) + 24;
+      const total = want.reduce((a, b) => a + b, 0) + extra, least = floor.reduce((a, b) => a + b, 0) + extra;
+      return { strip, k, room, rows, G, T, want, floor, minGap, total, least, fitsV, full: total <= W, legible: least <= W };
     }
-    const sub = want[D - 1], subGap = 22;
-    if (k > 1) want[D - 1] = sub * k + subGap * (k - 1);
-    let mindW = 0;
-    for (const n of m.minds) mindW = Math.max(mindW, TM + 8 + measure(n.name, fonts.small) + 26);
-    const nCols = D + (m.minds.length ? 1 : 0);
-    const minGap = k > 1 ? 30 : 44;
-    const widths = [...want, ...(m.minds.length ? [mindW] : [])];
-    let total = widths.reduce((a, b) => a + b, 0) + minGap * (nCols - 1) + 24;
-    // too wide: the minds' labels give way first (they are the side layer), then the widest
-    if (m.minds.length) { const cut = Math.min(Math.max(0, total - W), Math.max(0, widths[D] - 130)); widths[D] -= cut; total -= cut; }
-    let shave = 0;
-    while (total > W && shave < 400) { const i = widths.indexOf(Math.max(...widths)); widths[i] -= 8; total -= 8; shave += 8; }
-    const subW = k > 1 ? (widths[D - 1] - subGap * (k - 1)) / k : widths[D - 1];
-    const gap = minGap + Math.max(0, (W - total) / Math.max(1, nCols - 1)) * 0.92;
-    let x = 12;
+    const tries = [];
+    // the minds keep out of the way (a strip) unless only their column lets the layers fit
+    for (const strip of m.minds.length ? [true, false] : [false]) for (let k = 1; k <= 4; k++) tries.push(trial(strip, k));
+    let P = tries.find(t => t.fitsV && t.full) || tries.find(t => t.fitsV && t.legible);
+    if (!P) {
+      // nothing fits the box: the most legible packing that fits the width, grown to its rows
+      const need = t => t.rows * t.G + (t.strip && m.minds.length ? STRIP : 0) + (t.strip || !m.minds.length ? 0 : Math.max(0, m.minds.length * 22 - t.rows * t.G));
+      const ok = tries.filter(t => t.legible);
+      P = ok.length ? ok.reduce((a, b) => need(b) < need(a) - 0.5 ? b : a) : tries[tries.length - 1];
+    }
+    const { k, G, T, strip } = P;
+    const rows = P.rows, room = Math.max(P.room, rows * G);
+    const stripH = strip && m.minds.length ? STRIP : 0;
+    const H = Math.max(availH, top + room + bottom + stripH);
+    // widths: each column its want; too wide, the widest give way, never below their floor
+    const widths = P.want.slice();
+    let total = P.total;
+    for (let guard = 0; total > W && guard < 2000; guard++) {
+      let i = -1, best = 0;
+      widths.forEach((w, j) => { if (w - P.floor[j] > best) { best = w - P.floor[j]; i = j; } });
+      if (i < 0) break;
+      const cut = Math.min(4, widths[i] - P.floor[i], total - W);
+      widths[i] -= cut; total -= cut;
+    }
+    const W2 = Math.max(W, Math.ceil(total));
+    const n = widths.length;
+    const gap = n > 1 ? Math.min(P.minGap + Math.max(0, W2 - total) / (n - 1), P.minGap * 3.5) : 0;
+    const used = widths.reduce((a, b) => a + b, 0) + gap * (n - 1);
+    let x = Math.max(12, (W2 - used) / 2);
     const colX = widths.map(w => { const at = x; x += w + gap; return at; });
-    // leaves by slot (row-major across the sub-columns), parents at the middle of their children
+    const subW = k > 1 ? (widths[D - 1] - subGap * (k - 1)) / k : widths[D - 1];
+    const bandH = H - 12 - stripH;
+    const mid = top + room / 2;
+    // rows: the leaves fill the room, centred; sub-column j sits j/k of a row lower so a bond to
+    // it passes between the labels
     const ys = new Map();
-    const offY = (rows - Math.ceil(leaves.length / k)) * G / 2;
-    // staggered: sub-column j sits j/k of a row lower, so a bond to it passes between the labels
-    leaves.forEach((id, i) => ys.set(id, top + offY + G / 2 + i * G / k));
+    const offY = (room - rows * G) / 2;
+    leaves.forEach((id, i) => ys.set(id, top + offY + G / 2 + (i + breaks[i] * LANE_GAP * k) * G / k));
+    const stepU = TT + 6;
     const yOf = id => {
       if (ys.has(id)) return ys.get(id);
-      const ks = m.kids.get(id) || [];
-      const y = ks.length ? ks.reduce((a, c) => a + yOf(c), 0) / ks.length : top + G / 2;
+      const sh = shallow.get(id);
+      let y;
+      if (sh) y = yOf(sh.anchor) + sh.n * stepU;
+      else { const ks = m.kids.get(id) || []; y = ks.length ? ks.reduce((a, c) => a + yOf(c), 0) / ks.length : mid; }
       ys.set(id, y);
       return y;
     };
     for (let d = 0; d < D; d++) {
-      const ids = m.order.filter(id => (m.depth.get(id) || 0) === d).sort((a, b) => slot.get(a) - slot.get(b));
+      const ids = layerIds[d].slice().sort((a, b) => yOf(a) - yOf(b) || slot.get(a) - slot.get(b));
       const ranks = [];
       for (const id of ids) { const r = m.byId.get(id).rank || ''; if (!ranks.includes(r)) ranks.push(r); }
       const title = ranks.map(r => m.word('rank.' + r, r)).join(' · ');
-      cols.push({ kind: 'rank', x: colX[d] - 6, y: 8, w: widths[d] + 12, h: H - 12, title, count: ids.length, rank: ranks[0] || '' });
+      cols.push({ kind: 'rank', x: colX[d] - 6, y: 8, w: widths[d] + 12, h: bandH, title, count: ids.length, rank: ranks[0] || '' });
+      const wrapped = k > 1 && d === D - 1;
+      // an upper layer's tiles shrink when the layer is crowded; the layer is centred in its column
+      const crowd = wrapped ? T : clamp(Math.floor(room / Math.max(1, ids.length)) - 8, 14, 26);
+      const sizeOf = id => m.byId.get(id).throne ? TT : (deepIds.has(id) ? T : Math.min(26, Math.max(T, crowd)));
+      const place2 = [];
       let last = -Infinity;
       for (const id of ids) {
-        const n = m.byId.get(id), size = n.throne ? TT : T;
-        let y = yOf(id), x0 = colX[d] + size / 2, roomL = widths[d] - size - 8;
-        if (deep(d) && slot.has(id) && Number.isInteger(slot.get(id))) {
-          x0 = colX[d] + (leaves.indexOf(id) % k) * (subW + subGap) + size / 2;
-          roomL = subW - size - 8;
-        } else {
-          if (y - last < size + 6) y = last + size + 6;
-          last = y;
+        const size = sizeOf(id);
+        let y = yOf(id);
+        if (!(wrapped && deepIds.has(id))) { if (y - last < size + 6) y = last + size + 6; last = y; }
+        place2.push({ id, y, size });
+      }
+      if (d < D - 1 && place2.length) {
+        const lo = place2[0].y - place2[0].size / 2, hi = place2[place2.length - 1].y + place2[place2.length - 1].size / 2;
+        let shift = mid - (lo + hi) / 2;
+        shift = clamp(shift, top - lo, top + room - hi);
+        if (hi - lo > room) shift = top - lo;
+        for (const q of place2) q.y += shift;
+      }
+      for (const q of place2) {
+        const nn = m.byId.get(q.id);
+        let x0 = colX[d] + q.size / 2, roomL = widths[d] - q.size - 8;
+        if (wrapped && deepIds.has(q.id)) {
+          x0 = colX[d] + (leaves.indexOf(q.id) % k) * (subW + subGap) + q.size / 2;
+          roomL = subW - q.size - 8;
         }
-        pos.set(id, { x: x0, y, size, label: fit(label(n), n.throne ? fonts.bold : fonts.label, roomL), lx: x0 + size / 2 + 8, d });
+        pos.set(q.id, { x: x0, y: q.y, size: q.size, label: fit(label(nn), fontOf(nn), roomL), lx: x0 + q.size / 2 + 8, d });
+      }
+      if (d === 0 && satellites.length && pos.has(throneId)) {
+        // the throne's satellites: stacked just under it (over it when the column runs out)
+        // the throne and its satellites are one block, centred in the column
+        const th = pos.get(throneId), S = 26, step = S + 10, x0 = colX[0] + TT / 2 + 12 + S / 2;
+        const ext = TT / 2 + 12 + satellites.length * step - 10;
+        th.y = clamp(mid - (ext - TT / 2) / 2, top + TT / 2, Math.max(top + TT / 2, top + room - ext));
+        satellites.forEach((id, i) => {
+          const nn = m.byId.get(id);
+          pos.set(id, { x: x0, y: th.y + TT / 2 + 12 + S / 2 + i * step, size: S, label: fit(label(nn), fonts.label, widths[0] - (x0 - colX[0]) - S / 2 - 8), lx: x0 + S / 2 + 8, d: 1, sat: true, below: true });
+        });
       }
     }
-    if (m.minds.length) {
+    // lanes: one band per subtree under the throne, from its head's column to the deepest
+    const lanes = [];
+    if (D > 2) for (const head of (m.kids.get(throneId) || [])) {
+      if (sat.has(head) || !pos.has(head)) continue;
+      const ids = [head, ...lineage(m, head).down].filter(id => pos.has(id));
+      let lo = Infinity, hi = -Infinity;
+      for (const id of ids) { const q = pos.get(id); lo = Math.min(lo, q.y - q.size / 2 - 7); hi = Math.max(hi, q.y + q.size / 2 + 7); }
+      const x0 = colX[1] - 10, x1 = colX[D - 1] + widths[D - 1] + 4;
+      lanes.push({ x: x0, y: lo, w: x1 - x0, h: hi - lo, i: lanes.length, head });
+    }
+    if (m.minds.length && !strip) {
       const cx = colX[D];
-      cols.push({ kind: 'minds', x: cx - 6, y: 8, w: widths[D] + 12, h: H - 12, title: m.word('minds', 'minds'), count: m.minds.length, rank: 'mind:shared' });
+      cols.push({ kind: 'minds', x: cx - 6, y: 8, w: widths[D] + 12, h: bandH, title: m.word('minds', 'minds'), count: m.minds.length, rank: 'mind:shared' });
       const list = mindOrder(m, pos);
-      const MG = clamp((H - top - 16) / list.length, 22, 40);
-      list.forEach((n, i) => {
-        const y = top + (i + 0.5) * MG + (H - top - 16 - MG * list.length) / 2;
-        pos.set(n.id, { x: cx + TM / 2, y, size: TM, label: fit(n.name, fonts.small, widths[D] - TM - 34), lx: cx + TM + 8, d: -1 });
+      const MG = clamp(room / list.length, 22, 40);
+      list.forEach((nd, i) => {
+        const y = top + (i + 0.5) * MG + (room - MG * list.length) / 2;
+        pos.set(nd.id, { x: cx + TM / 2, y, size: TM, label: fit(nd.name, fonts.small, widths[D] - TM - 34), lx: cx + TM + 8, d: -1 });
+      });
+    } else if (m.minds.length) {
+      // the minds as a compact strip under the layers: a brain per mind, its name when there is
+      // room for six ems of it, else on hover or focus
+      const sy = H - stripH, title = m.word('minds', 'minds');
+      const tw = measure(title.toUpperCase() + ' ' + m.minds.length, fonts.small) + 28;
+      cols.push({ kind: 'minds', strip: true, x: 6, y: sy, w: W2 - 12, h: stripH - 6, title, count: m.minds.length, rank: 'mind:shared' });
+      const list = [...m.minds].sort((a, b) => {
+        const at = nd => { const xs = m.wears.filter(w => w.to === nd.id && pos.has(w.from)).map(w => pos.get(w.from).x); return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : Infinity; };
+        return at(a) - at(b) || a.name.localeCompare(b.name);
+      });
+      const x0 = 12 + tw, cell = (W2 - 12 - x0) / list.length, room2 = cell - TM - 14;
+      const named = room2 >= em6 * 0.8;
+      list.forEach((nd, i) => {
+        const cx = x0 + i * cell + TM / 2;
+        pos.set(nd.id, { x: cx, y: sy + (stripH - 6) / 2, size: TM, label: named ? fit(nd.name, fonts.small, room2) : nd.name, lx: cx + TM / 2 + 6, d: -1, strip: true, hide: !named });
       });
     }
     // where a neuron's bonds leave it: past its label, so the label rides the axon
     for (const [id, p] of pos) {
-      const n = m.byId.get(id);
-      p.out = p.lx + measure(p.label, n.throne ? fonts.bold : (n.kind === 'mind' ? fonts.small : fonts.label)) + 6;
+      const nn = m.byId.get(id);
+      p.out = p.hide ? p.x + p.size / 2 : p.lx + measure(p.label, nn.throne ? fonts.bold : (nn.kind === 'mind' ? fonts.small : fonts.label)) + 6;
     }
-    return { pos, cols, W, H, narrow };
+    return { pos, cols, lanes, W: W2, H, narrow, k, strip: !!stripH, G, T };
   }
   // minds in the order of their wearers (the barycentre), so anima-threads cross as little as they can
   function mindOrder(m, pos) {
@@ -268,7 +399,7 @@
     const word = opts.word || ((k, d) => d || k);
     const st = {
       m: null, L: null, focus: '', hover: '', live: new Set(), mode: 'auto', visible: true, three: null,
-      pulses: [], raf: 0, edgeEls: new Map(), nodeEls: new Map(), current: '',
+      pulses: [], raf: 0, edgeEls: new Map(), nodeEls: new Map(), current: '', sparks: null, fonts: null, busy: new Map(),
     };
     host.classList.add('net');
     const stage = document.createElement('div');
@@ -284,8 +415,14 @@
     hint.id = 'net-keys';
     hint.textContent = 'Arrow keys walk the net: left to the parent, right to the first child, up and down within a layer. Enter pins a neuron, Escape clears.';
     host.append(hint);
+    // the 3D stage has no element per neuron: the neuron the keys reach is said here
+    const say = document.createElement('p');
+    say.className = 'visually-hidden';
+    say.setAttribute('aria-live', 'polite');
+    host.append(say);
 
-    // the label fonts as the css resolves them (the svg text and the measure must agree)
+    // the label fonts as the css resolves them (the svg text and the measure must agree); read
+    // once per draw — the root size moves with the viewport, so a redraw re-reads them
     const fonts = () => {
       const probe = document.createElement('span');
       probe.className = 'net-probe';
@@ -297,18 +434,20 @@
     };
     function draw() {
       if (!st.m || !host.isConnected || host.offsetParent === null) return;
-      const fit3 = opts.fit && opts.fit();
-      if (fit3) stage.style.setProperty('--net-h', Math.max(320, fit3) + 'px'); else stage.style.removeProperty('--net-h');
+      // in the cockpit the net fills exactly the box it is given (opts.fit); elsewhere it takes
+      // the height it wants
+      const fitH = opts.fit && opts.fit();
+      if (fitH) stage.style.setProperty('--net-h', Math.max(160, fitH) + 'px'); else stage.style.removeProperty('--net-h');
+      stage.toggleAttribute('data-fit', !!fitH);
       if (st.mode === '3d' && st.three) { stage.dataset.mode = '3d'; st.three.resize(); return; }
       stage.dataset.mode = '2d';
       const W = Math.max(300, stage.clientWidth || host.clientWidth);
-      const fitH = opts.fit && opts.fit();
-      const availH = fitH ? Math.max(360, fitH) : Math.max(560, innerHeight - 190);
+      const availH = fitH ? Math.max(160, fitH) : Math.max(560, innerHeight - 190);
       const f = fonts();
       const L = layout2d(st.m, W, availH, f);
       st.L = L;
       const m = st.m;
-      const g = s('svg', { viewBox: `0 0 ${W} ${L.H}`, role: 'group', 'aria-label': 'the ' + word('world', 'world') + ' as a neural net — ' + m.creatures.length + ' ' + word('creatures', 'creatures') + ', ' + m.minds.length + ' ' + word('minds', 'minds'), 'aria-describedby': 'net-keys' });
+      const g = s('svg', { viewBox: `0 0 ${L.W} ${L.H}`, style: L.W > W ? `inline-size:${L.W}px` : false, role: 'group', 'aria-label': 'the ' + word('world', 'world') + ' as a neural net — ' + m.creatures.length + ' ' + word('creatures', 'creatures') + ', ' + m.minds.length + ' ' + word('minds', 'minds'), 'aria-describedby': 'net-keys' });
       const defs = s('defs');
       g.append(defs);
       for (const c of L.cols) {
@@ -317,10 +456,17 @@
           continue;
         }
         if (L.narrow) continue;
+        if (c.strip) {
+          g.append(s('g', { 'data-rank': c.rank },
+            s('rect', { class: 'net-col', x: c.x, y: c.y, width: c.w, height: c.h, rx: 12 }),
+            s('text', { class: 'net-col-label', x: c.x + 10, y: c.y + c.h / 2, 'dominant-baseline': 'central' }, c.title + ' ', s('tspan', { class: 'net-col-count' }, String(c.count)))));
+          continue;
+        }
         g.append(s('g', { 'data-rank': c.rank },
           s('rect', { class: 'net-col', x: c.x, y: c.y, width: c.w, height: c.h, rx: 12 }),
           s('text', { class: 'net-col-label', x: c.x + 10, y: c.y + 20 }, c.title + ' ', s('tspan', { class: 'net-col-count' }, String(c.count)))));
       }
+      for (const ln of L.lanes || []) g.append(s('rect', { class: 'net-lane', 'data-lane': ln.i % 2 ? 'b' : 'a', x: ln.x, y: ln.y, width: ln.w, height: ln.h, rx: 10 }));
       const edges = s('g', { 'data-layer': 'edges' }), sparks = s('g', { 'data-layer': 'sparks' }), nodes = s('g', { 'data-layer': 'nodes' });
       g.append(edges, nodes, sparks);
       st.edgeEls = new Map(); st.nodeEls = new Map();
@@ -330,6 +476,16 @@
         if (L.narrow) {
           const x0 = A.x, y0 = A.y + A.size / 2, x1 = B.x - B.size / 2, y1 = B.y, r = Math.min(8, Math.abs(y1 - y0) / 2, Math.abs(x1 - x0));
           return `M${x0} ${y0} V${y1 - r} Q${x0} ${y1} ${x0 + r} ${y1} H${x1}`;
+        }
+        if (B.sat) {
+          // the throne to a satellite: down out of the throne, then across
+          const x0 = A.x, y0 = B.below ? A.y + A.size / 2 : A.y - A.size / 2, x1 = B.x - B.size / 2 - 2, y1 = B.y, r = Math.min(8, Math.abs(y1 - y0) / 2), sg = B.below ? 1 : -1;
+          return `M${x0.toFixed(1)} ${y0.toFixed(1)} V${(y1 - sg * r).toFixed(1)} Q${x0.toFixed(1)} ${y1.toFixed(1)} ${(x0 + r).toFixed(1)} ${y1.toFixed(1)} H${x1.toFixed(1)}`;
+        }
+        if (B.strip) {
+          // to a mind in the strip below: leave sideways, fall into the brain from above
+          const x0 = A.out, y1 = B.y - B.size / 2 - 2, k = Math.max(24, (y1 - A.y) * 0.5);
+          return `M${x0.toFixed(1)} ${A.y.toFixed(1)} C${(x0 + 30).toFixed(1)} ${A.y.toFixed(1)} ${B.x.toFixed(1)} ${(y1 - k).toFixed(1)} ${B.x.toFixed(1)} ${y1.toFixed(1)}`;
         }
         const x0 = A.out, x1 = B.x - B.size / 2 - 2, k = Math.max(24, (x1 - x0) * 0.5);
         return `M${x0.toFixed(1)} ${A.y.toFixed(1)} C${(x0 + k).toFixed(1)} ${A.y.toFixed(1)} ${(x1 - k).toFixed(1)} ${B.y.toFixed(1)} ${x1.toFixed(1)} ${B.y.toFixed(1)}`;
@@ -361,7 +517,7 @@
         const a = m.act[n.name];
         const rank = mind ? n.lane : (n.rank || 'plain');
         const node = s('g', { class: 'net-node', 'data-id': id, 'data-rank': rank, 'data-kind': mind ? 'mind' : 'body', 'data-throne': n.throne || false,
-          'data-stress': n.desk && n.desk.stress && n.desk.stress !== 'ok' ? n.desk.stress : false, tabindex: -1, role: 'button', 'aria-label': aria(n, a) });
+          'data-stress': n.desk && n.desk.stress && n.desk.stress !== 'ok' ? n.desk.stress : false, 'data-compact': p.hide || false, tabindex: -1, role: 'button', 'aria-label': aria(n, a) });
         node.append(s('rect', { class: 'net-halo', x: x0 - 6, y: y0 - 6, width: S + 12, height: S + 12, rx: S * 0.3 + 4 }));
         node.append(s('rect', { class: 'net-tile', x: x0, y: y0, width: S, height: S, rx: S * 0.22 }));
         if (mind) {
@@ -386,8 +542,12 @@
             node.append(img);
           }
         }
-        node.append(s('text', { class: 'net-label', x: p.lx, y: p.y }, p.label));
-        if (n.desk && mind && n.desk.thoughts) node.append(s('text', { class: 'net-sub', x: p.out + 2, y: p.y }, n.desk.thoughts + '/' + n.desk.limit));
+        if (p.hide) {
+          // a strip mind's name sits above its brain, kept inside the view, shown on hover or focus
+          const w = measure(p.label, f.small) / 2 + 4;
+          node.append(s('text', { class: 'net-label', x: clamp(p.x, w, L.W - w), y: p.y - S / 2 - 10, 'text-anchor': 'middle' }, p.label));
+        } else node.append(s('text', { class: 'net-label', x: p.lx, y: p.y }, p.label));
+        if (n.desk && mind && n.desk.thoughts && !p.hide) node.append(s('text', { class: 'net-sub', x: p.out + 2, y: p.y }, n.desk.thoughts + '/' + n.desk.limit));
         node.append(s('title', {}, n.name));
         node.addEventListener('click', () => pin(id));
         node.addEventListener('pointerenter', () => preview(id));
@@ -444,7 +604,7 @@
       if (!m || !L) return;
       let to = '';
       const p = L.pos.get(id);
-      const peers = [...L.pos.keys()].filter(x => L.pos.get(x).d === p.d && (L.narrow ? true : true)).sort((a, b) => L.pos.get(a).y - L.pos.get(b).y);
+      const peers = [...L.pos.keys()].filter(x => L.pos.get(x).d === p.d).sort((a, b) => L.pos.get(a).y - L.pos.get(b).y || L.pos.get(a).x - L.pos.get(b).x);
       const i = peers.indexOf(id);
       switch (ev.key) {
         case 'ArrowLeft': to = m.parent.get(id) || ''; break;
@@ -462,6 +622,36 @@
       const el = st.nodeEls.get(to);
       el.setAttribute('tabindex', '0');
       el.focus();
+    }
+
+    // the same walk in 3D, over the model (preorder is the layers' top-to-bottom order): arrows
+    // move a cursor the camera follows, Enter pins it, Escape clears; Shift+arrows still turn
+    function keys3d(ev) {
+      const m = st.m;
+      if (!m || ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey) return false;
+      const id = st.current && m.byId.has(st.current) ? st.current : (m.throne ? m.throne.id : '');
+      if (!id) return false;
+      const mind = m.byId.get(id).kind === 'mind';
+      const peers = mind ? m.minds.map(n => n.id) : m.order.filter(x => (m.depth.get(x) || 0) === (m.depth.get(id) || 0));
+      const i = peers.indexOf(id);
+      let to = '';
+      switch (ev.key) {
+        case 'ArrowLeft': to = mind ? (m.wears.find(w => w.to === id) || {}).from || '' : m.parent.get(id) || ''; break;
+        case 'ArrowRight': to = (m.kids.get(id) || [])[0] || (m.wears.find(w => w.from === id) || {}).to || ''; break;
+        case 'ArrowUp': to = peers[i - 1] || ''; break;
+        case 'ArrowDown': to = peers[i + 1] || ''; break;
+        case 'Home': to = m.throne ? m.throne.id : ''; break;
+        case 'Enter': case ' ': pin(id); say.textContent = (st.focus ? 'pinned ' : 'unpinned ') + nameOf(id); return true;
+        case 'Escape': if (!st.focus) return false; pin(st.focus); return true;
+        default: return false;
+      }
+      if (to && m.byId.has(to)) {
+        st.current = to;
+        preview(to);
+        if (st.three) st.three.follow(to);
+        say.textContent = aria(m.byId.get(to), m.act[m.byId.get(to).name]);
+      }
+      return true;
     }
 
     // ---------- live: running bodies glow, their bond to the dispatcher flows ----------
@@ -514,22 +704,33 @@
         setTimeout(() => r.remove(), 1300);
       }
     }
-    // an action on a neuron: a tool step, a gate verdict — each class reads its own way, calmly
-    // (read: a soft accent ripple · write: the rank's own pulse · outward/destructive and a waiting
-    // gate: an amber ring · pass: a green flare · fail or denied: a red one). Bursts coalesce: one
-    // ripple per neuron per quarter second unless a louder one arrives.
-    const LOUD = { read: 0, write: 1, gate: 2, outward: 2, destructive: 3, pass: 3, fail: 4 };
-    const TONE = { read: 'info', write: 'rank', gate: 'warn', outward: 'warn', destructive: 'warn', pass: 'ok', fail: 'danger' };
-    const lastAct = new Map();
+    // an action on a neuron: a tool step, a turn's end, a gate verdict — each class reads its own
+    // way, calmly (read: a soft accent ripple · write and a plain turn's end: the rank's own pulse ·
+    // outward/destructive and a waiting gate: an amber ring · a passing verdict: a green flare · a
+    // failing one or a denial: a red one). Bursts coalesce: within a burst (acts less than 1.5 s
+    // apart) a neuron ripples only when something louder than the burst so far arrives; otherwise
+    // it just breathes until the burst ends — a 20-step Court is one breathing neuron.
+    const LOUD = { read: 0, write: 1, done: 1, gate: 2, outward: 2, destructive: 3, pass: 3, fail: 4 };
+    const TONE = { read: 'info', write: 'rank', done: 'rank', gate: 'warn', outward: 'warn', destructive: 'warn', pass: 'ok', fail: 'danger' };
+    const BURST = 1500;
     function act(name, kind) {
       const m = st.m;
       if (!m || !(kind in LOUD)) return;
       let id = m.throne ? m.throne.id : '';
       if (name) for (const [nid, n] of m.byId) if (n.name === name && n.kind !== 'mind') { id = nid; break; }
       if (!id) return;
-      const now = performance.now(), was = lastAct.get(id);
-      if (was && now - was.at < 250 && LOUD[kind] <= was.loud) return;
-      lastAct.set(id, { at: now, loud: LOUD[kind] });
+      const now = performance.now(), was = st.busy.get(id);
+      const burst = was && now - was.at < BURST;
+      const loud = LOUD[kind];
+      clearTimeout(was && was.timer);
+      const timer = setTimeout(() => { st.busy.delete(id); const el = st.nodeEls.get(id); if (el) el.removeAttribute('data-busy'); if (st.three) st.three.busy(id, false); }, BURST);
+      st.busy.set(id, { at: now, loud: burst ? Math.max(was.loud, loud) : loud, timer });
+      if (burst) {
+        const el = st.nodeEls.get(id);
+        if (el) el.setAttribute('data-busy', '');
+        if (st.three) st.three.busy(id, true);
+        if (loud <= was.loud) return;
+      }
       if (st.three) st.three.act(id, TONE[kind], kind);
       if (st.mode !== '3d' && st.visible) ping(id, TONE[kind], kind);
     }
@@ -579,7 +780,7 @@
       st.mode = v;
       if (v === '3d') {
         if (!st.three) {
-          st.three = window.isekaiNet3D.create(stage, { probes, word, onPick: id => pin(id || st.focus), onHover: id => preview(id), reduced: () => reducedQ.matches });
+          st.three = window.isekaiNet3D.create(stage, { probes, word, onPick: id => pin(id || st.focus), onHover: id => preview(id), onKey: keys3d, onBlur: () => preview(''), reduced: () => reducedQ.matches });
           if (!st.three) { st.mode = '2d'; return mode('2d'); }
         }
         stage.dataset.mode = '3d';
@@ -587,6 +788,7 @@
         if (st.m) st.three.model(st.m);
         st.edgeEls = new Map(); st.nodeEls = new Map();
         applyLive(); applyFocus();
+        for (const id of st.busy.keys()) st.three.busy(id, true);
         st.three.running(st.visible);
       } else {
         if (st.three) { st.three.running(false); st.three.dispose(); st.three = null; }
@@ -619,5 +821,5 @@
     };
   }
 
-  window.isekaiNet = { create, build, litSet, route };
+  window.isekaiNet = { create, build, litSet, route, layout2d };
 })();

@@ -1,4 +1,4 @@
-/* @component tabs — tokens: --ink-muted, --ink, --accent, --line, --space-2xs, --space-s, --space-m, --step-0, --hairline, --weight-medium, --time-fast, --ease, --focus-width. The view switcher: one row that scrolls on its own when narrow; aria-selected marks the view. */
+/* @component tabs — tokens: --ink-muted, --ink, --accent, --line, --space-2xs, --space-s, --space-m, --space-l, --step-0, --hairline, --weight-medium, --time-fast, --ease, --focus-width. The view switcher: one row that scrolls on its own when narrow; aria-selected marks the view. */
 @layer components {
   .tabs { display: flex; gap: var(--space-2xs); padding-inline: var(--space-m); border-block-end: var(--hairline) solid var(--line); overflow-x: auto; scrollbar-width: none; }
   .tab {
@@ -9,4 +9,8 @@
   .tab:hover { color: var(--ink); }
   .tab[aria-selected="true"] { color: var(--ink); border-block-end-color: var(--accent); }
   .tabs-end { margin-inline-start: auto; align-self: center; flex: 0 0 auto; }
+  /* more tabs past an edge: that edge fades (data-more-start / data-more-end, set by the page) */
+  .tabs[data-more-end] { mask-image: linear-gradient(to right, black calc(100% - var(--space-l)), transparent); }
+  .tabs[data-more-start] { mask-image: linear-gradient(to left, black calc(100% - var(--space-l)), transparent); }
+  .tabs[data-more-start][data-more-end] { mask-image: linear-gradient(to right, transparent, black var(--space-l), black calc(100% - var(--space-l)), transparent); }
 }

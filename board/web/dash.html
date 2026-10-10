@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="web/components/choice/choice.css">
 <link rel="stylesheet" href="web/components/net/net.css">
 <link rel="stylesheet" href="web/components/timeline/timeline.css">
+<link rel="stylesheet" href="web/components/now/now.css">
 <link rel="stylesheet" href="web/components/matrix/matrix.css">
 <link rel="stylesheet" href="web/components/kcard/kcard.css">
 <link rel="stylesheet" href="web/components/button/button.css">
@@ -61,7 +62,7 @@
   </nav>
   <main class="shell-main" id="main" data-view="overview">
     <section class="panel" data-panel="net" aria-labelledby="h-net">
-      <header class="panel-head"><h2 class="panel-title" id="h-net">Neural net</h2><span class="panel-note" id="net-note">—</span>
+      <header class="panel-head"><h2 class="panel-title" id="h-net">Neural net</h2><span class="panel-note" id="net-note">—</span><div class="now" id="now" aria-label="now" role="group" hidden></div>
         <div class="panel-tools"><span class="net-mode" id="net-mode" role="group" aria-label="net view"><button type="button" data-mode="2d" aria-pressed="true">2D</button><button type="button" data-mode="3d" aria-pressed="false">3D</button></span><button class="button" data-size="s" data-variant="quiet" type="button" id="net-clear">Clear focus</button></div></header>
       <div class="panel-body">
         <div class="net-frame"><div class="net-layout" data-side id="net-layout">
@@ -74,7 +75,7 @@
         </div></div>
       </div>
     </section>
-    <div class="shell-split" id="dock-split" role="separator" aria-orientation="vertical" aria-label="resize the console" aria-controls="console-panel" tabindex="0"></div>
+    <div class="shell-split" id="dock-split" role="separator" aria-orientation="vertical" aria-label="resize the console (rem)" aria-controls="console-panel" aria-valuemin="20" aria-valuemax="60" aria-valuenow="27" tabindex="0"></div>
     <section class="panel" data-panel="console" id="console-panel" aria-labelledby="h-console">
       <header class="panel-head"><h2 class="panel-title" id="h-console">Console</h2><span class="panel-note" id="console-note">the session, as in the terminal</span>
         <div class="panel-tools"><button class="button" data-size="s" data-variant="quiet" type="button" id="fold-all">Fold tools</button><button class="button shell-dock" data-size="s" data-variant="quiet" type="button" id="dock-toggle" aria-expanded="true" aria-controls="console-panel" title="fold the console to a rail">⇥</button></div></header>
@@ -94,7 +95,7 @@
     </section>
     <section class="panel" data-panel="timeline" aria-labelledby="h-timeline">
       <header class="panel-head"><h2 class="panel-title" id="h-timeline">Timeline</h2><span class="panel-note" id="timeline-note">courts and verdicts, newest first</span></header>
-      <div class="panel-body"><div class="stack" data-gap="s"><div id="timeline-slot"></div><ol class="timeline" id="timeline" aria-live="polite"></ol></div></div>
+      <div class="panel-body"><div class="stack" data-gap="s"><div id="timeline-slot"></div><ol class="timeline" id="timeline"></ol></div></div>
     </section>
     <section class="panel" data-panel="metrics" aria-labelledby="h-metrics">
       <header class="panel-head"><h2 class="panel-title" id="h-metrics">Metrics</h2><span class="panel-note" id="metrics-note">—</span>

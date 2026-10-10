@@ -1,0 +1,819 @@
+{
+ "throne": "rimuru",
+ "nodes": [
+  {
+   "id": "rimuru",
+   "name": "rimuru",
+   "kind": "creature",
+   "rank": "rimuru",
+   "throne": true,
+   "label": "Rimuru"
+  },
+  {
+   "id": "elf-engine",
+   "name": "elf-engine",
+   "kind": "creature",
+   "rank": "elf",
+   "parent": "rimuru"
+  },
+  {
+   "id": "orc-engine",
+   "name": "orc-engine",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-engine"
+  },
+  {
+   "id": "slime-compact",
+   "name": "slime-compact",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-engine"
+  },
+  {
+   "id": "slime-loop",
+   "name": "slime-loop",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-engine"
+  },
+  {
+   "id": "slime-providers",
+   "name": "slime-providers",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-engine"
+  },
+  {
+   "id": "slime-wire",
+   "name": "slime-wire",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-engine"
+  },
+  {
+   "id": "orc-safety",
+   "name": "orc-safety",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-engine"
+  },
+  {
+   "id": "slime-gate",
+   "name": "slime-gate",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-safety"
+  },
+  {
+   "id": "slime-guard",
+   "name": "slime-guard",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-safety"
+  },
+  {
+   "id": "slime-sandbox",
+   "name": "slime-sandbox",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-safety"
+  },
+  {
+   "id": "slime-tools",
+   "name": "slime-tools",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-safety"
+  },
+  {
+   "id": "orc-compaction",
+   "name": "orc-compaction",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-engine"
+  },
+  {
+   "id": "slime-journal",
+   "name": "slime-journal",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-compaction"
+  },
+  {
+   "id": "slime-budget",
+   "name": "slime-budget",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-compaction"
+  },
+  {
+   "id": "slime-memory",
+   "name": "slime-memory",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-compaction"
+  },
+  {
+   "id": "slime-onto",
+   "name": "slime-onto",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-compaction"
+  },
+  {
+   "id": "elf-world",
+   "name": "elf-world",
+   "kind": "creature",
+   "rank": "elf",
+   "parent": "rimuru"
+  },
+  {
+   "id": "orc-world",
+   "name": "orc-world",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-world"
+  },
+  {
+   "id": "slime-toolbox",
+   "name": "slime-toolbox",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-world"
+  },
+  {
+   "id": "slime-discover",
+   "name": "slime-discover",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-world"
+  },
+  {
+   "id": "slime-mcp",
+   "name": "slime-mcp",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-world"
+  },
+  {
+   "id": "slime-world",
+   "name": "slime-world",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-world"
+  },
+  {
+   "id": "orc-config",
+   "name": "orc-config",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-world"
+  },
+  {
+   "id": "slime-config",
+   "name": "slime-config",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-config"
+  },
+  {
+   "id": "slime-schema",
+   "name": "slime-schema",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-config"
+  },
+  {
+   "id": "slime-bench",
+   "name": "slime-bench",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-config"
+  },
+  {
+   "id": "slime-board",
+   "name": "slime-board",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-config"
+  },
+  {
+   "id": "orc-ontology",
+   "name": "orc-ontology",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-world"
+  },
+  {
+   "id": "slime-tui",
+   "name": "slime-tui",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-ontology"
+  },
+  {
+   "id": "slime-ui",
+   "name": "slime-ui",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-ontology"
+  },
+  {
+   "id": "slime-server",
+   "name": "slime-server",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-ontology"
+  },
+  {
+   "id": "slime-client",
+   "name": "slime-client",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-ontology"
+  },
+  {
+   "id": "elf-host",
+   "name": "elf-host",
+   "kind": "creature",
+   "rank": "elf",
+   "parent": "rimuru"
+  },
+  {
+   "id": "orc-app",
+   "name": "orc-app",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-host"
+  },
+  {
+   "id": "slime-proxy",
+   "name": "slime-proxy",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-app"
+  },
+  {
+   "id": "slime-cache",
+   "name": "slime-cache",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-app"
+  },
+  {
+   "id": "slime-auth",
+   "name": "slime-auth",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-app"
+  },
+  {
+   "id": "slime-tokens",
+   "name": "slime-tokens",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-app"
+  },
+  {
+   "id": "orc-interfaces",
+   "name": "orc-interfaces",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-host"
+  },
+  {
+   "id": "slime-stream",
+   "name": "slime-stream",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-interfaces"
+  },
+  {
+   "id": "slime-replay",
+   "name": "slime-replay",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-interfaces"
+  },
+  {
+   "id": "slime-render",
+   "name": "slime-render",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-interfaces"
+  },
+  {
+   "id": "slime-metrics",
+   "name": "slime-metrics",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-interfaces"
+  },
+  {
+   "id": "elf-edge",
+   "name": "elf-edge",
+   "kind": "creature",
+   "rank": "elf",
+   "parent": "rimuru"
+  },
+  {
+   "id": "orc-gateway",
+   "name": "orc-gateway",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-edge"
+  },
+  {
+   "id": "slime-alerts",
+   "name": "slime-alerts",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-gateway"
+  },
+  {
+   "id": "slime-exporter",
+   "name": "slime-exporter",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-gateway"
+  },
+  {
+   "id": "slime-importer",
+   "name": "slime-importer",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-gateway"
+  },
+  {
+   "id": "slime-pricing",
+   "name": "slime-pricing",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-gateway"
+  },
+  {
+   "id": "orc-registry",
+   "name": "orc-registry",
+   "kind": "creature",
+   "rank": "orc",
+   "parent": "elf-edge"
+  },
+  {
+   "id": "slime-catalog",
+   "name": "slime-catalog",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-registry"
+  },
+  {
+   "id": "slime-artifactory",
+   "name": "slime-artifactory",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-registry"
+  },
+  {
+   "id": "slime-registry-mirror",
+   "name": "slime-registry-mirror",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-registry"
+  },
+  {
+   "id": "slime-ledger",
+   "name": "slime-ledger",
+   "kind": "creature",
+   "rank": "slime",
+   "parent": "orc-registry"
+  },
+  {
+   "id": "elf-canon",
+   "name": "elf-canon",
+   "kind": "creature",
+   "rank": "elf",
+   "parent": "rimuru"
+  },
+  {
+   "id": "kijin-release",
+   "name": "kijin-release",
+   "kind": "creature",
+   "rank": "kijin",
+   "parent": "rimuru"
+  },
+  {
+   "id": "mind-bench-run",
+   "name": "bench-run",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-loop-core",
+   "name": "loop-core",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-orc-gate-verdict",
+   "name": "orc-gate-verdict",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-review-core",
+   "name": "review-core",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-slime-wire-and-journals",
+   "name": "slime-wire-and-journals",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-slime-go-proving",
+   "name": "slime-go-proving",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-slime-creature-docs",
+   "name": "slime-creature-docs",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-gate-safety",
+   "name": "gate-safety",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-slime-class-contract",
+   "name": "slime-class-contract",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-kijin-release-pipeline",
+   "name": "kijin-release-pipeline",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-ui",
+   "name": "ui",
+   "kind": "mind",
+   "lane": "mind:shared"
+  },
+  {
+   "id": "mind-prose-house-style",
+   "name": "prose-house-style",
+   "kind": "mind",
+   "lane": "mind:shared"
+  }
+ ],
+ "edges": [
+  {
+   "from": "elf-engine",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "orc-engine",
+   "to": "elf-engine",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-compact",
+   "to": "orc-engine",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-loop",
+   "to": "orc-engine",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-providers",
+   "to": "orc-engine",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-wire",
+   "to": "orc-engine",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-safety",
+   "to": "elf-engine",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-gate",
+   "to": "orc-safety",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-guard",
+   "to": "orc-safety",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-sandbox",
+   "to": "orc-safety",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-tools",
+   "to": "orc-safety",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-compaction",
+   "to": "elf-engine",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-journal",
+   "to": "orc-compaction",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-budget",
+   "to": "orc-compaction",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-memory",
+   "to": "orc-compaction",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-onto",
+   "to": "orc-compaction",
+   "bond": "truth"
+  },
+  {
+   "from": "elf-world",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "orc-world",
+   "to": "elf-world",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-toolbox",
+   "to": "orc-world",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-discover",
+   "to": "orc-world",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-mcp",
+   "to": "orc-world",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-world",
+   "to": "orc-world",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-config",
+   "to": "elf-world",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-config",
+   "to": "orc-config",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-schema",
+   "to": "orc-config",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-bench",
+   "to": "orc-config",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-board",
+   "to": "orc-config",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-ontology",
+   "to": "elf-world",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-tui",
+   "to": "orc-ontology",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-ui",
+   "to": "orc-ontology",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-server",
+   "to": "orc-ontology",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-client",
+   "to": "orc-ontology",
+   "bond": "truth"
+  },
+  {
+   "from": "elf-host",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "orc-app",
+   "to": "elf-host",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-proxy",
+   "to": "orc-app",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-cache",
+   "to": "orc-app",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-auth",
+   "to": "orc-app",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-tokens",
+   "to": "orc-app",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-interfaces",
+   "to": "elf-host",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-stream",
+   "to": "orc-interfaces",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-replay",
+   "to": "orc-interfaces",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-render",
+   "to": "orc-interfaces",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-metrics",
+   "to": "orc-interfaces",
+   "bond": "truth"
+  },
+  {
+   "from": "elf-edge",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "orc-gateway",
+   "to": "elf-edge",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-alerts",
+   "to": "orc-gateway",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-exporter",
+   "to": "orc-gateway",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-importer",
+   "to": "orc-gateway",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-pricing",
+   "to": "orc-gateway",
+   "bond": "truth"
+  },
+  {
+   "from": "orc-registry",
+   "to": "elf-edge",
+   "bond": "verdict"
+  },
+  {
+   "from": "slime-catalog",
+   "to": "orc-registry",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-artifactory",
+   "to": "orc-registry",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-registry-mirror",
+   "to": "orc-registry",
+   "bond": "truth"
+  },
+  {
+   "from": "slime-ledger",
+   "to": "orc-registry",
+   "bond": "truth"
+  },
+  {
+   "from": "elf-canon",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "kijin-release",
+   "to": "rimuru",
+   "bond": "reports"
+  },
+  {
+   "from": "elf-engine",
+   "to": "mind-bench-run",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-wire",
+   "to": "mind-loop-core",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-tools",
+   "to": "mind-orc-gate-verdict",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-onto",
+   "to": "mind-review-core",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-mcp",
+   "to": "mind-slime-wire-and-journals",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-bench",
+   "to": "mind-slime-go-proving",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-server",
+   "to": "mind-slime-creature-docs",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-cache",
+   "to": "mind-gate-safety",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-replay",
+   "to": "mind-slime-class-contract",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-alerts",
+   "to": "mind-kijin-release-pipeline",
+   "bond": "wears"
+  },
+  {
+   "from": "slime-catalog",
+   "to": "mind-ui",
+   "bond": "wears"
+  },
+  {
+   "from": "kijin-release",
+   "to": "mind-prose-house-style",
+   "bond": "wears"
+  }
+ ]
+}

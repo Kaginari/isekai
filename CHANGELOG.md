@@ -18,6 +18,21 @@ All notable changes to Isekai are recorded here. The format follows
   destructive steps and a waiting gate ring amber, verdicts flare green or red; the throne breathes
   while the session runs.
 
+- **The cockpit, reviewed.** The net fills exactly the box its panel gives it with the legend in
+  view; each subtree under the throne reads as a lane band, the kijin and an elf with no orcs sit
+  as satellites just under the throne, every upper layer is centred, rows and tiles tighten before
+  the slimes wrap, and no label is cut below six ems; the minds become a strip of brains under the
+  layers. A "now" strip over the net carries the session's state, its ask, the live bodies with
+  their context use and a wait on you. The timeline keeps its history (a journaled run folds into
+  its live row only when it is the same run) and names the throne by the lexicon. A plain turn's
+  end pings calmly in the rank's colour — green and red are for real verdicts — and a burst of
+  steps is one breathing neuron. The 3D stage stands as layers (spaced planes, rank captions,
+  depth fog, smaller halos on the light theme), fills the panel, walks the tree from the keyboard,
+  has a "reset view" and a first-use hint, and idles at 12 frames a second, its turn stopping
+  after an idle minute. The tree drawer is a modal dialog; the phone header is two rows; sideways
+  rows fade at the edge that has more. `/api/colony` answers an empty world with lists, never
+  null; `/api/activity`'s recent runs carry their id.
+
 - **The neural net, rebuilt.** The dashboard's net draws the hierarchy as layers — the throne, then
   each rank in the order work flows down, the minds beside — every neuron a rank-coloured tile
   whose 28 cells are its last four weeks of work (runs and tokens from the journals; blank where no
