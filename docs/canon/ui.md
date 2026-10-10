@@ -12,7 +12,10 @@ instrument.
 - **Tokens in three tiers**, read in one direction: raw (palettes.css `--n-*` `--p-*`, the space,
   type, radius and time scales) → meaning (`--surface --ink --accent --space-m --step-1 …`, per
   theme) → component (a component's own `--card-pad`, aliasing meaning tokens). A retheme, dark
-  mode, a density or type change, a radius change: one tier, one file.
+  mode, a density or type change, a radius change: one tier, one file. A page that wants its own
+  look keeps the foundation's files as copies and adds a `theme.css` beside them — its faces, its
+  colour roles and the meaning tier mapped from them; like tokens.css and palettes.css it is
+  where literal values belong (`ui check` lets it hold them).
 - **Cascade layers** `reset, tokens, layout, components, utilities` — a global rule never loses a
   specificity fight.
 - **Layout primitives** (layout.css) instead of per-component layout: `.page` (the grid with a
