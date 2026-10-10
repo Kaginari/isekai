@@ -41,7 +41,7 @@ func TestEmbeddedLawsMatchTheWorld(t *testing.T) {
 		paths []string
 		dist  string
 	}{
-		{[]string{"../../ISEKAI.md"}, "isekai"},
+		{[]string{"../ISEKAI.md", "../../ISEKAI.md"}, "isekai"},
 		{[]string{"../../agent-one/AGENT-ONE.md", "../../AGENT-ONE.md"}, "agent-one"},
 	}
 	for _, c := range candidates {
@@ -56,7 +56,8 @@ func TestEmbeddedLawsMatchTheWorld(t *testing.T) {
 			}
 		}
 		if err != nil {
-			t.Skipf("%s: %v", c.paths[0], err)
+			t.Logf("%s: no law at hand (%v)", c.dist, err) // the other distribution's law lives elsewhere
+			continue
 		}
 		if string(want) != LawText(c.dist) {
 			t.Errorf("app/law/%s differs from %s — Vitality: copy it in the same change", filepath.Base(c.paths[0]), from)
