@@ -374,7 +374,14 @@ func (rep *HouseReport) probeDeadBonds(w *World, l Layout, heal bool) {
 		rel, _ := filepath.Rel(worldDir, path)
 		parts := strings.Split(filepath.ToSlash(rel), "/")
 		if len(parts) == 3 {
-			live[parts[1]] = true // <rank>/<name>/README.md -> name
+			live[parts[1]] = true // <rank>/<name>/README.md -> the seat dir
+			// a bond names the creature itself (orc-engine), which is the doc's title, not
+			// its seat dir (engine): both are live
+			if b, err := os.ReadFile(path); err == nil {
+				if t := docTitle(string(b)); t != "" {
+					live[t] = true
+				}
+			}
 		}
 		return nil
 	})
@@ -416,6 +423,16 @@ func (rep *HouseReport) probeDeadBonds(w *World, l Layout, heal bool) {
 }
 
 // creatureRankName derives a seat's rank dir and name from its doc — Rank line first, path fallback.
+// docTitle is a creature doc's `# <name>` heading, or "".
+func docTitle(body string) string {
+	for ln := range strings.Lines(body) {
+		if t, ok := strings.CutPrefix(strings.TrimSpace(ln), "# "); ok {
+			return strings.TrimSpace(t)
+		}
+	}
+	return ""
+}
+
 func creatureRankName(body, worldDir, path string) (rank, name string) {
 	rel, _ := filepath.Rel(worldDir, path)
 	parts := strings.Split(filepath.ToSlash(rel), "/")

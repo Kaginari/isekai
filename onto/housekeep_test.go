@@ -162,3 +162,34 @@ func TestHousekeepLiveBondUntouched(t *testing.T) {
 		t.Fatalf("second pass still no dead-bond findings: %v", rep2.DeadBonds)
 	}
 }
+
+// A bond names the creature (orc-bench), not its seat dir (bench): a slime that reports to a
+// live orc other than its law parent keeps that bond — the operator's choice — through a heal.
+func TestHousekeepBondByCreatureNameIsLive(t *testing.T) {
+	root := minWorld(t)
+	write := func(rel, body string) {
+		p := filepath.Join(root, ".isekai", rel, "README.md")
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("orc/eng", "# orc-eng\n\n- **Rank:** Orc\n- **Territory:** `eng/`\n- **Reports to:** elf-core\n")
+	write("orc/bench", "# orc-bench\n\n- **Rank:** Orc\n- **Territory:** `bench/`\n- **Reports to:** elf-core\n")
+	slime := "# slime-loop\n\n- **Rank:** Slime\n- **Territory:** `eng/loop/`\n- **Reports to:** orc-bench\n"
+	write("slime/loop", slime)
+	rep, _, err := Housekeep(root, true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range rep.DeadBonds {
+		if strings.Contains(d, "loop") {
+			t.Fatalf("a bond to a live orc read as dead: %v", rep.DeadBonds)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(root, ".isekai", "slime", "loop", "README.md")); string(b) != slime {
+		t.Fatalf("the heal rewired a live bond:\n%s", b)
+	}
+}
