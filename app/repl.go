@@ -266,7 +266,7 @@ func (a *App) slash(ctx context.Context, line string, s *loop.Session, busy bool
 	case "quit", "exit", "q":
 		return true
 	case "help", "?":
-		fmt.Fprintln(out, "/dash · /agents · /send <body> <text> · /forge [mint n] · /usage · /status · /config [explain] · /compact · /review [range] · /handoff [read] · /sessions · /resume <id> · /quit")
+		fmt.Fprintln(out, "/dash · /agents · /send <body> <text> · /forge [show|mint|reject <id>] · /usage · /status · /config [explain] · /compact · /review [range] · /handoff [read] · /sessions · /resume <id> · /quit")
 		var names []string
 		for _, c := range a.Found.Commands {
 			names = append(names, "/"+c.Name)

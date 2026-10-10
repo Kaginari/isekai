@@ -156,7 +156,7 @@ func (w *World) sources() []source {
 		}
 	}
 	add("episodic", "log", filepath.Join(w.Isekai(), "log.md"), "", "")
-	for _, m := range Minds(w.Root) {
+	for _, m := range Minds(w.Root, w.dir()) {
 		add("procedural", "mind", m.P, m.Name, "")
 	}
 	for _, c := range Commands(w.Root) {
@@ -696,7 +696,7 @@ func (w *World) Desks() []Desk {
 		}
 		out = append(out, Desk{name, owner, n, DeskLimit, stress, w.Rel(p)})
 	}
-	for _, m := range Minds(w.Root) {
+	for _, m := range Minds(w.Root, w.dir()) {
 		read(m.Name, m.P, nil)
 	}
 	for _, c := range Creatures(w.Isekai()) {
@@ -1033,6 +1033,9 @@ type RememberOpts struct {
 	Machine bool
 	Tag     string
 	Kind    string // law | colony | territory
+	// Extra fields ride after text, in order (the forge's run and hash); readers that do not
+	// know them skip them.
+	Extra OJ
 }
 
 type RememberResult struct {
@@ -1069,7 +1072,7 @@ func (w *World) Remember(text string, o RememberOpts) (*RememberResult, error) {
 		k := o.Kind
 		n.Kind = &k
 	}
-	bytes, err := AppendLine(p, OJ{{"at", n.At}, {"by", n.By}, {"world", n.World}, {"tag", n.Tag}, {"kind", n.Kind}, {"text", n.Text}})
+	bytes, err := AppendLine(p, append(OJ{{"at", n.At}, {"by", n.By}, {"world", n.World}, {"tag", n.Tag}, {"kind", n.Kind}, {"text", n.Text}}, o.Extra...))
 	if err != nil {
 		return nil, failf("remember crashed: %v", err)
 	}

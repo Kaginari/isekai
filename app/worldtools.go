@@ -13,6 +13,7 @@ import (
 	"github.com/Kaginari/isekai/memory"
 	"github.com/Kaginari/isekai/tool"
 	"github.com/Kaginari/isekai/toolbox"
+	"github.com/Kaginari/isekai/world"
 )
 
 // worldTools are the tools that read the world itself (binary.md §The default toolset):
@@ -458,6 +459,11 @@ func (a *App) rememberTool(body string) *tool.Tool {
 			}
 			if err := json.Unmarshal(in, &q); err != nil || strings.TrimSpace(q.Text) == "" {
 				return failResult("remember: text is required")
+			}
+			for _, t := range world.ForgeTags {
+				if strings.EqualFold(strings.TrimSpace(q.Tag), t) {
+					return failResult("remember: the %q tag is the harness's own — drafts ride your report as `@FORGE skill:<name> | <when> | <how>` (or `@FORGE tool:<name> | <summary> | <argv>`) and the harness files them; the desk mints", t)
+				}
 			}
 			if q.Machine && !a.Cfg.Memory.Shared.Machine.Enabled {
 				return failResult("remember: the machine tier is off (memory.shared.machine.enabled)")

@@ -163,13 +163,34 @@ All notable changes to Isekai are recorded here. The format follows
   failure it catches is a mid-plan close ("let me merge…" with the merge never run). Off by
   default; the bench config enables it (`bench/configs/gateway.yaml`).
 
-- **The forge (`@FORGE` + `/forge`).** A run that proves a repeating need may carry its draft on
-  the report's wire — `@FORGE tool:<name> | <summary> | <argv>` (argv holes `{{param}}` declare
-  as string params) or `@FORGE skill:<name> | <text>`. Drafts ride up unminted and land as
-  shared notes tagged `forge` on the record beat; the desk lists them (`/forge`) and mints by
-  index (`/forge mint <n>`) — a skill lands as a world note, a tool lands as a `tools.custom`
-  patch that reloads live. Minted drafts mark themselves (`forge-minted`); nothing mints twice,
-  and an existing `tools.custom` name is never overwritten.
+- **The forge (`@FORGE`, `/forge`, `isekai forge`).** A run that proves a repeating need carries
+  its draft on the report's wire — `@FORGE skill:<name> | <when> | <how>` or
+  `@FORGE tool:<name> | <summary> | <argv>` (holes `{{param}}`). The harness files each draft
+  from the report it holds (the dispatcher's own result — a report past the 600-byte envelope or
+  cut by `@CAP` keeps its draft; the salvage turn, the throne's final answer and the Claude Code
+  Stop hook file theirs too) as a shared note tagged `forge` with the drafting body, its run and
+  a content hash; a line relayed up the ranks is filed once, as its drafter's. The desk lists
+  open drafts by that hash (`/forge`, `isekai forge list`: name, version, body, run, age, kind,
+  a tool's class), shows what a mint would write (`show <id>`), and closes a draft with an
+  append-only mark (`reject <id> <why>`). A skill mint writes
+  `.isekai/crafted-skills/<name>/SKILL.md` in Claude Code's format (`name` in `[a-z0-9-]{1,64}`,
+  `description` the when, the body the how) plus `version`, `status`, `by`, `born`, `minted`; it
+  never overwrites — a newer draft of a crafted name shows as `v2` and lands only with
+  `--version`, the old file kept under `versions/`, and a name another home wears is refused. A
+  later body whose doc names the skill wears it (`@T mind <name>`); any body loads it with
+  `skill{name}`. A tool mint writes `tools.custom.<name>` with its argv split by shell quoting (a
+  pipeline refused), its class from the classifier (never a hard-coded `write`), an interpreter
+  running a string (`bash -c`, `python -c`, `node -e`, `eval`) refused unless `--force`, an
+  outward or destructive tool landing only on the human's yes (`--yes` headless), the YAML
+  printed before it is written, and `crafted: {by, run, at, draft}` provenance. The `remember`
+  tool refuses the forge's tags. `law.forge.demandAtSteps` (12; 0 = off, reported as switched
+  off) asks any turn that long, once, for its draft — with or without `law.closingCheck`.
+
+- **One skill registry.** `discover.SkillBases` is the one list of skill homes, in one
+  precedence — the world's `crafted-skills`, its `base-skills`, the host's project dirs, its
+  global dirs, then the binary's own — read alike by the session's discovery (`status`'s minds,
+  the `skill` tool), the toolbox, memory and the ontology, under the distribution's world dir. A
+  name with two homes is an `@?` hole naming both paths, never a silent shadow.
 
 - **The container's trust (law.humanGate.trustContainer).** Inside the harness's own runtime
   container — `<PREFIX>DOCKER_AGENT=1`, set only by the harness's own container argv, spoofable by

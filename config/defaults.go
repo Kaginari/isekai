@@ -67,7 +67,8 @@ const defaultsJSON = `{
     "budget":     { "contextTokens": 200000, "stressTokens": 180000, "steps": 40, "minutes": 60, "salvageTokens": 4096 },
     "guts":       { "enabled": true, "benchThrashVisits": 6, "digestEvery": 10 },
     "doomLoop":   { "enabled": true, "threshold": 3 },
-    "stress":     { "escalateAt": 5, "maxConsults": 3, "relieveAt": 7 }
+    "stress":     { "escalateAt": 5, "maxConsults": 3, "relieveAt": 7 },
+    "forge":      { "demandAtSteps": 12 }
   },
   "memory": {
     "short":  { "enabled": true, "cacheDir": "[dist-dir]/memory/short" },

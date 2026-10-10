@@ -14,11 +14,13 @@
 - IsRecord marks isekai.md, log.md, canon/*.md, notes.jsonl. ClassifyPath: outside or a system path is outward, a record destructive, else write. Confine (editor.go) refuses `..` climbs, absolute paths elsewhere and symlinks out of the root. CommandForms lists the hidden shapes of a command (wrappers, sh -c, subshells, git's global options) a permission rule is also matched against — a form only tightens.
 - delete.go archives, never destroys: the file moves to <world>/attic/<YYYY-MM-DD>/<its path> with a line in attic/attic.jsonl; inside the world it settles Destructive (restorable), outside Outward, a record refuses at Run, a directory refuses. pulse.go is class read and returns Env.Self() (the loop wires Session.Pulse), or says no session is acting. skim.go outlines a Go file or package (imports, declarations with line anchors and doc first-lines, no bodies) via go/ast; non-Go files fail with a size hint; a path outside the world settles Outward.
 - File kit: tool output past outputCap (24 KB) is clipped with a pointer; read auto-limits to 240 lines unless windowed (a negative limit is a tail), lines clamp at 2000 chars; write/edit/delete results name the zone's keeper through Env.ZoneOwner. git.go classifies by gitReadSubs / gitWriteSubs / gitOutwardSubs / gitDestructiveSubs; web.go WebFetch is GET only, WebSearch needs a Backend; missing.go's DoomLoop stops a model repeating a missing tool; custom.go takes exactly one of run (argv, {{param}} fills one element, never a shell) or shell, floor write, name `^[a-z][a-z0-9_-]{0,63}$`.
+- argv.go: SplitArgv splits a command line with POSIX quoting and expands nothing, refusing a shell operator outside quotes; QuoteArgv is its inverse; InterpreterEval names an argv that hands a string to an interpreter (sh/bash/zsh/python/node/perl/ruby/php with their eval flag, or eval); ValidCustomName is tools.custom's name rule; ArgvParams/FillArgv are the {{param}} holes. The forge's tool mint stands on these.
 - guard_corpus_test.go reads guard/corpus.txt — a `block` line there that this classifier rates below outward fails this package's tests.
 
 ## Verify
 - `go test -count=1 -run 'TestClassifyCommand|TestClassifyGit|TestGuardCorpusNeedsTheHuman|TestCommandForms|TestSymlinkEscapeIsOutward' ./tool/`
 - `go test -count=1 -run 'TestDeleteArchives|TestPulseTool|TestSkim|TestSettleOnlyTightens|TestRegistry|TestReadAutoLimit' ./tool/`
+- `go test -count=1 -run 'TestSplitArgvShellQuoting|TestInterpreterEvalShapes' ./tool/`
 
 ## Thoughts
 - (none yet)

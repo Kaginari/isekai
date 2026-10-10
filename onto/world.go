@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Kaginari/isekai/discover"
 )
 
 // World is a loaded ontology: the schema, the asserted graph files, the
@@ -315,9 +317,10 @@ func (w *World) derive() error {
 
 	// minds first, so docs can be matched against their names
 	minds := map[string]string{}
-	// the world's own skill dirs first (crafted, then base — the dist names its world dir), then
-	// the hosts': a creature's Minds field names them, so the graph must know them to bond `wears`
-	bases := append([]string{l.WorldDir + "/crafted-skills", l.WorldDir + "/base-skills"}, mindDirs...)
+	// the one skill registry (discover.SkillBases): crafted, then base — the dist names its world
+	// dir — then the hosts'. A creature's Minds field names them, so the graph must know them to
+	// bond `wears`.
+	bases := discover.SkillBases(l.WorldDir)
 	for _, base := range bases {
 		ents, err := os.ReadDir(filepath.Join(w.Root, base))
 		if err != nil {

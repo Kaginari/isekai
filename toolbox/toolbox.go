@@ -253,7 +253,7 @@ func (w *World) dirsOf(bases []string, pick func(d string, e os.DirEntry) (strin
 }
 
 func (w *World) minds() ([]string, map[string]*home) {
-	return w.dirsOf(memory.MindBases, func(d string, e os.DirEntry) (string, string) {
+	return w.dirsOf(memory.MindBases(w.dir()), func(d string, e os.DirEntry) (string, string) {
 		p := filepath.Join(d, e.Name(), "SKILL.md")
 		if e.IsDir() && memory.Exists(p) {
 			return e.Name(), p

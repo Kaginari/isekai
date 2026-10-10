@@ -74,6 +74,14 @@ func (w *World) Hooks(opt HookOptions) loop.Hooks {
 			return w.Record(bodyOf(s), st, opt.Record)
 		}
 	}
+	// the throne's own final answer files its drafts; a Court's are filed by its dispatcher
+	// (court.go), which holds the report whole
+	h.Answer = func(s *loop.Session, r *loop.Result) []string {
+		if s.Engine.Wire {
+			return nil
+		}
+		return w.FileForges(bodyOf(s), s.RunID, forgesOfResult(r))
+	}
 	return h
 }
 
@@ -128,6 +136,15 @@ func MergeHooks(base, over loop.Hooks) loop.Hooks {
 	}
 	if over.Stream != nil {
 		out.Stream = over.Stream
+	}
+	if over.Answer != nil {
+		if base.Answer == nil {
+			out.Answer = over.Answer
+		} else {
+			out.Answer = func(s *loop.Session, r *loop.Result) []string {
+				return append(base.Answer(s, r), over.Answer(s, r)...)
+			}
+		}
 	}
 	if over.Record != nil {
 		if base.Record == nil {
@@ -330,28 +347,6 @@ func (w *World) Record(as string, st *loop.StepRecord, opt RecordOptions) []stri
 				}
 			}
 			holes = append(holes, w.Land(by, rep)...)
-		}
-	}
-	if strings.Contains(st.Result.Output, "@FORGE") {
-		// a dispatch's carried drafts land as forge notes: filed, never minted — the desk mints
-		rep, ok := wire.ParseReport(st.Result.Output)
-		if ok {
-			for i := len(rep.Forges) - 1; i >= 0; i-- {
-				f := rep.Forges[i]
-				line := f.Kind + ":" + f.Name
-				if f.Text != "" {
-					line += " | " + f.Text
-				}
-				by := as
-				if st.Tool == "dispatch" {
-					if b := dispatchedBody(st); b != "" {
-						by = b
-					}
-				}
-				if err := w.Remember(by, "colony", line, "forge"); err != nil {
-					holes = append(holes, "forge note: "+err.Error())
-				}
-			}
 		}
 	}
 	if opt.Landed && len(st.Wrote) > 0 {

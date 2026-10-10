@@ -43,7 +43,6 @@ var (
 	kindClass   = map[string]Term{"law": Is("Law"), "colony": Is("Colony"), "territory": Is("Territory")}
 	bondsByHop  = []Term{pTruth, pVerdict, pReports, pAbove}
 	raceClass   = map[string]Term{"elf": Is("Elf"), "orc": Is("Orc"), "slime": Is("Slime"), "kijin": Is("Kijin")}
-	mindDirs    = []string{".opencode/skills", ".opencode/skill", ".claude/skills"}
 )
 
 // Throne is the session body's term: the top of every world's tree, the one every bond climbs to.

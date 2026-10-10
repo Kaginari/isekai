@@ -189,6 +189,34 @@ everything the world enforces without asking a body to believe anything.
   budgets read as instruments, the closing witness demand, the guts' scoring. A body can only
   tighten a law, never loosen it; `status` names every switched-off law aloud.
 
+## The forge
+
+A run that walked a path worth repeating can leave it behind as a skill or a tool.
+
+1. **Draft.** A Court names it on its report: `@FORGE skill:<name> | <when> | <how>` or
+   `@FORGE tool:<name> | <summary> | <argv>` (holes as `{{param}}`). A run of
+   `law.forge.demandAtSteps` steps or more (12; 0 = off) is asked for one at its close.
+2. **Filed.** The harness files each draft from the report it holds, so a long report or one cut
+   by `@CAP` keeps its draft. Each draft becomes one shared note with the drafting body, its run
+   and a content hash. A line relayed up the ranks is filed once, as its drafter's. The `remember`
+   tool refuses the forge's tags: only the harness files drafts.
+3. **The desk.** `/forge` in a session, or `isekai forge list` headless, lists the open drafts by
+   a stable id (the hash): name, version, body, run, age, kind, and a tool's class.
+   `show <id>` prints what a mint would write. `reject <id> <why>` closes a draft with an
+   append-only mark.
+4. **Mint.** A skill becomes `.isekai/crafted-skills/<name>/SKILL.md` in Claude Code's format
+   (`name` in `[a-z0-9-]`, `description` is the *when*, the body is the *how*). It also carries
+   `version`, `status`, `by`, `born` (the run) and `minted`. A crafted skill outranks every other
+   home of the same name, and a name already worn elsewhere is refused. A mint never overwrites:
+   a newer draft of a crafted name shows as `v2` and lands only with `--version`, the old file
+   kept under `versions/`. A body whose doc names the skill wears it (`@T mind <name>` in its
+   prompt), and any body loads it with `skill{name}`.
+   A tool becomes a `tools.custom` entry. Its argv is split with shell quoting (a pipeline is
+   refused), its class comes from the classifier, and an interpreter running a string
+   (`bash -c`, `python -c`, `node -e`, `eval`) is refused unless `--force`. An outward or
+   destructive tool needs your yes (`--yes` headless). The YAML is printed before it is written,
+   with its provenance under `crafted:`.
+
 ## The terminal
 
 A terminal UI in the class of Claude Code, built on the Charm libraries: the conversation flows into
@@ -242,6 +270,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `status` | every live reading (models, sandbox, guard, memory) and every law feature switched off, with where — gaps print as `@?` lines |
 | `config show\|explain\|check\|path\|patch` | the effective config with the origin of every value |
 | `memory` · `toolbox` · `onto` | the three memories, the two-level toolbox, the creature graph |
+| `forge list\|show <id>\|mint <id> [--yes] [--version] [--force]\|reject <id> --why …` | the forge's desk, headless (§The forge) — `/forge` in a session |
 | `usage` | tokens and cost by body, office, rank, model and day |
 | `bench` | a fixed task set on every configured model |
 | `goal --validate "<cmd>" "<objective>"` | work turn after turn until the command passes; the binary runs it, the model cannot skip it |

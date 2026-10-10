@@ -78,8 +78,9 @@ or a rank does not reach rimuru.
   window slides past the floor. When they have spoken `law.doomLoop.threshold` (3) windows running
   with no recovery, the run checkpoints with the retire / split / genome-shift arms for the parent.
 - **Record**: the journal line; `@U` lines inside a tool result (a Court's report) land as an
-  ontology fact and a shared note, `@FORGE` lines as a colony note tagged `forge`
-  (`world/hooks.go` `Record`, `Land`).
+  ontology fact and a shared note (`world/hooks.go` `Record`, `Land`). `@FORGE` drafts are not
+  read off the tool result: the dispatcher files them from the Court's own report, whole, as a
+  colony note tagged `forge` with the body, run and hash (`world/court.go`, `world/forge.go`).
 
 More than `law.escalation.maxRetries` (2) consecutive failed acts end the turn `ESCALATE`, "one
 hop up: the dispatcher decides".
@@ -135,6 +136,9 @@ back as the dispatch step's result (below); its `@U` lines are landed by the rec
 end, the throne's own writes (usually none) meet the gate, and a deck with an open item is
 reported as a hole ("closed with an open plan"). `law.closingCheck` (default off) adds one more
 re-ask: is the ask applied end to end, with a witness for every behaviour the writes require.
+`law.forge.demandAtSteps` (12; 0 = off) asks any body whose turn ran that many steps, once, for
+its `@FORGE` draft or why the path is one-off — with or without the closing check. The throne's
+own final answer files its `@FORGE` lines as drafts by `rimuru`.
 
 **Ends** with a plain answer to the human — never capped (`Cap = 0`). Stress for the throne is the
 context reading: the drain, then the checkpoint. The council does not watch it; it is no Court.

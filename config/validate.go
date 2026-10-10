@@ -144,6 +144,9 @@ func (c *Config) Off() []Finding {
 	if !c.Instruments.Status.ShowOff {
 		add("instruments.status.showOff")
 	}
+	if c.Law.Forge.DemandAtSteps <= 0 {
+		add("law.forge.demandAtSteps")
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out
 }

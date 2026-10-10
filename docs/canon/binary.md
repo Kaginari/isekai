@@ -127,14 +127,27 @@ config disables, never has to discover:
 | `webfetch` · `websearch` | outward | fetch a URL as text; search via a configured backend |
 | `ask` | read | ask the human a question with options, answer returned to the model |
 | `dispatch` | per rank | a Court Body (§Ranks and bodies) |
-| `recall` · `remember` | read · write | the memory tiers |
+| `recall` · `remember` | read · write | the memory tiers; `remember` refuses the forge's tags (`forge`, `forge-minted`, `forge-rejected`, `skill`) — only the harness files drafts |
 | `toolbox` | read | search the registry, load a skill/command/tool body (level 2) |
 | `onto` | read | query the creature graph: who owns a path, what a creature may see |
-| `skill` | read | don a Mind by name |
+| `skill` | read | don a Mind by name, from the one registry: `crafted-skills` > `base-skills` > the host's project dirs > its global dirs > the binary's own |
 | `desk` · `plan` | write | the body's working memory (≤5 thoughts) · its plan deck — the todo list written before dispatching, one line per slice with its owner |
 | MCP tools | declared by server, classified like any other | every configured MCP server |
 
 Custom tools from config (`tools.custom`) join the same table on the same terms.
+
+**The forge.** A `@FORGE` draft is filed by the harness from the report it holds — the
+dispatcher's own result, before `@CAP` cuts it or the courier envelope folds it to a digest — as
+a shared note tagged `forge` carrying the drafting body, its run and a content hash; a hash
+already in the ledger is not filed again, so a relayed line lands once, as its drafter's. The
+throne's own final answer, the salvage turn of a clock-killed Court and the Claude Code Stop
+hook's final text file their drafts the same way. The desk (`/forge`, `isekai forge`) lists the
+open drafts by hash and mints by the human's word: a skill writes
+`<world>/crafted-skills/<name>/SKILL.md` (Claude Code's frontmatter plus `version`, `status`,
+`by`, `born`, `minted`; never an overwrite — `--version` lands v(n+1) and keeps the old file
+under `versions/`); a tool writes `tools.custom.<name>` at the classifier's class with
+`crafted:` provenance. Marks (`forge-minted`, `forge-rejected`) are append-only notes naming
+the hash.
 
 ## MCP
 

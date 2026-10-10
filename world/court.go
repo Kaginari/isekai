@@ -114,6 +114,9 @@ type Build struct {
 	Office    string     // the office this engine serves (set by the dispatcher from @ASK; "" = the session's)
 	Guts      *loop.Guts // the per-step value sense the throne already carries — children inherit it here
 	Doom      int        // thoughts-stress auto-relief threshold (law.budget doomLoop); 0 = off
+	// ForgeDemandAt is law.forge.demandAtSteps: a run this long is asked once, at its close, for
+	// its @FORGE draft (or why the path is one-off). 0 = off.
+	ForgeDemandAt int
 }
 
 // providerFor resolves the provider for a route.
@@ -157,7 +160,7 @@ func (w *World) Engine(as string, b Build) *loop.Engine {
 	e := &loop.Engine{
 		Provider: b.providerFor(Route{Office: office, Rank: rank.Name, Creature: as, Task: task}), Gate: b.Gate, Root: w.Root, As: as, Budget: b.Budget, Journal: b.Journal, Trace: b.Trace,
 		Lexicon: w.Lex.Loop(), Policy: w.Policy(as, b.Territory), Cap: b.Court.Cap,
-		Guts: b.Guts, Doom: b.Doom,
+		Guts: b.Guts, Doom: b.Doom, ForgeDemandAt: b.ForgeDemandAt,
 		// every write/edit/delete answers naming its zone's keeper — the territory truth
 		// quoted at the moment of the landing, out of the same w.Owner the gate reads
 		ZoneOwner: func(rel string) string {
@@ -495,6 +498,8 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 						holes := w.Land(cr.Name, rep)
 						_ = holes
 					}
+					// the salvage turn's drafts are the dying court's too: filed, never lost
+					_ = w.FileForges(cr.Name, e.LastRunID(), forgesOfResult(sr))
 				}
 				w.Close(se)
 			}
@@ -505,6 +510,10 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		if ps := w.SessionOf(parent); ps != nil {
 			ps.Spend = ps.Spend.Add(r.Usage)
 		}
+		// the court's drafts are filed here, from the report the harness holds — before @CAP cuts
+		// it and before the courier envelope folds it to a digest. A relayed line hashes the same
+		// one hop up and is not filed twice: the first filer, the drafting body, wins.
+		r.Holes = append(r.Holes, w.FileForges(cr.Name, r.RunID, forgesOfResult(r))...)
 		rep := tool.DispatchReport{Text: r.Emit(e.Cap), Status: r.Status, Unsaid: len(r.Report.Unsaid), Failed: r.Status == loop.Fail, Holes: r.Holes, Wrote: wroteOf(r), Journal: r.Journal, Forges: r.Report.Forges}
 		rep.Text += memoLine
 		// the courier law: substantive reports are filed on the instruments shelf, and what

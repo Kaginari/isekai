@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Kaginari/isekai/discover"
 )
 
 // Rd reads a file with CRLF/CR normalised to LF; ok=false when it cannot be read.
@@ -229,13 +231,16 @@ type NamedPath struct {
 	Name, P string
 }
 
-var MindBases = []string{".isekai/crafted-skills", ".isekai/base-skills", ".opencode/skills", ".opencode/skill", ".claude/skills"}
+// MindBases are the project's Mind homes for a world dir, in the one precedence every reader
+// shares (discover.SkillBases): crafted > base > the hosts' project dirs.
+func MindBases(dir string) []string { return discover.SkillBases(dir) }
+
 var CommandBases = []string{".claude/commands", ".opencode/commands", ".opencode/command"}
 
-func Minds(root string) []NamedPath {
+func Minds(root, dir string) []NamedPath {
 	var out []NamedPath
 	seen := map[string]bool{}
-	for _, base := range MindBases {
+	for _, base := range MindBases(dir) {
 		d := filepath.Join(root, base)
 		for _, e := range readDirSorted(d, true) {
 			if !e.IsDir() {
@@ -439,7 +444,11 @@ func RelationsOf(root, isekai, name string) Relations {
 			}
 		}
 	}
-	for _, m := range Minds(root) {
+	dir := DefaultWorldDir
+	if r, err := filepath.Rel(root, isekai); err == nil && r != "." && !strings.HasPrefix(r, "..") {
+		dir = filepath.ToSlash(r)
+	}
+	for _, m := range Minds(root, dir) {
 		if NameIn(doc, m.Name) {
 			R.Minds = append(R.Minds, m.Name)
 		}

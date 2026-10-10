@@ -15,7 +15,7 @@ Every rank has the same three. What differs is *which files* answer for them.
 | | working memory | `## Thoughts` desk on the worn Mind (~5) | the creature | until distilled | yes (inside the doc) |
 | | semantic cache | `.isekai/memory/short/<creature>.jsonl` | `memory.js recall` | until `forget --short` | **no** — local, disposable |
 | **Long** | episodic | `.isekai/log.md` (one memory per dated entry) | whoever lands a change | forever, append-only | yes |
-| | procedural | Minds `SKILL.md`, commands, tools | creatures, `/don`, `/mint` | until Vitality retires it | yes |
+| | procedural | Minds `SKILL.md` (`.isekai/crafted-skills/` — minted by the forge — then `.isekai/base-skills/`, then the host's dirs), commands, tools | creatures, `/don`, `/mint`, the forge's desk (`/forge`, `isekai forge`) | until Vitality retires it | yes |
 | | semantic | `isekai.md`, creature docs, canon, README | creatures, Veldora | until Vitality retires it | yes |
 | | *(the index over all three)* | `.isekai/memory/long/index.json` | `memory.js index` | rebuilt at will | **no** — derived |
 | **Shared** | world-shared | `.isekai/memory/shared/notes.jsonl` | any body, `memory.js remember` | forever, append-only | yes — travels |

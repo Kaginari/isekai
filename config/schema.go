@@ -252,6 +252,17 @@ type CustomTool struct {
 	Sandbox     string            `json:"sandbox"` // inherit | bwrap | none
 	Override    bool              `json:"override"`
 	Profiles    []string          `json:"profiles"`
+	// Crafted is a minted tool's provenance (the forge writes it; a hand-declared tool has none).
+	Crafted *Crafted `json:"crafted"`
+}
+
+// Crafted names where a minted tool came from: the drafting body, its run, the mint's time and
+// the draft's content hash in the forge ledger.
+type Crafted struct {
+	By    string `json:"by"`
+	Run   string `json:"run"`
+	At    string `json:"at"`
+	Draft string `json:"draft"`
 }
 
 // Param is one flat JSON-schema property of a custom tool.
@@ -293,6 +304,10 @@ type Law struct {
 	// ClosingCheck: the loop re-asks once, at closing time, when enabled — "is the daemon's ask
 	// applied end-to-end?" — for the headless/bench path where nobody sits at the keyboard.
 	ClosingCheck Feature `json:"closingCheck"`
+	// Forge: the crystallization question. A run of at least DemandAtSteps steps is asked once,
+	// at its close, to name a @FORGE draft or say the path was one-off — whether or not the
+	// closing check is on. 0 switches it off.
+	Forge ForgeLaw `json:"forge"`
 	// Guts: the loop's per-step value sense (default on): scored acts, windowed momentum, a nudge
 	// inside the tool result when the run slides past floor. The journal trains on every reading.
 	Guts GutsCfg `json:"guts"`
@@ -320,6 +335,10 @@ type GutsCfg struct {
 // young ones, retires a narrower one (the seat keeps its graph memory but claims no soil).
 // Genome shifts are not on this path: the doomLoop ladder names those arms on the wire, and
 // a lane's DNA moves on the human's or a manager's word — never silently here.
+type ForgeLaw struct {
+	DemandAtSteps int `json:"demandAtSteps"`
+}
+
 type Stress struct {
 	EscalateAt  int `json:"escalateAt"`
 	MaxConsults int `json:"maxConsults"`

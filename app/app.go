@@ -334,6 +334,8 @@ func (a *App) Build() world.Build {
 		Territory: world.TerritoryOptions{Enabled: cfg.Law.Territory.Enabled, ThroneNeverAuthors: cfg.Law.Territory.ThroneNeverAuthors},
 		Guts:      lawGuts(cfg),
 		Doom:      lawDoom(cfg),
+		// the crystallization question rides every body's close past the step floor
+		ForgeDemandAt: cfg.Law.Forge.DemandAtSteps,
 		Court: world.CourtOptions{Enabled: a.on("dispatch"), MaxDepth: cfg.Tools.Dispatch.MaxDepth, Cap: cfg.Law.Wire.Cap, Unsaid: cfg.Law.Wire.RequireUnsaid, StrictFlow: cfg.Tools.Dispatch.StrictFlow, OpenLineage: !cfg.Tools.Dispatch.Lineage, SalvageTokens: cfg.Law.Budget.SalvageTokens, StressEscalateAt: cfg.Law.Stress.EscalateAt, StressMaxConsults: cfg.Law.Stress.MaxConsults, StressRelieveAt: cfg.Law.Stress.RelieveAt, SessionBackground: cfg.Tools.Dispatch.SessionBackground,
 			Background: cfg.Tools.Dispatch.Background, BackgroundTimeout: time.Duration(cfg.Tools.Dispatch.BackgroundTimeout),
 			Noted: noted,

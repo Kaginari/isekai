@@ -76,7 +76,7 @@ so context is spent on work, not on words.
 | `@V` | a verdict on a claim, with evidence |
 | `@?` | a hole — named, never guessed |
 | `@U <kind> …` | the unsaid: one piece of knowledge that was in the worker's head and nowhere on disk; kind is `law`, `colony` or `territory` (§The unsaid) |
-| `@FORGE <kind>:<name> \| <text>` | a draft the run proved — kind `tool` or `skill`; rides the report up, lands as a colony note tagged `forge`, and mints only by the desk (`/forge mint`) |
+| `@FORGE <kind>:<name> \| <text>` | a draft the run proved — kind `tool` or `skill`; rides the report up, is filed by the harness as a colony note tagged `forge` (its body, run and hash), and mints only at the desk (`/forge`, `isekai forge`) |
 | `@E <bytes>` | closes the answer |
 
 **Hygiene**
@@ -368,9 +368,22 @@ never fused. Then the loop, because the two halves carry different halves of lif
 - A Mind is a skill: reusable know-how, loaded on donning. It does no work by itself —
   a creature dons it to gain capability for a task, then moves on. Exception: the hat does
   keep its own desk — thoughts live in the Mind that was worn when they were earned.
-- Sourced from `.opencode/skill(s)/<name>/SKILL.md` or `.claude/skills/`, and brought into the
-  world by the host's import (Instruments by host): for this world only, or for Rimuru across
-  every world.
+- Sourced from one registry, in one precedence: the world's crafted Minds
+  (`{{WORLD}}/crafted-skills/<name>/SKILL.md`, minted by the forge), its base Minds
+  (`{{WORLD}}/base-skills/`), then the host's project dirs (`.claude/skills/`,
+  `.opencode/skill(s)/`, `.agents/skills/`), then the host's machine-wide dirs. A name with two
+  homes is a hole naming both, never a silent shadow. Host Minds come into the world by the
+  host's import (Instruments by host): for this world only, or for Rimuru across every world.
+- **The forge — a Mind crafted from proof.** A run that walked a path worth repeating names its
+  draft on the wire (`@FORGE skill:<name> | <when> | <how>`). The harness files it from the
+  report it holds: one ledger note naming the drafting body, its run and a content hash; a line
+  relayed up the ranks is filed once, as its drafter's. Nothing mints itself — the human mints
+  at the desk (`/forge`, `isekai forge`), and a mint writes `{{WORLD}}/crafted-skills/<name>/SKILL.md`
+  in the host's skill format (name, description) with the world's fields (version, status, the
+  drafting body, its run, who minted it and when). A mint never overwrites: a newer draft of a
+  crafted name lands as the next version only when asked, the old one kept beside it. A tool
+  draft mints as a declared tool at the class the classifier reads, and one that reaches
+  outward or destroys waits on the human's yes.
 - **Loading is already two-tiered — this is not a lever the convention needs to pull.** A
   Mind's `description` is the only part that sits in context by default, on every turn; its
   full body loads only when the Mind is actually donned. Write descriptions the way a context

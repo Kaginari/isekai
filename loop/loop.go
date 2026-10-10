@@ -136,6 +136,9 @@ type Hooks struct {
 	Recall func(ctx context.Context, s *Session, ask string) Recall
 	// Record runs after each done step (memory flows up); holes it returns are reported.
 	Record func(ctx context.Context, s *Session, st *StepRecord) []string
+	// Answer sees a turn's final answer once it closes DONE (the forge files the throne's
+	// @FORGE drafts from it); holes it returns ride the result.
+	Answer func(s *Session, r *Result) []string
 	// EndGate runs when the model finishes a turn that wrote files: the Orc's gate. It returns
 	// the verdict word for the report and holes; an error fails the turn.
 	EndGate func(ctx context.Context, s *Session, r *Result) (verdict string, holes []string, err error)
@@ -238,6 +241,10 @@ type Engine struct {
 	// ("is it applied end-to-end?") — the bench-class failure this catches is an answer that
 	// closes mid-plan ("let me merge…") with the merge never run. Live sessions keep it off.
 	ClosingCheck bool
+	// ForgeDemandAt is the crystallization question's step floor (law.forge.demandAtSteps): a
+	// turn that ran at least this many steps is asked once, at its close, to name a @FORGE draft
+	// or say the path was one-off — with or without the closing check. 0 = off.
+	ForgeDemandAt int
 	// PlanOpen returns "" when the body may close clean, else one line naming the open plan
 	// item. Wired by the world to the body's deck: a run never closes clean on an open plan —
 	// the closing check's re-ask carries why, and a stubborn close is named a hole on the report.
@@ -282,6 +289,8 @@ type Session struct {
 	gateTries     int      // failed gates sent back to the model this turn
 	wireTries     int      // off-the-wire answers sent back to the model this turn
 	closingAsked  bool     // the closing check has been asked this session (it asks once, never twice)
+	forgeAsked    bool     // the forge question has been asked this turn
+	turnStepBase  int      // s.Steps as this turn opened: the forge question counts the turn's own steps
 	// the guts' readings (nil Engine.Guts: never appended, never read)
 	gutsVals      []int
 	gutsLastSpoke int
@@ -456,9 +465,10 @@ func (e *Engine) DefaultSystem(s *Session) string {
 	if e.Wire {
 		b.WriteString("Answer on the wire: `@S <status>` opens, one `@F <file:line> <fact>` per finding, `@? <hole>` for anything you could not settle (never guess), `@U <law|colony|territory> <text>` for each thing you know that nothing on disk says, `@E <bytes>` closes. No greetings, nothing long — a long thing lives on disk and crosses as a path.\n")
 		// a run that proved a repeating need names its draft: @FORGE rides the report up, the
-		// desk (the human's `/forge mint`) lands it — a skill becomes a world note, a tool a
-		// tools.custom patch; drafts never mint themselves mid-turn
-		b.WriteString("When the run proved a repeating need, name its draft once: `@FORGE skill:<name> | one line saying when + how`, or `@FORGE tool:<name> | <summary> | <argv template>` (holes as `{{param}}`).\n")
+		// harness files it, the desk (the human's `/forge mint` or `isekai forge mint`) lands it —
+		// a skill becomes <world>/crafted-skills/<name>/SKILL.md, a tool a tools.custom patch;
+		// drafts never mint themselves mid-turn
+		b.WriteString("When the run proved a repeating need, name its draft once: `@FORGE skill:<name> | <when: the triggers> | <how: the steps>` (name in [a-z0-9-]), or `@FORGE tool:<name> | <summary> | <argv template>` (holes as `{{param}}`; an argv, never a shell pipeline).\n")
 		// a body that may dispatch may also order: @$ names work for the layer below, drained
 		// by the Court after the turn (never minted by the body mid-turn — the wire carries
 		// the order, the harness enforces the chain); a report in hand travels as plain prose.
@@ -526,6 +536,7 @@ func (s *Session) Turn(ctx context.Context, ask string) (r *Result, err error) {
 		return nil, fmt.Errorf("loop: empty ask")
 	}
 	s.open(ask)
+	s.forgeAsked, s.turnStepBase = false, s.Steps
 	if s.gated {
 		// the last turn's writes met the gate; this turn gates only its own
 		s.Wrote, s.gated = nil, false
@@ -579,6 +590,11 @@ func (s *Session) drive(ctx context.Context) (*Result, error) {
 		}
 		r.Usage, r.Context, r.Turns = s.Spend, s.Context, s.Turns
 		r.Strains = s.failures + s.gateTries + s.wireTries
+		if status == Done && e.Hooks.Answer != nil {
+			for _, h := range e.Hooks.Answer(s, r) {
+				r.hole(h)
+			}
+		}
 		if status != Done && status != Dry {
 			// a turn stopped short of finish still owns what it changed on disk
 			for _, w := range s.seen() {
@@ -1046,8 +1062,13 @@ func (s *Session) finish(ctx context.Context, r *Result, resp provider.Response,
 	if e.PlanOpen != nil {
 		open = e.PlanOpen()
 	}
+	forge := ""
+	if !s.forgeAsked {
+		forge = forgeDemand(s.Steps-s.turnStepBase, e.ForgeDemandAt, e.Lexicon.WorldDir)
+	}
 	if e.ClosingCheck && !s.closingAsked {
 		s.closingAsked = true
+		s.forgeAsked = s.forgeAsked || forge != ""
 		s.Journal.Log(Event{"t": "closingcheck", "wrote": s.Wrote, "steps": s.Steps, "plan": open})
 		ask := "closing check: the body's run is about to close. Read the ask once more — if anything it requests is " +
 			"not yet applied end-to-end, apply it now; your tools stand. Otherwise answer again and that answer is the report."
@@ -1055,8 +1076,16 @@ func (s *Session) finish(ctx context.Context, r *Result, resp provider.Response,
 			ask += "\nplan open — " + open + ": tick it done (the plan tool walks one step), or finish it first."
 		}
 		ask += witnessDemand(s.Ask, s.Wrote)
-		ask += forgeDemand(s.Steps)
+		ask += forge
 		s.Messages = append(s.Messages, provider.Message{Role: provider.User, Text: ask})
+		return nil, errGateRetry
+	}
+	if forge != "" {
+		// law.forge stands on its own: the closing check is off (or already spent), the run was
+		// long, and the question is asked once
+		s.forgeAsked = true
+		s.Journal.Log(Event{"t": "forgedemand", "steps": s.Steps - s.turnStepBase})
+		s.Messages = append(s.Messages, provider.Message{Role: provider.User, Text: "forge question:" + forge + "\nAnswer again with your report; that answer closes the run."})
 		return nil, errGateRetry
 	}
 	if open != "" {
@@ -1093,16 +1122,21 @@ func witnessDemand(ask string, wrote []string) string {
 	return t
 }
 
-// forgeDemand is the closing check's crystallization question for long runs: a body that burned
-// many steps carved a path with its feet, and paths walked twice should become skills. Under the
-// step floor the question stays silent (short runs teach nothing worth minting); over it the close
-// must either name a @FORGE draft or answer why the path is one-off.
-func forgeDemand(steps int) string {
-	if steps < 12 {
+// forgeDemand is the crystallization question for long runs (law.forge.demandAtSteps): a body
+// that burned many steps carved a path with its feet, and paths walked twice should become
+// skills. Under the floor the question stays silent (short runs teach nothing worth minting);
+// over it the close must either name a @FORGE draft or say why the path is one-off. A floor of
+// 0 is the law switched off.
+func forgeDemand(steps, floor int, worldDir string) string {
+	if floor <= 0 || steps < floor {
 		return ""
 	}
+	if worldDir == "" {
+		worldDir = ".isekai"
+	}
 	return "\nThis run cost " + fmt.Sprintf("%d", steps) + " steps. If the path it carved repeats — a tour, a probe, a ritual — " +
-		"name its draft once: @FORGE skill:<name> | one line saying when + how (the desk mints it; the next body walks it in three steps). " +
+		"name its draft once: @FORGE skill:<name> | <when: the triggers that call for it> | <how: the steps>. The harness files it in the forge ledger; " +
+		"when the human mints it at the desk it becomes " + worldDir + "/crafted-skills/<name>/SKILL.md, which a later body wears or loads with the skill tool. " +
 		"If the path is one-off, say so in a word and close."
 }
 

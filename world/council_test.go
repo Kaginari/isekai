@@ -91,8 +91,9 @@ func TestCourtCouncilWarrant(t *testing.T) {
 	}
 }
 
-// Forging drafts: a Court's @FORGE lines ride the report (DispatchReport carries them) and land
-// as world notes of kind "forge" — filed, never minted; the desk mints.
+// Forging drafts: a Court's @FORGE lines ride the report (DispatchReport carries them) and the
+// dispatcher files them as world notes tagged "forge", each with its run and hash — filed, never
+// minted; the desk mints.
 func TestForgingDraftsRideAndLand(t *testing.T) {
 	dir := fixture(t)
 	w := open(t, dir)
@@ -119,5 +120,9 @@ func TestForgingDraftsRideAndLand(t *testing.T) {
 	got := string(notes)
 	if !strings.Contains(got, `"tag":"forge"`) || !strings.Contains(got, `"kind":"colony"`) || !strings.Contains(got, "tool:token-wrangler | rewrite tokens safe | ./wrangle {{path}}") || !strings.Contains(got, "skill:ttl-craft") {
 		t.Fatalf("the ledger holds both drafts:\n%s", got)
+	}
+	ledger := ReadForgeLedger(filepath.Join(dir, ".isekai", "memory", "shared", "notes.jsonl"))
+	if len(ledger) != 2 || ledger[0].By != "slime-auth" || ledger[0].Run == "" || ledger[0].Hash == "" || ledger[0].Hash == ledger[1].Hash {
+		t.Fatalf("each draft carries its body, run and hash: %+v", ledger)
 	}
 }

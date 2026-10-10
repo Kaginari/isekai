@@ -242,11 +242,14 @@ document is JSON here; the same keys in YAML are the same config.
     "escalation":{ "enabled": true, "maxRetries": 2 },// a failed verify retries, then @? one hop up
     "budget":    { "contextTokens": 200000, "stressTokens": 180000, "steps": 40, "minutes": 60, "salvageTokens": 4096 },   // salvageTokens: a court's pre-timeout journalise turn — at T-grace the body is resumed from its own transcript with "spend this on @U/@F only"; 0 = default, negative = die silent
     "doomLoop":  { "enabled": false, "threshold": 3 },// LATER
-    "stress":    { "escalateAt": 5, "maxConsults": 3 }// the council: at strain ≥ escalateAt a failing/stalled Court's report
+    "stress":    { "escalateAt": 5, "maxConsults": 3 },// the council: at strain ≥ escalateAt a failing/stalled Court's report
                                                       // carries a council warrant its dispatcher must answer (@INSTRUCT /
                                                       // @SPLIT / @ESCALATE, sideways counsel allowed); past maxConsults the
                                                       // run hardens @S ESCALATE and rises to the human; escalateAt 0/-1 = off
                                                       // (strain = the run's sent-backs + 1 per unlanded run, per body, clear on clean)
+    "forge":     { "demandAtSteps": 12 }              // a turn this long is asked once, at its close, for its @FORGE draft
+                                                      // (or why the path is one-off) — every body, closingCheck or not;
+                                                      // 0 = off, and `status` lists it as switched off
   },
 
   // ---------------------------------------------------------------- memory tiers
@@ -551,7 +554,7 @@ from the law; `status` prints the rank set mode and the tree.
 ## Custom tools
 
 `tools.custom.<name>` is `{ description, params, run | shell, class, timeout, cwd, sandbox:
-inherit | bwrap | none, enabled, override, profiles }`. `params` is a flat JSON-schema object:
+inherit | bwrap | none, enabled, override, profiles, crafted }`. `params` is a flat JSON-schema object:
 `<name>: { type: string | integer | number | boolean, description, required, default, enum }`.
 - `run` is an argv; each `{{param}}` fills exactly one element (or part of one, as in
   `-n={{ns}}`) and is never shell-interpolated — a value of `; rm -rf /` stays one argument.
@@ -562,6 +565,12 @@ inherit | bwrap | none, enabled, override, profiles }`. `params` is a flat JSON-
   only tighten it. `profiles` names the profiles under which the tool is offered (`max` offers
   everything). A custom tool joins the toolset on the same terms as a builtin, permission rules
   and the gate included.
+- `crafted: { by, run, at, draft }` is a minted tool's provenance: the forge writes it (the
+  drafting body, its run, the mint's time, the draft's hash in the forge ledger); a hand-declared
+  tool has none. A forge mint splits the draft's argv with shell quoting, refuses a pipeline and
+  an interpreter running a string (`bash -c`, `python -c`, `node -e`, `eval`) unless forced,
+  takes `class` from the classifier over the argv with sample params, and asks the human before
+  an outward or destructive tool lands.
 
 `tools.profile` selects the set and shape: `max` (every tool, native shapes per provider type),
 `anthropic` (Claude's own bash and text-editor tools), `openai` (custom-schema equivalents),
