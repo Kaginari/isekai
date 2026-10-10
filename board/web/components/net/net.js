@@ -123,7 +123,7 @@
   const measureCtx = document.createElement('canvas').getContext('2d');
   function measure(text, font) { measureCtx.font = font; return measureCtx.measureText(text).width; }
   function fit(text, font, max) {
-    if (measure(text, font) <= max) return text;
+    if (measure(text, font) <= max + 0.5) return text; // half a pixel of slack: widths are sums of measures
     let lo = 1, hi = text.length;
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (measure(text.slice(0, mid) + '…', font) <= max) lo = mid; else hi = mid - 1; }
     return text.slice(0, lo) + '…';
@@ -166,7 +166,8 @@
       }
       return { pos, cols, W, H: H + 8, narrow };
     }
-    const px = parseFloat((String(fonts.label).match(/([\d.]+)px/) || [])[1]) || 14;
+    const pxOf = f => parseFloat((String(f).match(/([\d.]+)px/) || [])[1]) || 14;
+    const px = pxOf(fonts.label);
     const em6 = LABEL_EM * px;
     // rows: the deepest layer's leaves take consecutive slots and a parent sits at its children's
     // middle. Each subtree under the throne is a lane (an elf with its orcs and their slimes): the
@@ -214,7 +215,8 @@
     const titleW = layerIds.map((ids, d) => {
       const rs = [];
       for (const id of ids) { const r = m.byId.get(id).rank || ''; if (!rs.includes(r)) rs.push(r); }
-      return measure(rs.map(r => m.word('rank.' + r, r)).join(' · ').toUpperCase() + ' ' + ids.length, fonts.small) * 1.15 + 8;
+      const t = rs.map(r => m.word('rank.' + r, r)).join(' · ').toUpperCase() + ' ' + ids.length;
+      return measure(t, fonts.caps || fonts.small) + t.length * (fonts.track || 0.1) * pxOf(fonts.caps || fonts.small) + 24;
     });
     let mindLabel = 0;
     for (const n of m.minds) mindLabel = Math.max(mindLabel, measure(n.name, fonts.small));
@@ -365,7 +367,8 @@
       // the minds as a compact strip under the layers: a brain per mind, its name when there is
       // room for six ems of it, else on hover or focus
       const sy = H - stripH, title = m.word('minds', 'minds');
-      const tw = measure(title.toUpperCase() + ' ' + m.minds.length, fonts.small) + 28;
+      const tt = title.toUpperCase() + ' ' + m.minds.length;
+      const tw = measure(tt, fonts.caps || fonts.small) + tt.length * (fonts.track || 0.1) * pxOf(fonts.caps || fonts.small) + 28;
       cols.push({ kind: 'minds', strip: true, x: 6, y: sy, w: W2 - 12, h: stripH - 6, title, count: m.minds.length, rank: 'mind:shared' });
       const list = [...m.minds].sort((a, b) => {
         const at = nd => { const xs = m.wears.filter(w => w.to === nd.id && pos.has(w.from)).map(w => pos.get(w.from).x); return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : Infinity; };
@@ -429,6 +432,11 @@
       host.append(probe);
       const at = size => { probe.style.font = size + ' var(--font-body)'; const cs = getComputedStyle(probe); return cs.fontSize + ' ' + cs.fontFamily; };
       const out = { label: at('var(--step--1)'), small: at('var(--step--2)'), bold: '650 ' + at('var(--step--1)') };
+      // the column titles: tracked capitals in the heading face
+      probe.style.font = 'var(--weight-bold) var(--step--2) var(--font-heading)';
+      const cs = getComputedStyle(probe);
+      out.caps = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      out.track = parseFloat(getComputedStyle(probe).getPropertyValue('--tracking-label')) || 0.1;
       probe.remove();
       return out;
     };

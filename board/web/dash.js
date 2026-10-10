@@ -46,17 +46,18 @@
   for (const n of document.querySelectorAll('[data-word]')) n.textContent = word(n.dataset.word, n.textContent);
 
   // ---------- the theme: one design, light and dark; the system decides unless the reader does ----------
-  const THEMES = [['', 'theme · system', 'follows the system'], ['light', 'theme · light', 'light'], ['dark', 'theme · dark', 'dark']];
+  // dark is the default (nothing chosen yet); "system" follows the reader's system
+  const THEMES = [['dark', 'theme · dark', 'dark'], ['light', 'theme · light', 'light'], ['system', 'theme · system', 'follows the system']];
   const themeBtn = $('#theme');
   function theme(v) {
     const t = THEMES.find(x => x[0] === v) || THEMES[0];
-    if (t[0]) document.documentElement.setAttribute('data-theme', t[0]); else document.documentElement.removeAttribute('data-theme');
+    if (t[0] !== 'system') document.documentElement.setAttribute('data-theme', t[0]); else document.documentElement.removeAttribute('data-theme');
     themeBtn.textContent = t[1];
     themeBtn.setAttribute('aria-label', 'theme: ' + t[2] + ' — change');
     store.set('theme', t[0]);
   }
   themeBtn.addEventListener('click', () => {
-    const i = THEMES.findIndex(x => x[0] === (document.documentElement.getAttribute('data-theme') || ''));
+    const i = THEMES.findIndex(x => x[0] === (document.documentElement.getAttribute('data-theme') || 'system'));
     theme(THEMES[(i + 1) % THEMES.length][0]);
   });
   theme(store.get('theme'));
@@ -82,8 +83,13 @@
     if (kc && slot && side) { (v === 'overview' ? slot : side).append(kc); try { if (colony) knowledge(focus); } catch (_) { /* booting: the net's state is not declared yet */ } }
     if (v === 'tree' && document.querySelector('.shell[data-drawer]')) document.querySelector('.shell').removeAttribute('data-drawer');
     requestAnimationFrame(() => netDraw());
+    try { leaderboard(); } catch (_) { /* booting: the board's state is not declared yet */ }
   }
   for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => view(t.dataset.view));
+  // the cockpit fills the window under the header and the tabs, whatever height they wrap to
+  const chrome = () => { const h = ($('.topbar').offsetHeight || 0) + ($('.tabs').offsetHeight || 0); document.querySelector('.shell').style.setProperty('--shell-chrome', h + 'px'); };
+  new ResizeObserver(chrome).observe($('.topbar'));
+  chrome();
   // a row that scrolls sideways says so: the edge with more past it fades
   function edgeFade(row) {
     if (!row) return;
@@ -91,10 +97,12 @@
     row.addEventListener('scroll', f, { passive: true });
     new ResizeObserver(f).observe(row);
     f();
+    return f;
   }
-  edgeFade($('.tabs')); edgeFade($('.topbar-meta'));
+  edgeFade($('.tabs'));
+  const metaFade = edgeFade($('.topbar-meta'));
   const HASH = new URLSearchParams(location.hash.slice(1));
-  if (HASH.get('theme')) theme(HASH.get('theme') === 'system' ? '' : HASH.get('theme'));
+  if (HASH.get('theme')) theme(HASH.get('theme'));
   view(HASH.get('view') || store.get('view') || 'overview');
 
   // ---------- markdown, safely: escape first, then a small grammar ----------
@@ -465,6 +473,7 @@
       if (s.session && form.dataset.state !== 'waiting') setAsk(s.running ? 'running' : 'idle');
       if (!s.session) { field.disabled = sendBtn.disabled = true; }
       now();
+      if (metaFade) metaFade();
     }).catch(() => { const p = pill('board offline'); p.id = 'state'; $('#state').replaceWith(p); });
   }
 
@@ -634,6 +643,7 @@
       if (focus) knowledge(focus); else knowledge('');
       timeline();
       relations();
+      leaderboard();
     }).catch(err => { console.error(err); $('#net-note').textContent = 'the ontology is silent'; });
   }
   // a Court on the stream: a pulse down when it is commissioned, back up when it reports
@@ -717,7 +727,7 @@
   let actT = 0;
   function refreshActivity() {
     clearTimeout(actT);
-    actT = setTimeout(() => getJSON('api/activity').then(a => { activity = a; if (colony) net.set(colony, a); timeline(); }).catch(() => {}), 2500);
+    actT = setTimeout(() => getJSON('api/activity').then(a => { activity = a; if (colony) net.set(colony, a); timeline(); leaderboard(); }).catch(() => {}), 2500);
   }
 
   // ---------- the cockpit: the console docks, folds and resizes ----------
@@ -862,6 +872,38 @@
     $('#rel-note').textContent = nodes.length + ' × ' + nodes.length + ' · ' + colony.edges.length + ' bonds' + ((colony.findings || []).length ? ' · ' + colony.findings.length + ' findings' : '');
   }
 
+  // ---------- the leaderboard: the creatures ranked by their work (runs in four weeks) ----------
+  function leaderboard() {
+    const box = $('#leaderboard');
+    if (!box || !colony || main.dataset.view !== 'metrics') return;
+    const m = net.model();
+    const bodies = (activity && activity.bodies) || {};
+    const rows = colony.nodes.filter(n => n.kind !== 'mind' && bodies[n.name] && bodies[n.name].total)
+      .map(n => { const a = bodies[n.name]; return { n, a, tokens: (a.tokens || []).reduce((x, y) => x + y, 0) }; })
+      .sort((x, y) => y.a.total - x.a.total || y.tokens - x.tokens || x.n.name.localeCompare(y.n.name));
+    const quiet = colony.nodes.filter(n => n.kind !== 'mind').length - rows.length;
+    $('#leaderboard-note').textContent = 'the creatures, by work — ' + rows.length + ' with journaled runs in four weeks' + (quiet > 0 ? ', ' + quiet + ' quiet' : '');
+    if (!rows.length) { box.replaceChildren(el('p', { class: 'leaderboard-empty', text: 'no journaled work in four weeks — a Court lands here once it reports' })); return; }
+    const lead = rows[0].a.total;
+    const th = (t, num, cls) => el('th', { scope: 'col', 'data-num': !!num, class: cls || false, text: t });
+    box.replaceChildren(el('div', { class: 'leaderboard-wrap' }, el('table', { class: 'leaderboard' },
+      el('thead', {}, el('tr', {}, th('Rank'), th('Creature'), th('Work', true), th('Pass', true), th('Tokens', true, 'leaderboard-col-tokens'), th('Status'))),
+      el('tbody', {}, rows.map((r, i) => {
+        const pass = Math.round(100 * (r.a.total - (r.a.failed || 0)) / r.a.total);
+        const p = m && m.parent.get(r.n.id);
+        const liveNow = liveNames.has(r.n.name);
+        const focusIt = () => setFocus(r.n.id);
+        return el('tr', { 'data-rank': r.n.rank || false, tabindex: 0, onclick: focusIt, onkeydown: ev => { if (ev.key === 'Enter') focusIt(); },
+          'aria-label': labelOf(r.n.name) + ', ' + r.a.total + ' runs, ' + pass + '% passed, ' + (liveNow ? 'live' : 'idle') },
+          el('td', { class: 'leaderboard-rank', text: String(i + 1).padStart(2, '0') }),
+          el('td', {}, el('span', { class: 'leaderboard-name', text: labelOf(r.n.name) }), el('span', { class: 'leaderboard-sub', text: word('rank.' + r.n.rank, r.n.rank || 'body') + (p ? ' · under ' + nameOf(p) : '') })),
+          el('td', { class: 'leaderboard-num', 'data-lead': r.a.total === lead, text: num(r.a.total) }),
+          el('td', { class: 'leaderboard-num', 'data-tone': pass < 50 ? 'danger' : pass < 90 ? 'warn' : false, text: pass + '%' }),
+          el('td', { class: 'leaderboard-num leaderboard-col-tokens', text: r.tokens ? num(r.tokens) : '—' }),
+          el('td', { class: 'leaderboard-status', 'data-live': liveNow, text: liveNow ? 'live' : 'idle' }));
+      })))));
+  }
+
   // ---------- metrics ----------
   function kpi(label, value, sub, silent, tone) {
     return el('div', { class: 'kpi', 'data-silent': !!silent, 'data-tone': tone || false }, el('span', { class: 'kpi-label', text: label }), el('span', { class: 'kpi-value', text: value }), el('span', { class: 'kpi-sub', text: sub }));
@@ -926,6 +968,7 @@
       for (const b of court) { if (b.state && !/^(done|idle)$/.test(b.state)) liveNames.add(b.name); else liveNames.delete(b.name); }
       netLive();
       now();
+      leaderboard();
       bars($('#live-bodies'), court.map(b => ({ k: b.name, v: (b.input || 0) + (b.output || 0) + (b.cacheRead || 0) + (b.cacheWrite || 0), b })),
         r => (r.b.state || '—') + (r.b.contextLimit ? ' · ctx ' + Math.round(100 * r.b.contextTokens / r.b.contextLimit) + '%' : ''));
     }).catch(() => { /* no live court */ });
@@ -1088,6 +1131,8 @@
   }
 
   netMode(HASH.get('net') || store.get('netmode') || '2d');
+  // the vendored faces arrive after the first layout: the net measures its labels again
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => netDraw());
   header(); setInterval(header, 1500);
   loadColony(); metrics(); courtPoll(); treeLoad();
   setInterval(courtPoll, 2000); setInterval(metrics, 15000);

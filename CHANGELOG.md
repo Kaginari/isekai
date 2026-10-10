@@ -18,6 +18,16 @@ All notable changes to Isekai are recorded here. The format follows
   destructive steps and a waiting gate ring amber, verdicts flare green or red; the throne breathes
   while the session runs.
 
+- **The dashboard wears "realm", a neon HUD.** A near-black ground, neon cyan and magenta,
+  hairline panels with corner brackets, Orbitron display type and tracked capital labels over
+  Rajdhani body text and JetBrains Mono numbers (all SIL OFL, vendored and served by the board), a
+  faint slow scanline and a one-time glitch on the brand — still under reduced motion. Dark is the
+  default; light is a real light mode in the same language; the theme switch cycles dark, light
+  and system. One palette of named roles (ground, panel, border, text, muted, primary, accent,
+  ok/warn/danger, a hue per rank), every text colour at 4.5:1 or better in both themes. Metrics
+  gains a leaderboard of the creatures by their work. `ui check` lets a page's own `theme.css`
+  hold literal values beside the foundation's token files.
+
 - **The cockpit, reviewed.** The net fills exactly the box its panel gives it with the legend in
   view; each subtree under the throne reads as a lane band, the kijin and an elf with no orcs sit
   as satellites just under the throne, every upper layer is centred, rows and tiles tighten before

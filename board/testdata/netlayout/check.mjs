@@ -24,7 +24,7 @@ const sandbox = {
 vm.runInNewContext(src, sandbox);
 const net = sandbox.window.isekaiNet;
 const m = net.build(colony, null, (k, d) => d || k);
-const fonts = { label: '14.22px sans-serif', small: '12.64px sans-serif', bold: '650 14.22px sans-serif' };
+const fonts = { label: '15.11px sans-serif', small: '13.43px sans-serif', bold: '650 15.11px sans-serif', caps: '700 13.43px sans-serif', track: 0.2 };
 const em6 = 6 * pxOf(fonts.label) - advance(fonts.label) - 1; // six ems, less the one glyph the ellipsis takes
 
 // [name, width, height] — the net's box at each viewport (Chromium, 16px root)

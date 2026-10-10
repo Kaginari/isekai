@@ -1,4 +1,4 @@
-/* @component timeline — tokens: --ink, --ink-muted, --line, --accent, --ok, --warn, --danger, --series-1, --series-2, --series-3, --series-4, --series-5, --series-6, --radius-s, --radius-pill, --space-3xs, --space-2xs, --space-xs, --step--2, --step--1, --font-code, --hairline, --time, --time-slow, --ease, --focus, --focus-width. What the world did, newest first: each row a Court or a verdict — when, who (a dot in its rank's colour, breathing while it runs), the commission, how it ended. A row is a button that focuses its neuron. */
+/* @component timeline — tokens: --ink, --ink-muted, --line, --accent, --ok, --warn, --danger, --series-1, --series-2, --series-3, --series-4, --series-5, --series-6, --radius-s, --space-3xs, --space-2xs, --space-xs, --step--2, --step--1, --font-code, --hairline, --time, --time-slow, --ease, --focus, --focus-width, --weight-bold, --font-body, --tracking-caps. What the world did, newest first: each row a Court or a verdict — when, who (a dot in its rank's colour, breathing while it runs), the commission, how it ended. A row is a button that focuses its neuron. */
 @layer components {
   .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3xs); font-size: var(--step--1); }
   .timeline-item {
@@ -16,11 +16,11 @@
   .timeline-item[data-rank="elf"], .timeline-item[data-rank="highelf"] { --timeline-rank: var(--series-4); }
   .timeline-item[data-rank="darkelf"] { --timeline-rank: var(--series-5); }
   .timeline-time { font: var(--step--2) var(--font-code); color: var(--ink-muted); white-space: nowrap; }
-  .timeline-dot { inline-size: 0.6rem; block-size: 0.6rem; border-radius: var(--radius-pill); background: var(--timeline-rank); box-shadow: 0 0 0 0.2rem color-mix(in oklch, var(--timeline-rank) 22%, transparent); }
+  .timeline-dot { inline-size: 0.55rem; block-size: 0.55rem; border-radius: var(--radius-s); transform: rotate(45deg); background: var(--timeline-rank); box-shadow: 0 0 0 0.2rem color-mix(in oklch, var(--timeline-rank) 22%, transparent); }
   .timeline-item[data-live] .timeline-dot { animation: timeline-breathe calc(var(--time-slow) * 4) var(--ease) infinite; }
   .timeline-who { font-family: var(--font-code); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .timeline-what { color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .timeline-end { font: var(--step--2) var(--font-code); padding: 0 var(--space-2xs); border-radius: var(--radius-pill); border: var(--hairline) solid var(--line); color: var(--ink-muted); }
+  .timeline-end { font: var(--weight-bold) var(--step--2) var(--font-body); letter-spacing: var(--tracking-caps); text-transform: uppercase; padding: 0 var(--space-2xs); border-radius: var(--radius-s); border: var(--hairline) solid var(--line); color: var(--ink-muted); }
   .timeline-end[data-tone="ok"] { color: var(--ok); border-color: color-mix(in oklch, var(--ok) 45%, transparent); }
   .timeline-end[data-tone="warn"] { color: var(--warn); border-color: color-mix(in oklch, var(--warn) 45%, transparent); }
   .timeline-end[data-tone="danger"] { color: var(--danger); border-color: color-mix(in oklch, var(--danger) 45%, transparent); }

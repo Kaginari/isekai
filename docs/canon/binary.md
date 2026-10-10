@@ -487,7 +487,17 @@ supersedes `tempest.js` once it shows everything tempest shows.
 
 **The dashboard — `/dash`, and `dash`.** Beside the board pages the same server serves a
 dashboard built on the world's own ui system (`board/web/`: tokens, palettes, layout primitives,
-components — held to `ui check` by a test). Its overview is a cockpit: the living neural net is the
+components — held to `ui check` by a test). It wears its own theme, "realm" (`board/web/theme.css`,
+over the foundation's copies): a neon HUD — a near-black ground, neon cyan as the primary and
+magenta as the accent, thin hairlines with L-shaped corner brackets on panels and the primary
+action, Orbitron for display type and tracked capital labels, Rajdhani for reading, JetBrains Mono
+for numbers and code (all SIL OFL, vendored under `board/web/fonts/` and served by the board, so
+the self-only CSP holds), a faint slow scanline and a one-time glitch on the brand — every motion
+off under `prefers-reduced-motion`. Its colour roles (ground, panel, sunken, border, text, muted,
+primary, accent, ok/warn/danger, a hue per rank) are named the same in the terminal ui; dark is
+the default, light is a real light mode in the same language (deep cyan and magenta inks on a
+cool paper ground), and "system" follows the reader's system; every text colour clears 4.5:1 in
+both. Its overview is a cockpit: the living neural net is the
 hero; the session's console docks beside it (the transcript read like a page, tool calls, Courts
 and verdicts as folded cards, approvals and questions as choice cards, one input: Enter sends, ↑
 recalls, Esc interrupts, `/` runs a command) — a splitter resizes it, a button folds it to a rail,
@@ -503,7 +513,8 @@ button, `t`, or Alt+T from the prompt; Esc or a click away closes it); hovering 
 neuron that owns it; open, the drawer is a modal dialog that keeps the focus inside it. Narrow,
 the cockpit stacks: net, timeline, console; the header's vitals become one row that scrolls, and
 a row that scrolls sideways (the vitals, the tabs) fades at the edge that has more. The net, metrics (tokens,
-cost, calls, context, cache; by day, model and body), relations (the bond matrix and its
+cost, calls, context, cache; a leaderboard of the creatures by their work — rank, runs, pass rate,
+tokens, live or idle; by day, model and body), relations (the bond matrix and its
 dimensions: by rank, lane and bond) and the tree keep their own full-size views.
 With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
 terminal. `<dist> dash [--open]` runs the session headless with the dashboard as its only ui, and
