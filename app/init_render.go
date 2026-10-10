@@ -25,9 +25,35 @@ type initReport struct {
 }
 
 type mediumRep struct {
-	members []plan
-	wrote   []string
-	kept    int
+	members                    []plan
+	wrote                      []string
+	kept, covered              int
+	elves, orcs, slimes, kijin int
+	lanes                      []string          // "elf-x: orc-a (3), orc-b (2)"
+	prefix                     map[string]string // the lexicon's name prefixes ("" map: canonical)
+}
+
+// census is the colony's head count, spelled out: "1 elf · 3 orcs · 9 slimes · 1 kijin".
+func (m *mediumRep) census() string {
+	part := func(n int, one, many string) string {
+		if n == 1 {
+			return fmt.Sprintf("%d %s", n, one)
+		}
+		return fmt.Sprintf("%d %s", n, many)
+	}
+	out := []string{part(m.elves, "elf", "elves"), part(m.orcs, "orc", "orcs"), part(m.slimes, "slime", "slimes")}
+	if m.kijin > 0 {
+		out = append(out, part(m.kijin, "kijin", "kijin"))
+	}
+	return strings.Join(out, " · ")
+}
+
+// name is a member's full creature id under the lexicon's prefixes.
+func (m *mediumRep) name(p plan) string {
+	if pre, ok := m.prefix[p.Rank]; ok {
+		return pre + p.Short
+	}
+	return p.Rank + "-" + p.Short
 }
 
 // initWords is the world's voice for the init face.
@@ -83,6 +109,10 @@ func newInitStyles() initStyles {
 		count:   lipgloss.NewStyle().Foreground(c("#bd8c24")),
 		file:    lipgloss.NewStyle().Foreground(c("#9fb0c3")),
 		rank: map[string]lipgloss.Style{
+			"elf":     lipgloss.NewStyle().Foreground(c("#bd8c24")),
+			"orc":     lipgloss.NewStyle().Foreground(c("#7c5cd6")),
+			"slime":   lipgloss.NewStyle().Foreground(c("#2695bd")),
+			"kijin":   lipgloss.NewStyle().Foreground(c("#c53d34")),
 			"coord":   lipgloss.NewStyle().Foreground(c("#bd8c24")),
 			"domain":  lipgloss.NewStyle().Foreground(c("#7c5cd6")),
 			"zone":    lipgloss.NewStyle().Foreground(c("#2695bd")),
@@ -109,15 +139,36 @@ func renderInit(w io.Writer, r initReport, words initWords) {
 		if m.kept > 0 {
 			head += st.dim.Render(fmt.Sprintf(" · %d %s", m.kept, words.keptWord))
 		}
-		b.WriteString(head + "\n")
-		for _, p := range m.members {
-			rank := st.rank[p.Rank]
-			b.WriteString(rank.Render("    "+padTo(p.Rank, 8)+" "+p.Short) + st.dim.Render("  → "+p.Parent))
-			if len(p.Territory) > 0 {
-				b.WriteString(st.dim.Render("  · " + strings.Join(p.Territory, " ")))
-			}
-			b.WriteString("\n")
+		if m.covered > 0 {
+			head += st.dim.Render(fmt.Sprintf(" · %d already held by the world's creatures", m.covered))
 		}
+		b.WriteString(head + "\n")
+		if m.elves+m.orcs+m.slimes > 0 {
+			b.WriteString(st.dim.Render("    "+m.census()) + "\n")
+		}
+		// the tree: each creature under the one it reports to, rimuru's children at the top
+		kids := map[string][]plan{}
+		for _, p := range m.members {
+			kids[p.Parent] = append(kids[p.Parent], p)
+		}
+		var draw func(parent string, depth int)
+		draw = func(parent string, depth int) {
+			for _, p := range kids[parent] {
+				rank := st.rank[p.Rank]
+				line := rank.Render(strings.Repeat("  ", depth+2) + m.name(p))
+				if p.Rank == "slime" || p.Rank == "kijin" || (p.Rank == "elf" && len(kids[m.name(p)]) == 0) {
+					line += st.dim.Render("  · " + strings.Join(p.Territory, " "))
+				}
+				if p.Rank == "slime" && len(p.Verify) == 0 {
+					line += st.dim.Render("  (no tests seen)")
+				}
+				b.WriteString(line + "\n")
+				if depth < 4 {
+					draw(m.name(p), depth+1)
+				}
+			}
+		}
+		draw("rimuru", 0)
 	}
 	if r.level == "complex" {
 		b.WriteString(st.okGlow.Render("  ✦ ") + st.section.Render("founding session") + st.dim.Render("  "+words.complexNote) + "\n")

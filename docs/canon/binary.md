@@ -410,10 +410,23 @@ the background and the merge arrives as a turn. A world's own `/review` command 
 
 `init --level` founds the world at one of three depths (a terminal asks which when no level is named):
 **light** (or soft) writes the law, the log, the instruments and the memory tiers — creatures come
-later; **medium** also sketches a colony from the file tree with no model — an elf, an orc per
-source area (thin areas merged into a core orc), a slime per sub-area, a kijin when there is CI,
-and verify lines for the language (a Go dir starting with `_` is tested by explicit path, since
-`./...` skips it) — never overwriting a doc; **complex** runs a founding session: the model reads
+later; **medium** also founds a colony from the tree with no model, sized to the project. It reads
+the build files (go.mod and nested modules, package.json workspaces, pyproject, Cargo workspaces,
+Maven and Gradle modules), counts files and lines, tells source from tests, skips vendored, built,
+generated and fixture dirs, and reads imports where that is cheap (Go, Python, JS/TS, JVM, the
+workspace dependencies). A slime per meaningful package or module dir: namespace dirs (`src/`,
+`internal/`, `pkg/`, `packages/`, …) and giants are opened into their sub-dirs, a tiny dir folds into
+what it imports; territories are directories (the root's own source files are the one file list)
+and every name is chosen so the ontology derives each claim. Orcs group related slimes by imports,
+shared neighbours, role (entry points, interfaces, config, tests) and path; one elf carries up to
+three orcs, and a larger colony gets lane elves plus `elf-canon` for the manifests and docs; a kijin
+holds CI, release and infra (`.github/`, `Dockerfile*`, `deploy/`, …). Each doc carries its purpose
+(package doc, package description or README line), the traits the sketch observed marked `sketch:`
+(sizes, exported names, entry points, imports, missing tests), minds from the world's base-skills
+where they fit, and verify lines only where tests exist and a runner is known (`go test ./x/...`, a
+workspace's own test script, `pytest`, `cargo test -p`, …). It never overwrites a doc, leaves out a
+creature whose ground the world's own creatures already hold, and reports the census and the lanes;
+**complex** runs a founding session: the model reads
 every source file and decides the team the code needs — how many elves, orcs, slimes, a kijin,
 which minds (zone, verdict, global) and which bodies (court, keeper) — writes the docs, skills and
 agents in the shapes the ontology reads, keeps only verify lines that pass now, and runs

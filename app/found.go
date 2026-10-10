@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/Kaginari/isekai/config"
@@ -14,8 +13,10 @@ import (
 
 // The three ways to found a world (`init --level`):
 //   - light (soft): the law, the log, the instruments and the memory tiers — no creature.
-//   - medium: light, and a colony sketched from the tree with no model: an elf, an orc per
-//     source area, a slime per sub-area, a kijin when there is CI, verify lines for the language.
+//   - medium: light, and a colony sketched from the tree with no model, sized to the project:
+//     a slime per meaningful package or module dir, orcs grouping related slimes by imports,
+//     role and naming, an elf per three orcs (lane elves and a canon elf on a large project),
+//     a kijin when there is CI, release or infra; verify lines only where tests exist.
 //   - complex: light, then a founding session — the model reads all the code and decides the
 //     team: how many elves, orcs, slimes, kijin, which minds and which bodies, the relations,
 //     verify lines that pass; the sketch is its first hint. Like hiring a team of experts.
@@ -36,12 +37,12 @@ func normLevel(s string) string {
 	return ""
 }
 
-// sketch is a colony read from the tree alone.
+// sketch is a colony read from the tree alone (found_survey.go reads, found_cut.go cuts).
 type sketch struct {
 	Project string
 	Lang    string
-	Elf     plan
-	Orcs    []plan
+	Elves   []plan // the canon elf (or the one elf) first, then the lane elves
+	Orcs    []plan // each carries its slimes
 	Kijin   *plan
 }
 
@@ -49,197 +50,27 @@ type plan struct {
 	Rank, Short, Purpose string
 	Territory            []string
 	Parent               string
+	Minds                []string
+	Traits               []string // the sketch's reading, each marked "sketch:"
 	Verify               []string
 	Slimes               []plan
+	Orcs                 []string // an elf's carried creatures, by name
 }
 
-var (
-	sourceExt = map[string]string{".go": "go", ".ts": "node", ".tsx": "node", ".js": "node", ".jsx": "node", ".mjs": "node", ".vue": "node", ".svelte": "node",
-		".py": "python", ".rs": "rust", ".java": "jvm", ".kt": "jvm", ".scala": "jvm", ".rb": "ruby", ".php": "php", ".cs": "dotnet", ".swift": "swift",
-		".c": "c", ".cc": "c", ".cpp": "c", ".h": "c", ".hpp": "c", ".ex": "elixir", ".exs": "elixir"}
-	skipDir = map[string]bool{"node_modules": true, "vendor": true, "dist": true, "build": true, "target": true, "out": true, "bin": true,
-		"testdata": true, "coverage": true, "__pycache__": true, ".venv": true, "venv": true}
-	reName = regexp.MustCompile(`[^a-z0-9]+`)
-)
+var reName = regexp.MustCompile(`[^a-z0-9]+`)
 
 func slug(s string) string {
-	return strings.Trim(reName.ReplaceAllString(strings.ToLower(strings.TrimLeft(s, "_.")), "-"), "-")
-}
-
-// sourceFiles counts the source files under dir (recursively), by language.
-func sourceFiles(dir string) (int, map[string]int) {
-	n, langs := 0, map[string]int{}
-	_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if p != dir && (strings.HasPrefix(d.Name(), ".") || skipDir[d.Name()]) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if l, ok := sourceExt[filepath.Ext(p)]; ok {
-			n++
-			langs[l]++
-		}
-		return nil
-	})
-	return n, langs
+	return strings.Trim(reName.ReplaceAllString(strings.ToLower(strings.TrimLeft(s, "_.@")), "-"), "-")
 }
 
 // sketchColony reads the tree into a colony, without a model.
 func sketchColony(root string, d config.Dist) sketch {
-	s := sketch{Project: slug(filepath.Base(root))}
-	if s.Project == "" {
-		s.Project = "core"
+	project := slug(filepath.Base(root))
+	if project == "" {
+		project = "core"
 	}
-	has := func(p string) bool { _, err := os.Stat(filepath.Join(root, p)); return err == nil }
-	_, langs := sourceFiles(root)
-	best := 0
-	for l, n := range langs {
-		if n > best || (n == best && l < s.Lang) {
-			s.Lang, best = l, n
-		}
-	}
-	test := func(dir string) []string {
-		switch {
-		case s.Lang == "go" && has("go.mod"):
-			if dir == "" {
-				return []string{"go build ./...", "go vet ./..."}
-			}
-			if strings.HasPrefix(filepath.Base(dir), "_") {
-				return []string{"go test ./" + dir + "/"} // ./... skips a leading underscore
-			}
-			return []string{"go test ./" + dir + "/..."}
-		case s.Lang == "python" && dir != "":
-			return []string{"python -m pytest -q " + dir}
-		case s.Lang == "rust" && dir == "":
-			return []string{"cargo test"}
-		case s.Lang == "node" && dir == "" && has("package.json"):
-			return []string{"npm test"}
-		}
-		return nil
-	}
-	var manifests []string
-	for _, m := range []string{"README.md", "go.mod", "package.json", "pyproject.toml", "setup.py", "Cargo.toml", "pom.xml", "build.gradle"} {
-		if has(m) {
-			manifests = append(manifests, m)
-		}
-	}
-	s.Elf = plan{Rank: "elf", Short: s.Project, Parent: "rimuru", Territory: manifests, Verify: test(""),
-		Purpose: "the shared mind and voice of " + filepath.Base(root) + ": keeps the cross-domain rules, routes work to the orcs, speaks back up."}
-	// areas: top-level dirs holding source, largest first
-	type area struct {
-		name string
-		n    int
-	}
-	var areas []area
-	ents, _ := os.ReadDir(root)
-	var rootFiles []string
-	for _, e := range ents {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") || skipDir[name] || name == d.WorldDir {
-			continue
-		}
-		if !e.IsDir() {
-			if _, ok := sourceExt[filepath.Ext(name)]; ok {
-				rootFiles = append(rootFiles, name)
-			}
-			continue
-		}
-		if n, _ := sourceFiles(filepath.Join(root, name)); n > 0 {
-			areas = append(areas, area{name, n})
-		}
-	}
-	sort.SliceStable(areas, func(i, j int) bool { return areas[i].n > areas[j].n })
-	var core *plan
-	coreOrc := func() *plan {
-		if core == nil {
-			s.Orcs = append(s.Orcs, plan{Rank: "orc", Short: "core", Parent: "elf-" + s.Project, Verify: test(""),
-				Purpose: "rules the small areas and the entry point, until one of them grows its own domain."})
-			core = &s.Orcs[len(s.Orcs)-1]
-		}
-		return core
-	}
-	for i, a := range areas {
-		if a.n < 3 || i >= 6 {
-			c := coreOrc()
-			c.Territory = append(c.Territory, a.name+"/")
-			c.Slimes = append(c.Slimes, plan{Rank: "slime", Short: slug(a.name), Parent: "orc-core", Territory: []string{a.name + "/"}, Verify: test(a.name),
-				Purpose: "the ground truth of `" + a.name + "/`."})
-			continue
-		}
-		o := plan{Rank: "orc", Short: slug(a.name), Parent: "elf-" + s.Project, Territory: []string{a.name + "/"}, Verify: test(a.name),
-			Purpose: "rules the `" + a.name + "/` domain and holds its gate."}
-		subs, _ := os.ReadDir(filepath.Join(root, a.name))
-		for _, sub := range subs {
-			if !sub.IsDir() || strings.HasPrefix(sub.Name(), ".") || skipDir[sub.Name()] || len(o.Slimes) >= 6 {
-				continue
-			}
-			rel := a.name + "/" + sub.Name()
-			if n, _ := sourceFiles(filepath.Join(root, rel)); n > 0 {
-				o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(sub.Name()), Parent: "orc-" + o.Short, Territory: []string{rel + "/"}, Verify: test(rel),
-					Purpose: "the ground truth of `" + rel + "/`."})
-			}
-		}
-		if len(o.Slimes) == 0 {
-			// zone width at birth (the 2026-10-09 law): a big flat dir chunks into bounded
-			// file sets — one keeper holding a whole flat tree puts every new file's
-			// creation on one body, and a single-prefix zone cannot split but by its tree
-			files := dirFiles(filepath.Join(root, a.name), a.name)
-			if len(files) > 8 {
-				for i, n := 0, 0; i < len(files) && n < 6; i, n = i+8, n+1 {
-					end := i + 8
-					if n >= 5 || end > len(files) {
-						end = len(files) // the sixth chunk (or a short tail) absorbs the rest — never slice past len into cap
-					}
-					chunk := files[i:end]
-					o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(a.name) + "-" + string(rune('a'+n)), Parent: "orc-" + o.Short, Territory: chunk, Verify: test(a.name),
-						Purpose: fmt.Sprintf("the ground truth of %d files in `%s/`.", len(chunk), a.name)})
-				}
-			} else {
-				o.Slimes = append(o.Slimes, plan{Rank: "slime", Short: slug(a.name), Parent: "orc-" + o.Short, Territory: []string{a.name + "/"}, Verify: test(a.name),
-					Purpose: "the ground truth of `" + a.name + "/`."})
-			}
-		}
-		s.Orcs = append(s.Orcs, o)
-	}
-	if len(rootFiles) > 0 {
-		c := coreOrc()
-		c.Territory = append(c.Territory, rootFiles...)
-		c.Slimes = append(c.Slimes, plan{Rank: "slime", Short: "entry", Parent: "orc-core", Territory: rootFiles, Purpose: "the ground truth of the entry point (" + strings.Join(rootFiles, ", ") + ")."})
-	}
-	for _, ci := range []string{".github/workflows", ".gitlab-ci.yml", ".circleci", "Jenkinsfile", ".drone.yml"} {
-		if has(ci) {
-			t := ci
-			if st, err := os.Stat(filepath.Join(root, ci)); err == nil && st.IsDir() {
-				t += "/"
-			}
-			k := plan{Rank: "kijin", Short: "release", Parent: "rimuru", Territory: []string{t}, Verify: test(""),
-				Purpose: "owns CI and releases end to end, across sessions; anything that tags, publishes or provisions waits for the human."}
-			s.Kijin = &k
-			break
-		}
-	}
-	return s
-}
-
-// dirFiles lists a directory's direct source files as territory entries, sorted — the
-// flat-dir chunker's input.
-func dirFiles(dir, area string) []string {
-	ents, _ := os.ReadDir(dir)
-	var out []string
-	for _, e := range ents {
-		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
-			continue
-		}
-		if _, ok := sourceExt[filepath.Ext(e.Name())]; ok {
-			out = append(out, area+"/"+e.Name())
-		}
-	}
-	sort.Strings(out)
-	return out
+	lex := lexiconFor(d.Name)
+	return readSurvey(root, d.WorldDir).cut(project, lex.Prefixes, readMinds(root, d.WorldDir))
 }
 
 // doc is a creature's README in the shape the ontology reads.
@@ -260,9 +91,20 @@ func (p plan) doc(prefix, display map[string]string, level string) string {
 		fmt.Fprintf(&b, "- **Territory:** %s\n", strings.Join(t, ", "))
 	}
 	fmt.Fprintf(&b, "- **Reports to:** %s\n", p.Parent)
+	if len(p.Minds) > 0 {
+		fmt.Fprintf(&b, "- **Minds:** %s\n", strings.Join(p.Minds, ", "))
+	} else {
+		b.WriteString("- **Minds:** none\n")
+	}
 	fmt.Fprintf(&b, "- **Purpose:** %s\n", p.Purpose)
-	fmt.Fprintf(&b, "- **Founded:** `init --level %s`, from the tree alone — refine the traits and the verify lines from the code\n", level)
-	b.WriteString("\n## Traits\n- (none recorded yet: the first session that works here writes what it learns)\n")
+	fmt.Fprintf(&b, "- **Founded:** `init --level %s`, from the tree alone — the traits marked sketch are the founding sketch's reading; refine them and the verify lines from the code\n", level)
+	b.WriteString("\n## Traits\n")
+	if len(p.Traits) == 0 {
+		b.WriteString("- (none recorded yet: the first session that works here writes what it learns)\n")
+	}
+	for _, t := range p.Traits {
+		fmt.Fprintf(&b, "- %s\n", t)
+	}
 	if len(p.Verify) > 0 {
 		b.WriteString("\n## Verify\n")
 		for _, v := range p.Verify {
@@ -275,10 +117,8 @@ func (p plan) doc(prefix, display map[string]string, level string) string {
 
 // all is every creature of the sketch, parents first.
 func (s sketch) all() []plan {
-	out := []plan{s.Elf}
-	for _, o := range s.Orcs {
-		out = append(out, o)
-	}
+	out := append([]plan(nil), s.Elves...)
+	out = append(out, s.Orcs...)
 	for _, o := range s.Orcs {
 		out = append(out, o.Slimes...)
 	}
@@ -288,24 +128,165 @@ func (s sketch) all() []plan {
 	return out
 }
 
-// writeSketch writes the sketch's docs under the world dir; an existing doc is never touched.
-func writeSketch(root string, d config.Dist, s sketch, dirs, prefix, display map[string]string) ([]string, error) {
-	var made []string
+// count is the sketch's census by rank.
+func (s sketch) count(rank string) int {
+	n := 0
 	for _, p := range s.all() {
-		rel := filepath.Join(d.WorldDir, dirs[p.Rank], p.Short, "README.md")
-		path := filepath.Join(root, rel)
-		if _, err := os.Stat(path); err == nil {
+		if p.Rank == rank {
+			n++
+		}
+	}
+	return n
+}
+
+// lanes names each elf with the orcs it carries — the report's summary.
+func (s sketch) lanes(prefix map[string]string) []string {
+	var out []string
+	for _, e := range s.Elves {
+		var orcs []string
+		for _, o := range s.Orcs {
+			if o.Parent == prefix["elf"]+e.Short {
+				orcs = append(orcs, fmt.Sprintf("%s (%d)", prefix["orc"]+o.Short, len(o.Slimes)))
+			}
+		}
+		if len(orcs) == 0 {
+			orcs = append(orcs, "the project-wide files")
+		}
+		out = append(out, prefix["elf"]+e.Short+": "+strings.Join(orcs, ", "))
+	}
+	return out
+}
+
+// sketchWrite is what writeSketch did: the docs written, the ones kept as they were (a doc of
+// that name exists), the ones left out because a creature already in the world covers them.
+type sketchWrite struct {
+	wrote, kept, covered []string
+}
+
+// existingClaims reads the territory claims of the creatures already in the world, by name.
+func existingClaims(root string, d config.Dist, dirs map[string]string) map[string][]string {
+	out := map[string][]string{}
+	seen := map[string]bool{}
+	for rank, dir := range dirs {
+		if dir == "" || seen[dir] || (rank != "slime" && rank != "kijin") {
 			continue
 		}
+		seen[dir] = true
+		ents, _ := os.ReadDir(filepath.Join(root, d.WorldDir, dir))
+		for _, e := range ents {
+			b, err := os.ReadFile(filepath.Join(root, d.WorldDir, dir, e.Name(), "README.md"))
+			if err != nil {
+				continue
+			}
+			for _, l := range strings.Split(string(b), "\n") {
+				if !strings.Contains(l, "**Territory:**") {
+					continue
+				}
+				for _, m := range reTick.FindAllStringSubmatch(l, -1) {
+					out[dir+"/"+e.Name()] = append(out[dir+"/"+e.Name()], strings.TrimSuffix(strings.TrimPrefix(m[1], "./"), "/"))
+				}
+			}
+		}
+	}
+	return out
+}
+
+var reTick = regexp.MustCompile("`([^`]+)`")
+
+func claimsOverlap(a, b string) bool {
+	return a == b || strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
+}
+
+// writeSketch writes the sketch's docs under the world dir. An existing doc is never touched
+// (kept); a slime or kijin whose territory a creature already in the world claims is left out
+// (covered) — a re-run over a refined colony adds only what nobody holds; an orc or elf is
+// written only when something below it is (or it is the canon elf of a world with no elf).
+func writeSketch(root string, d config.Dist, s sketch, dirs, prefix, display map[string]string) (sketchWrite, error) {
+	var res sketchWrite
+	held := existingClaims(root, d, dirs)
+	docPath := func(p plan) string { return filepath.Join(d.WorldDir, dirs[p.Rank], p.Short, "README.md") }
+	have := func(p plan) bool { return exists(filepath.Join(root, docPath(p))) }
+	covered := func(p plan) bool {
+		for owner, cs := range held {
+			if strings.HasSuffix(owner, "/"+p.Short) && strings.HasPrefix(owner, dirs[p.Rank]+"/") {
+				continue
+			}
+			for _, c := range cs {
+				for _, t := range p.Territory {
+					if claimsOverlap(c, strings.TrimSuffix(t, "/")) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+	write := func(p plan) error {
+		rel := docPath(p)
+		path := filepath.Join(root, rel)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return made, err
+			return err
 		}
 		if err := os.WriteFile(path, []byte(p.doc(prefix, display, "medium")), 0o644); err != nil {
-			return made, err
+			return err
 		}
-		made = append(made, filepath.ToSlash(rel))
+		res.wrote = append(res.wrote, filepath.ToSlash(rel))
+		return nil
 	}
-	return made, nil
+	name := func(p plan) string { return prefix[p.Rank] + p.Short }
+	needed := map[string]bool{} // parents something new reports to
+	decide := func(p plan) (bool, error) {
+		switch {
+		case have(p):
+			res.kept = append(res.kept, name(p))
+			return false, nil
+		case covered(p):
+			res.covered = append(res.covered, name(p))
+			return false, nil
+		}
+		needed[p.Parent] = true
+		return true, write(p)
+	}
+	for _, o := range s.Orcs {
+		for _, sl := range o.Slimes {
+			if _, err := decide(sl); err != nil {
+				return res, err
+			}
+		}
+	}
+	if s.Kijin != nil {
+		if _, err := decide(*s.Kijin); err != nil {
+			return res, err
+		}
+	}
+	anyElf := false
+	if ents, err := os.ReadDir(filepath.Join(root, d.WorldDir, dirs["elf"])); err == nil && len(ents) > 0 {
+		anyElf = true
+	}
+	for _, o := range s.Orcs {
+		if have(o) {
+			res.kept = append(res.kept, name(o))
+			continue
+		}
+		if needed[name(o)] {
+			needed[o.Parent] = true
+			if err := write(o); err != nil {
+				return res, err
+			}
+		}
+	}
+	for i, e := range s.Elves {
+		if have(e) {
+			res.kept = append(res.kept, name(e))
+			continue
+		}
+		if needed[name(e)] || (i == 0 && !anyElf) {
+			if err := write(e); err != nil {
+				return res, err
+			}
+		}
+	}
+	return res, nil
 }
 
 // table is the sketch as the founding brief shows it.

@@ -60,7 +60,7 @@ sandboxed shell has no network unless an `outward` act was approved.
 ```sh
 cd your-project
 export ANTHROPIC_API_KEY=…        # or any OpenAI-compatible endpoint (vLLM, Ollama, OpenRouter)
-isekai init --level complex      # found a world here — light: the law only · medium: a colony sketched from the tree · complex: the model reads all the code and hires the team
+isekai init --level complex      # found a world here — light: the law only · medium: a colony read from the tree, no model · complex: the model reads all the code and hires the team
 isekai                           # the live session — the board opens at http://127.0.0.1:7411
 isekai run "add a health check endpoint and its test"
 ```
@@ -249,7 +249,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `dash [--open]` | the session in the browser: the console, the neural net, metrics, relations; approvals answered there |
 | `board` | the board and a read-only dashboard without a session, on 127.0.0.1 |
 | `--containered` | the whole binary in a Docker container: the world read-write, the rest read-only |
-| `init [--level light\|medium\|complex]` | found a world: the law only; a colony sketched from the tree (no model); or a founding session that reads all the code and decides the elves, orcs, slimes, kijin, minds, bodies and relations |
+| `init [--level light\|medium\|complex]` | found a world: the law only; a colony read from the tree with no model — the build files (go.mod, package.json workspaces, pyproject, Cargo, Maven, Gradle), sizes and imports give a slime per package or module dir, orcs over related slimes, an elf per three orcs (lane elves and a canon elf on a large project), a kijin for CI and infra, verify lines only where tests exist, existing docs kept; or a founding session that reads all the code and decides the elves, orcs, slimes, kijin, minds, bodies and relations |
 | `selftest` · `version` | |
 
 ## Configuration

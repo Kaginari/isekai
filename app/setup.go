@@ -172,7 +172,7 @@ func askLevel(dist string) (string, error) {
 			Title("How should this "+w+" be founded?").
 			Options(
 				huh.NewOption("Light — the law, the log and the instruments; creatures come later", "light"),
-				huh.NewOption("Medium — also a colony sketched from the file tree (no model)", "medium"),
+				huh.NewOption("Medium — also a colony read from the tree: packages, imports, tests (no model)", "medium"),
 				huh.NewOption("Complex — the model reads all the code and founds the team: minds, bodies, relations", "complex"),
 			).Value(&level),
 	)).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin)).Run()

@@ -15,16 +15,22 @@ func TestRenderInitStyledText(t *testing.T) {
 		made:  []string{".isekai/ISEKAI.md"},
 		medium: &mediumRep{
 			members: []plan{
-				{Rank: "coord", Short: "core", Parent: "rimuru", Territory: []string{"go.mod"}},
-				{Rank: "zone", Short: "app", Parent: "domain-app", Territory: []string{"app/"}},
+				{Rank: "elf", Short: "core", Parent: "rimuru", Territory: []string{"go.mod"}},
+				{Rank: "orc", Short: "app", Parent: "elf-core", Territory: []string{"app/"}},
+				{Rank: "slime", Short: "app", Parent: "orc-app", Territory: []string{"app/"}, Verify: []string{"go test ./app/..."}},
+				{Rank: "slime", Short: "cli", Parent: "orc-app", Territory: []string{"cli/"}},
+				{Rank: "kijin", Short: "ci", Parent: "rimuru", Territory: []string{".github/"}},
 			},
-			wrote: []string{".isekai/elves/core/README.md"},
+			wrote: []string{".isekai/elf/core/README.md"},
 			kept:  1,
+			elves: 1, orcs: 1, slimes: 2, kijin: 1,
+			prefix: map[string]string{"elf": "elf-", "orc": "orc-", "slime": "slime-", "kijin": "kijin-"},
 		},
 	}
 	renderInit(&buf, rep, defaultInitWords())
 	out := buf.String()
-	for _, want := range []string{"isekai", "scaffold", "ISEKAI.md", "colony", "1 written", "1 kept", "zone", "next", "run \"<ask>\""} {
+	for _, want := range []string{"isekai", "scaffold", "ISEKAI.md", "colony", "1 written", "1 kept", "1 elf · 1 orc · 2 slimes · 1 kijin",
+		"    elf-core", "      orc-app", "        slime-app", "slime-cli", "cli/", "(no tests seen)", "    kijin-ci", "next", "run \"<ask>\""} {
 		if !strings.Contains(out, want) {
 			t.Errorf("styled init output missing %q, got:\n%s", want, out)
 		}
