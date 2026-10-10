@@ -493,18 +493,34 @@ machine's own, like `config.local`) or, with `--global`, `~/.claude/settings.jso
 serves it without a session). It is served by the binary itself on `127.0.0.1` (`ui.board.port`),
 reads the same instruments the session writes, and updates live over server-sent events. It
 supersedes `tempest.js` once it shows everything tempest shows.
-- **Pages, not one scroll:** Overview · Court (live bodies, states, context, cost) · Usage (tokens
-  and cost by body, office, rank, model, day) · Colony (the creature graph from the ontology) ·
-  Memory (tiers, notes, unsaid by kind) · Toolbox (registry, what was offered vs loaded) · Log ·
-  Config (effective config with origins, the off-list).
-- **The grid is Bootstrap's.** Bootstrap 5 CSS is embedded in the binary — the 12-column grid,
-  its breakpoints (`sm` 576 · `md` 768 · `lg` 992 · `xl` 1200 · `xxl` 1400), utilities and
-  components — so every page is responsive from a phone to a wide screen, offline. Isekai's own
-  look is a thin theme over it (colour tokens for each rank and lane, dark and light), never a
-  second layout system. Charts and the colony graph are inline SVG sized by their grid column.
+- **One page, at the root; a tab per question.** The board serves one page — the dashboard, at
+  `/` — and everything else it serves is an API, the event stream, or the page's own assets. The
+  tabs: Overview (the cockpit) · Console · Neural net · Metrics · Court · Memory · Toolbox ·
+  Relations · Tree · Config; a deep link opens one (`/#memory`, `/#config`, `/#court/<run id>`),
+  and the root opens on the Overview. The old addresses keep working: `/dash` redirects to `/`
+  for good, and `/court`, `/memory`, `/toolbox`, `/config`, `/usage`, `/colony` redirect to their
+  tab.
+- **The world's tabs, read-only.** Court is the history the cockpit only glimpses: every
+  journaled run (filter by body, by how it ended, by words), and one run whole — its commission,
+  every step with the gate's class and reason, how long it took, what it left unsaid; the bodies
+  live this minute head the tab. Memory is the three tiers as instruments (short: the context
+  window, the desks, the semantic caches · long: the index and its freshness · shared: the notes
+  and the unsaid by kind), a recall over them that writes no cache line, the desks and the notes,
+  and the memory's own review on demand (each tier read with its lens, every signal routed).
+  Toolbox is the registry (every mind, command, tool and body it harvested, filtered by kind and
+  state, with each entry's resident and full cost, its offers and loads), the skills the session
+  can wear, the minted bodies, and the loads journal newest first. Config is the resolved config
+  as a tree, each value with the layer that wrote it (a filter, "only what a file set", the
+  layers counted), credentials shown as set and never their value, and the off-list — every law
+  feature this world switched off, with its origin. The JSON behind them: `/api/runs`, `/api/run`,
+  `/api/memory`, `/api/memory/recall`, `/api/memory/review`, `/api/toolbox`, `/api/config` — each
+  answers only a loopback Host.
+- **Ten tabs on any width.** The tabs come in two groups, the session's views and then the
+  world's; whatever does not fit the row folds, last first, into a "more" menu at its end (the
+  chosen view always stays in the row). Arrows walk the tabs, Home and End jump; the menu is a
+  menu (arrows, Esc returns to its button).
 
-**The dashboard — `/dash`, and `dash`.** Beside the board pages the same server serves a
-dashboard built on the world's own ui system (`board/web/`: tokens, palettes, layout primitives,
+**The dashboard — `/`, and `dash`.** The page is built on the world's own ui system (`board/web/`: tokens, palettes, layout primitives,
 components — held to `ui check` by a test). It wears its own theme, "realm" (`board/web/theme.css`,
 over the foundation's copies): a neon HUD — a near-black ground, neon cyan as the primary and
 magenta as the accent, thin hairlines with L-shaped corner brackets on panels and the primary
@@ -530,7 +546,7 @@ cost, live bodies, a wait on the human. The folder tree is a drawer over every v
 button, `t`, or Alt+T from the prompt; Esc or a click away closes it); hovering a path lights the
 neuron that owns it; open, the drawer is a modal dialog that keeps the focus inside it. Narrow,
 the cockpit stacks: net, timeline, console; the header's vitals become one row that scrolls, and
-a row that scrolls sideways (the vitals, the tabs) fades at the edge that has more. The net, metrics (tokens,
+the vitals' row fades at the edge that has more. The net, metrics (tokens,
 cost, calls, context, cache; a leaderboard of the creatures by their work — rank, runs, pass rate,
 tokens, live or idle; by day, model and body), relations (the bond matrix and its
 dimensions: by rank, lane and bond) and the tree keep their own full-size views.

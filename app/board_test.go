@@ -35,23 +35,28 @@ ui: {board: {autostart: true, port: 0}}
 	defer b.Close()
 	get := func(path string) string {
 		rec := httptest.NewRecorder()
-		b.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		req := httptest.NewRequest("GET", path, nil)
+		req.Host = "127.0.0.1" // the page's own requests: the world's records answer only a loopback name
+		b.ServeHTTP(rec, req)
 		if rec.Code != 200 {
 			t.Fatalf("%s: %d\n%s", path, rec.Code, rec.Body.String())
 		}
 		return rec.Body.String()
 	}
-	if html := get("/court"); !strings.Contains(html, "slime-auth") || !strings.Contains(html, "great-sage") || !strings.Contains(html, "court/c") {
-		t.Errorf("court page lacks the live body:\n%s", clip(html))
+	if js := get("/api/court"); !strings.Contains(js, "slime-auth") || !strings.Contains(js, "great-sage") || !strings.Contains(js, "court/c") {
+		t.Errorf("the court lacks the live body:\n%s", clip(js))
 	}
-	if html := get("/config"); !strings.Contains(html, "config.yaml") || !strings.Contains(html, "toolbox.enabled") {
-		t.Errorf("config page lacks origins or the off-list:\n%s", clip(html))
+	if js := get("/api/config"); !strings.Contains(js, "config.yaml") || !strings.Contains(js, "toolbox.enabled") {
+		t.Errorf("the config lacks origins or the off-list:\n%s", clip(js))
 	}
-	if html := get("/usage"); !strings.Contains(html, "slime-auth") {
-		t.Errorf("usage page lacks the journal:\n%s", clip(html))
+	if js := get("/api/usage?range=all"); !strings.Contains(js, "slime-auth") {
+		t.Errorf("usage lacks the journal:\n%s", clip(js))
 	}
-	if html := get("/"); strings.Contains(html, "<no value>") {
-		t.Error("overview printed <no value>")
+	if js := get("/api/runs"); !strings.Contains(js, "slime-auth") {
+		t.Errorf("the court's history lacks the run:\n%s", clip(js))
+	}
+	if html := get("/"); strings.Contains(html, "{{") || !strings.Contains(html, `data-view="config"`) {
+		t.Error("the root is the dashboard, its placeholders filled")
 	}
 	// autostart on an ephemeral port serves it
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,7 +66,7 @@ ui: {board: {autostart: true, port: 0}}
 	if a.boardAddr == "" {
 		t.Fatalf("board did not start: %v", a.Holes())
 	}
-	res, err := http.Get("http://" + a.boardAddr + "/court")
+	res, err := http.Get("http://" + a.boardAddr + "/")
 	if err != nil || res.StatusCode != 200 {
 		t.Fatalf("board serving: %v %v", err, res)
 	}

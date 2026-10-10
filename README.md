@@ -63,7 +63,7 @@ sandboxed shell has no network unless an `outward` act was approved.
 cd your-project
 export ANTHROPIC_API_KEY=…        # or any OpenAI-compatible endpoint (vLLM, Ollama, OpenRouter)
 isekai init --level complex      # found a world here — light: the law only · medium: a colony read from the tree, no model · complex: the model reads all the code and hires the team
-isekai                           # the live session — the board opens at http://127.0.0.1:7411
+isekai                           # the live session — the dashboard opens at http://127.0.0.1:7411/
 isekai run "add a health check endpoint and its test"
 ```
 
@@ -250,8 +250,8 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `install --claude [--global] [--yes]` · `hook <event>` | run the law inside Claude Code through its hooks (§Inside Claude Code) |
 | `guard check\|test\|show\|export\|hook\|install` | the global dangerous-command guard; `install --yes` wires it into Claude Code and OpenCode |
 | `ui init\|scan\|check` | web pages built from one token system: lay the foundation, regenerate the legend, lint and screenshot at 360/768/1280 in both themes |
-| `dash [--open]` | the session in the browser: the console, the neural net, metrics, relations; approvals answered there |
-| `board` | the board and a read-only dashboard without a session, on 127.0.0.1 |
+| `dash [--open]` | the session in the browser, at the board's root: the cockpit, the console, the neural net, metrics, the Court's history, memory, toolbox, relations, the tree, config; approvals answered there |
+| `board` | the dashboard, read-only, without a session, on 127.0.0.1 |
 | `--docker-agent` | the whole binary in a Docker container: the world read-write, the rest read-only |
 | `init [--level light\|medium\|complex]` | found a world: the law only; a colony read from the tree with no model — the build files (go.mod, package.json workspaces, pyproject, Cargo, Maven, Gradle), sizes and imports give a slime per package or module dir, orcs over related slimes, an elf per three orcs (lane elves and a canon elf on a large project), a kijin for CI and infra, verify lines only where tests exist, existing docs kept; or a founding session that reads all the code and decides the elves, orcs, slimes, kijin, minds, bodies and relations |
 | `selftest` · `version` | |
@@ -555,4 +555,4 @@ and the per-step value sense (`law.guts`) they motivated.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Bootstrap 5 (embedded in the board) is MIT.
+MIT — see [LICENSE](LICENSE). The dashboard's faces (Orbitron, Rajdhani, JetBrains Mono, embedded in the board) are SIL OFL.

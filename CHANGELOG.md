@@ -8,6 +8,19 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The dashboard is the board's one page, at the root.** `http://127.0.0.1:<port>/` opens the
+  cockpit; the tabs are Overview · Console · Neural net · Metrics · Court · Memory · Toolbox ·
+  Relations · Tree · Config, and a deep link opens one (`/#memory`, `/#config`, `/#court/<run>`).
+  Four tabs are new, in the realm HUD: **Court** — every journaled run, filtered by body, outcome
+  or words, and one run whole (the commission, each step with the gate's class and reason, the
+  holes); **Memory** — the three tiers as instruments, a read-only recall, the desks and notes, the
+  memory's review on demand; **Toolbox** — the registry by kind and state with costs, offers and
+  loads, the skills the session can wear, the minted bodies, the loads journal; **Config** — the
+  resolved config as a tree with each value's layer, credentials shown as set but never their
+  value, and the off-list. Ten tabs fit any width: what does not fit folds into a "more" menu,
+  arrows walk the tabs. New read-only APIs: `/api/runs`, `/api/run`, `/api/memory`,
+  `/api/memory/recall`, `/api/memory/review`, `/api/toolbox`, `/api/config` (loopback Host only).
+
 - **A native sandbox on macOS: Seatbelt.** On a Mac every shell command, verify line, hook,
   custom tool and stdio MCP server now runs under `/usr/bin/sandbox-exec` with a profile that
   mirrors bwrap's fence: writes only to the world, its read-write paths and the temp dirs; no
@@ -325,6 +338,14 @@ All notable changes to Isekai are recorded here. The format follows
   deck, map lines to owning domains, dispatch — orcs in parallel (`background: true`) when the
   slices are independent; the orc's text codes the verify-first: the slice's checks are written
   before its slime is ordered.
+
+### Removed
+
+- **The board pages and Bootstrap.** The server-rendered pages (Overview, Court, Usage, Colony,
+  Memory, Toolbox, Log, Config), their templates, `static/` and the embedded Bootstrap are gone,
+  and with them the dashboard's "board pages" link. `/dash` redirects to `/` (301); `/court`,
+  `/memory`, `/toolbox`, `/config`, `/usage` and `/colony` redirect to their tab; `/log` is gone
+  (the log stays in `log.md` and the memory's episodic tier).
 
 ## [0.3.0] - 2026-09-28
 
