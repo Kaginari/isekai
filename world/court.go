@@ -548,8 +548,11 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		lines := w.ascendLines()
 		// law.evolution: a stressed body whose desk overflowed heals itself in the same wave —
 		// split, mutate or rebirth, proven before it lands (world/evolve.go)
-		evolved := w.evolveAfterRun(cr.Name)
+		evolved, evoFiles := w.evolveAfterRun(cr.Name)
 		lines = append(lines, evolved...)
+		// the harness wrote them on the body's behalf, proven before the swap: the dispatcher's
+		// end gate leaves them alone, as it does a court's own gated writes
+		w.courtGated(parent, body, evoFiles)
 		// the relief arm (law.stress.relieveAt): the warrant talked, now the zone changes —
 		// outside the council's lock; relieve rereads safely, and both the act and the ledger
 		// shall witness it. A body that just evolved has had its zone changed already.

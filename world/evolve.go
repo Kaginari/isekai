@@ -1011,10 +1011,17 @@ func splitLines(s string) []string {
 	return strings.Split(strings.TrimSuffix(s, "\n"), "\n")
 }
 
-// evolveAfterRun is the court seam: after a report folds, the body is weighed.
-func (w *World) evolveAfterRun(body string) []string {
-	if _, ok := w.EvolveMaybe(body); !ok {
-		return nil
+// evolveAfterRun is the court seam: after a report folds, the body is weighed. It answers the
+// report's lines and the files the harness wrote on the body's behalf (the dispatcher's gate
+// leaves them alone, like a court's own gated writes).
+func (w *World) evolveAfterRun(body string) ([]string, []string) {
+	ev, ok := w.EvolveMaybe(body)
+	if !ok {
+		return nil, nil
 	}
-	return w.evolveLines()
+	var files []string
+	if ev.Status == "applied" {
+		files = ev.Files
+	}
+	return w.evolveLines(), files
 }
