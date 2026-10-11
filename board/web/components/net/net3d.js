@@ -526,7 +526,10 @@
       // subtree's, the throne capped so it never swallows the scene; the largest leaf is 2.5× the
       // smallest. Activity never moves a size (it glows and breathes instead).
       const mk = id => (m.sized && m.massK && m.massK.has(id)) ? m.massK.get(id) : 0.5;
-      const radius = n => n.throne ? 0.3 : kidsOf(n.id).length ? 0.15 * (1 + 0.8 * mk(n.id)) : 0.1 * (1 + 1.5 * mk(n.id));
+      // NEURON scales every neuron at once — its solid, glow, ring, dendrites and face: small
+      // points of light, the mass deciding which grow
+      const NEURON = 0.1;
+      const radius = n => NEURON * (n.throne ? 0.3 : kidsOf(n.id).length ? 0.15 * (1 + 0.8 * mk(n.id)) : 0.1 * (1 + 1.5 * mk(n.id)));
       // regions: the throne's children with a subtree; the rest sit near the centre
       const regionOf = new Map(), heads = [], small = [];
       for (const k of kidsOf(throneId)) (kidsOf(k).length ? heads : small).push(k);
@@ -644,7 +647,7 @@
         }
         want.forEach(w => {
           const lane = w.n.lane || 'mind:shared';
-          st.nodes.set(w.n.id, { id: w.n.id, n: w.n, p1: [Math.cos(w.a) * mr, my + Math.sin(w.a * 3) * S * 0.05, Math.sin(w.a) * mr], d: -1, rad: 0.12 * (1 + mk(w.n.id)), rank: lane, region: '', form: ['mind', 0], seed: hash(w.n.id) });
+          st.nodes.set(w.n.id, { id: w.n.id, n: w.n, p1: [Math.cos(w.a) * mr, my + Math.sin(w.a * 3) * S * 0.05, Math.sin(w.a) * mr], d: -1, rad: NEURON * 0.12 * (1 + mk(w.n.id)), rank: lane, region: '', form: ['mind', 0], seed: hash(w.n.id) });
         });
         st.crown = { y: my, r: mr, caption: String(opts.word ? opts.word('minds', 'minds') : 'minds').toUpperCase() + '  ' + m.minds.length };
       }
