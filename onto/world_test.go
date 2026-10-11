@@ -574,3 +574,29 @@ func TestDeriveOwns_StructuredForeignPathDoesNotDerive_ClassF(t *testing.T) {
 		t.Error("zone-local pin: seat-contained claim MUST still derive is:owns")
 	}
 }
+
+// A retired seat keeps its graph memory but claims no soil: the zone its young took never
+// overlaps it.
+func TestRetiredSeatClaimsNoSoil(t *testing.T) {
+	dir := t.TempDir()
+	if err := fixture(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(dir, ".isekai/slime/wide"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".isekai/slime/wide/README.md"), []byte("# slime-wide\n- **Territory:** `src/auth/`\n- **Reports to:** orc-api\n- **Retired:** true — evolved 2026-10-11: split\n"), 0o644)
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !w.Graph.Has(Triple{Is("slime-wide"), pName, L("slime-wide")}) {
+		t.Fatal("the retired seat stays in the graph")
+	}
+	if owns := w.Graph.Objects(Is("slime-wide"), pOwns); len(owns) != 0 {
+		t.Fatalf("a retired seat owns nothing: %v", owns)
+	}
+	for _, f := range w.Validate() {
+		if strings.Contains(f.String(), "slime-wide") && f.Shape == "SlimeTerritory" {
+			t.Fatalf("no overlap with the retired seat: %s", f)
+		}
+	}
+}

@@ -115,6 +115,15 @@ stress:
 forge:
   demandAtSteps: 12     # a run this long is asked once, at its close, to name a @FORGE draft
                         # (or say the path was one-off); 0 = off, reported as switched off
+  evolvedStatus: trial  # a skill an evolution mints on its own lands at trial | active
+evolution:
+  enabled: true         # a stressed creature whose Thoughts desk overflows heals itself
+  mode: auto            # auto applies the arm; propose queues it (isekai evolve list|show|apply|reject)
+  thoughtsMax: 7        # the desk past which a stressed creature evolves; 0 = off
+  stressAt: 0           # the strain that reads stressed; 0 = law.stress.escalateAt
+  failStreak: 3         # or this many gate verdicts failed in a row
+  cooldownRuns: 10      # a creature evolves at most once per this many of its runs
+  arms: [split, mutate, rebirth]
 `
 	scaffoldBodies["budgets"] = fmt.Sprintf(localHead, "budgets.local.yaml") + `
 # budgets — spend ceilings (the VALUE of the budgets section). Off = 0.

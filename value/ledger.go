@@ -19,11 +19,13 @@ const LegacyShelf = "instruments/ascension.jsonl"
 
 // Row kinds.
 const (
-	KindRun      = "run"      // one run of one body (a Court's report, or a throne turn)
-	KindVerdict  = "verdict"  // a gate verdict, credited to the body that held the gate
-	KindOverturn = "overturn" // a held pass a later fail on the same paths undid
-	KindAscend   = "ascend"   // an ascension minted (the base body is done ascending)
-	KindSeed     = "seed"     // the ledger was seeded from the legacy shelf
+	KindRun      = "run"       // one run of one body (a Court's report, or a throne turn)
+	KindVerdict  = "verdict"   // a gate verdict, credited to the body that held the gate
+	KindOverturn = "overturn"  // a held pass a later fail on the same paths undid
+	KindAscend   = "ascend"    // an ascension minted (the base body is done ascending)
+	KindSeed     = "seed"      // the ledger was seeded from the legacy shelf
+	KindEvolve   = "evolution" // a stressed body evolved (split, mutate, rebirth) — its cooldown counts from here
+	KindRebirth  = "rebirth"   // a body was reborn: its record starts again from this row
 )
 
 // Holes splits a run's holes by whose they are: the world's (infra — a provider refusal, a
@@ -84,6 +86,11 @@ type Row struct {
 	Ref  string `json:"ref,omitempty"`  // an overturn: the overturned verdict's time (RFC3339Nano)
 	New  string `json:"new,omitempty"`  // an ascension: the ascended body
 	From string `json:"from,omitempty"` // a seed: the shelf it was read from
+
+	// an evolution: the arm, why it was chosen, and the bodies it left (a split's young)
+	Arm    string   `json:"arm,omitempty"`
+	Reason string   `json:"reason,omitempty"`
+	Into   []string `json:"into,omitempty"`
 }
 
 // Append writes one row to the ledger at path (created with its dirs). The write is one

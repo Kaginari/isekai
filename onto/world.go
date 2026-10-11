@@ -196,6 +196,7 @@ var (
 	reTick    = regexp.MustCompile("`([^`\n\\s]*/[^`\n\\s]*)`") // a path never holds a space; a command does
 	rePath    = regexp.MustCompile(`[\w.\-*]+(?:/[\w.\-*]*)+`)
 	reWord    = regexp.MustCompile(`[a-z0-9][a-z0-9-]*`)
+	reRetired = regexp.MustCompile(`(?m)^[ \t]*[-*][ \t]*\*\*Retired:\*\*[ \t]*true\b`)
 	fieldKeys = map[string]string{"reports to": "parent", "orc": "parent", "elf": "parent", "parent": "parent",
 		"territory": "territory", "zone": "territory", "owns": "territory", "minds": "minds", "mind": "minds", "wears": "minds", "hats": "minds"}
 )
@@ -489,8 +490,15 @@ func (w *World) derive() error {
 		// TestDeriveOwns_StructuredBareFilename and the census-heal ruling).
 		// Bare tokens (`local.go`, `app`) are creature-local (world_test.go:
 		// 387, TestDeriveOwns_StructuredBareFilename).
+		// a retired seat (`- **Retired:** true` — relief, ascension, evolution) keeps its graph
+		// memory — its name, its bonds, its minds — but claims no soil: its old Territory line
+		// and its prose mint no owns, so the young that took its zone never overlap it
+		retired := reRetired.MatchString(c.text)
 		entries := []string{}
 		for _, e := range strings.Split(vals["territory"], ",") {
+			if retired {
+				break
+			}
 			e = strings.Trim(strings.TrimSpace(e), "`")
 			if p := normPath(e); p != "" && !seen[p] {
 				seen[p] = true
@@ -563,6 +571,9 @@ func (w *World) derive() error {
 		// soil (`world/world.go` in another creature's doc) is a path, not
 		// a claim. Slashes hold the filesystem — plain words never derive.
 		for _, m := range reTick.FindAllStringSubmatchIndex(c.text, -1) {
+			if retired {
+				break
+			}
 			span := c.text[m[2]:m[3]]
 			if !selfNamesSpan(c.text, m[2], m[3], name, zone) {
 				continue

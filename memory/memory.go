@@ -666,22 +666,74 @@ var (
 	reDate       = regexp.MustCompile(`\d{4}-\d{2}-\d{2}`)
 )
 
-func countThoughts(doc string) int {
+func countThoughts(doc string) int { return len(ThoughtsOf(doc)) }
+
+// CountThoughts is a doc's desk count: the dated entries under its ## Thoughts heading — the
+// reading Desks, the dashboard's desk stress and law.evolution all take.
+func CountThoughts(doc string) int { return countThoughts(doc) }
+
+// Thought is one dated entry of a ## Thoughts desk: its line and every line after it up to the
+// next entry or the desk's end. Start and End are byte offsets into the doc (End past the
+// entry's last newline), so a writer can cut entries out and leave the rest of the desk whole.
+type Thought struct {
+	Date       string // the first YYYY-MM-DD on the entry's line
+	Text       string // the entry, its lines joined, the bullet and the date heading kept
+	Start, End int
+}
+
+// DeskSpan is the byte range of a doc's desk body (after the heading line, up to the next # or
+// ## heading); ok is false when the doc keeps no ## Thoughts.
+func DeskSpan(doc string) (start, end int, ok bool) {
 	loc := reThoughts.FindStringIndex(doc)
 	if loc == nil {
-		return 0
+		return 0, 0, false
 	}
-	body := doc[loc[1]:]
-	if end := reDeskEnd.FindStringIndex(body); end != nil {
-		body = body[:end[0]]
+	start = loc[1]
+	if nl := strings.IndexByte(doc[start:], '\n'); nl >= 0 {
+		start += nl + 1
+	} else {
+		start = len(doc)
 	}
-	n := 0
-	for _, l := range strings.Split(body, "\n") {
-		if reDeskBullet.MatchString(l) && reDate.MatchString(l) {
-			n++
+	end = len(doc)
+	if e := reDeskEnd.FindStringIndex(doc[start-1:]); e != nil {
+		end = start - 1 + e[0] + 1
+	}
+	if end < start {
+		end = start
+	}
+	return start, end, true
+}
+
+// ThoughtsOf reads a doc's desk into its dated entries, in order. A line counts as an entry when
+// it is a bullet or a ### heading carrying a date — the one rule every counter shares.
+func ThoughtsOf(doc string) []Thought {
+	start, end, ok := DeskSpan(doc)
+	if !ok {
+		return nil
+	}
+	var out []Thought
+	at := start
+	for at < end {
+		nl := strings.IndexByte(doc[at:end], '\n')
+		lineEnd := end
+		if nl >= 0 {
+			lineEnd = at + nl + 1
 		}
+		line := strings.TrimRight(doc[at:lineEnd], "\n")
+		if reDeskBullet.MatchString(line) && reDate.MatchString(line) {
+			if len(out) > 0 {
+				out[len(out)-1].End = at
+			}
+			out = append(out, Thought{Date: reDate.FindString(line), Start: at, End: lineEnd})
+		} else if len(out) > 0 {
+			out[len(out)-1].End = lineEnd
+		}
+		at = lineEnd
 	}
-	return n
+	for i := range out {
+		out[i].Text = strings.TrimSpace(doc[out[i].Start:out[i].End])
+	}
+	return out
 }
 
 func (w *World) Desks() []Desk {

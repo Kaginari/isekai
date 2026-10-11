@@ -318,6 +318,31 @@ type Law struct {
 	// Value: the one definition of success every surface reads (the ASL fold, the council, the
 	// leaderboard, the guts' end-of-run), the ledger's window, and the families' value laws.
 	Value ValueLaw `json:"value"`
+	// Evolution: a stressed creature whose Thoughts desk overflows heals itself — split, mutate
+	// or rebirth (races.md §Evolution).
+	Evolution EvolutionLaw `json:"evolution"`
+}
+
+// EvolutionLaw is law.evolution (races.md §Evolution): a creature that is stressed (strain at
+// stressAt, its last failStreak gate verdicts failed, or a doom checkpoint) AND whose Thoughts
+// desk holds more than thoughtsMax entries evolves by one arm, chosen from evidence: split (a
+// large territory whose failures cluster in two sub-directories), mutate (the Thoughts repeat a
+// lesson: distilled into traits, a crafted skill when the lesson is a how) or rebirth (its traits
+// are stale: a fresh doc from the code). mode auto applies; propose queues the diff for the
+// human (`evolve list|show|apply|reject`). A creature evolves at most once per cooldownRuns of
+// its runs. stressAt 0 reads law.stress.escalateAt; thoughtsMax 0 switches evolution off.
+type EvolutionLaw struct {
+	Enabled      bool     `json:"enabled"`
+	Mode         string   `json:"mode"`
+	ThoughtsMax  int      `json:"thoughtsMax"`
+	StressAt     int      `json:"stressAt"`
+	FailStreak   int      `json:"failStreak"`
+	CooldownRuns int      `json:"cooldownRuns"`
+	Arms         []string `json:"arms"`
+	// SplitLines and SplitFiles are what "large" means for the split arm: a territory holding at
+	// least this many source lines, or this many files (0 = that measure never reads large).
+	SplitLines int `json:"splitLines"`
+	SplitFiles int `json:"splitFiles"`
 }
 
 // ValueLaw is law.value (races.md §Value): which run words pass, fail or stay neutral; the
@@ -410,6 +435,9 @@ type GutsClamp struct {
 // a lane's DNA moves on the human's or a manager's word — never silently here.
 type ForgeLaw struct {
 	DemandAtSteps int `json:"demandAtSteps"`
+	// EvolvedStatus is the status a skill the harness mints on its own (an evolution's mutate
+	// arm) lands at: trial (default — the human promotes it) or active.
+	EvolvedStatus string `json:"evolvedStatus"`
 }
 
 type Stress struct {

@@ -134,3 +134,35 @@ func TestRankCanonSpellings(t *testing.T) {
 		t.Fatalf("a value spelled dark_elf reads dark-elf: %+v", r)
 	}
 }
+
+// law.evolution: on by default with the owner's numbers; switched off (enabled: false, or a desk
+// limit of 0) it is an honesty finding with its origin; stressAt falls back to the council's
+// escalateAt; a mode or an arm the binary cannot run is refused.
+func TestEvolutionLaw(t *testing.T) {
+	c := newWorld(t, nil).load()
+	e := c.Law.Evolution
+	if !c.EvolutionOn() || e.Mode != "auto" || e.ThoughtsMax != 7 || e.CooldownRuns != 10 || strings.Join(e.Arms, ",") != "split,mutate,rebirth" || c.EvolutionStressAt() != c.Law.Stress.EscalateAt {
+		t.Fatalf("the shipped law: %+v stressAt %d", e, c.EvolutionStressAt())
+	}
+	if c.Law.Forge.EvolvedStatus != "trial" {
+		t.Fatalf("an evolved skill lands at trial: %q", c.Law.Forge.EvolvedStatus)
+	}
+	off := newWorld(t, map[string]string{".isekai/config.yaml": "law:\n  evolution: {enabled: false, thoughtsMax: 0, stressAt: 4}\n"}).load()
+	got := strings.Join(off.OffLines(), "\n")
+	for _, k := range []string{"law.evolution.enabled", "law.evolution.thoughtsMax"} {
+		if !strings.Contains(got, "@? off "+k+" — ") {
+			t.Errorf("Off() lacks %s:\n%s", k, got)
+		}
+	}
+	if off.EvolutionOn() || off.EvolutionStressAt() != 4 {
+		t.Fatalf("off, with its own stressAt: %v %d", off.EvolutionOn(), off.EvolutionStressAt())
+	}
+	if !strings.Contains(off.ExplainEvolution(), "OFF") {
+		t.Fatalf("explain says off:\n%s", off.ExplainEvolution())
+	}
+	for _, bad := range []string{"law:\n  evolution: {mode: yolo}\n", "law:\n  evolution: {arms: [split, grow]}\n", "law:\n  forge: {evolvedStatus: live}\n"} {
+		if err := newWorld(t, map[string]string{".isekai/config.yaml": bad}).loadErr(); err == nil {
+			t.Errorf("refused: %s", bad)
+		}
+	}
+}

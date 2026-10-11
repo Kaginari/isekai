@@ -14,7 +14,7 @@ var fileLayers = map[string]bool{"global": true, "project": true, "local": true}
 func (c *Config) finish() error {
 	steps := []func() error{
 		c.checkScalars, c.checkProviders, c.checkTools, c.checkMCP, c.checkPermissions,
-		c.resolveRules, c.mergeRegistry, c.buildRanks, c.resolveValues, c.checkModels, c.checkGate, c.checkCompaction, c.checkGuts,
+		c.resolveRules, c.mergeRegistry, c.buildRanks, c.resolveValues, c.checkModels, c.checkGate, c.checkCompaction, c.checkGuts, c.checkEvolution,
 	}
 	for _, s := range steps {
 		if err := s(); err != nil {
@@ -158,6 +158,12 @@ func (c *Config) Off() []Finding {
 	if c.Law.DoomLoop.Threshold <= 0 {
 		add("law.doomLoop.threshold")
 	}
+	if c.Law.Evolution.ThoughtsMax <= 0 {
+		add("law.evolution.thoughtsMax")
+	}
+	if c.Law.Evolution.Enabled && len(c.Law.Evolution.Arms) == 0 {
+		add("law.evolution.arms")
+	}
 	if c.Law.Guts.BenchThrashVisits < 0 {
 		add("law.guts.benchThrashVisits")
 	}
@@ -261,4 +267,78 @@ func (c *Config) checkGuts() error {
 		}
 	}
 	return nil
+}
+
+// EvolutionArms are the arms law.evolution may name, in the order the chooser weighs them.
+var EvolutionArms = []string{"split", "mutate", "rebirth"}
+
+// checkEvolution refuses a mode or an arm the binary cannot run.
+func (c *Config) checkEvolution() error {
+	e := c.Law.Evolution
+	switch e.Mode {
+	case "", "auto", "propose":
+	default:
+		return fmt.Errorf("%s: law.evolution.mode: %q is not auto | propose", c.Where("law.evolution.mode"), e.Mode)
+	}
+	for i, a := range e.Arms {
+		if !contains(EvolutionArms, a) {
+			path := fmt.Sprintf("law.evolution.arms[%d]", i)
+			return fmt.Errorf("%s: %s: %q is not %s", c.Where(path), path, a, strings.Join(EvolutionArms, " | "))
+		}
+	}
+	switch c.Law.Forge.EvolvedStatus {
+	case "", "trial", "active":
+	default:
+		return fmt.Errorf("%s: law.forge.evolvedStatus: %q is not trial | active", c.Where("law.forge.evolvedStatus"), c.Law.Forge.EvolvedStatus)
+	}
+	return nil
+}
+
+// EvolutionStressAt is law.evolution.stressAt as the world reads it: its own value, else the
+// council's escalateAt (the strain at which a body already needs its manager).
+func (c *Config) EvolutionStressAt() int {
+	if c.Law.Evolution.StressAt > 0 {
+		return c.Law.Evolution.StressAt
+	}
+	return c.Law.Stress.EscalateAt
+}
+
+// EvolutionOn is whether a stressed creature may evolve at all: the switch on, a desk limit, an arm.
+func (c *Config) EvolutionOn() bool {
+	e := c.Law.Evolution
+	return e.Enabled && e.ThoughtsMax > 0 && len(e.Arms) > 0
+}
+
+// ExplainEvolution prints law.evolution as the world runs it, each part with its origin: the
+// switch, the mode, what reads stressed, the desk limit, the cooldown and the arms.
+func (c *Config) ExplainEvolution() string {
+	e := c.Law.Evolution
+	var b strings.Builder
+	state := "on"
+	switch {
+	case !e.Enabled:
+		state = "OFF (" + c.Where("law.evolution.enabled") + ")"
+	case e.ThoughtsMax <= 0:
+		state = "OFF — thoughtsMax " + fmt.Sprint(e.ThoughtsMax) + " (" + c.Where("law.evolution.thoughtsMax") + ")"
+	case len(e.Arms) == 0:
+		state = "OFF — no arm (" + c.Where("law.evolution.arms") + ")"
+	}
+	mode := e.Mode
+	if mode == "" {
+		mode = "auto"
+	}
+	fmt.Fprintf(&b, "# evolution law · %s · mode %s  # %s\n", state, mode, c.Where("law.evolution.mode"))
+	stressWhere := c.Where("law.evolution.stressAt")
+	if e.StressAt <= 0 {
+		stressWhere = "law.stress.escalateAt — " + c.Where("law.stress.escalateAt")
+	}
+	fmt.Fprintf(&b, "stressed when: strain >= %d  # %s\n", c.EvolutionStressAt(), stressWhere)
+	fmt.Fprintf(&b, "           or: the last %d gate verdicts failed  # %s\n", e.FailStreak, c.Where("law.evolution.failStreak"))
+	b.WriteString("           or: its last run ended in a doom checkpoint\n")
+	fmt.Fprintf(&b, "and its desk holds more than %d Thoughts (its own doc's + its worn minds')  # %s\n", e.ThoughtsMax, c.Where("law.evolution.thoughtsMax"))
+	fmt.Fprintf(&b, "cooldown: %d of its runs between evolutions  # %s\n", e.CooldownRuns, c.Where("law.evolution.cooldownRuns"))
+	fmt.Fprintf(&b, "arms: %s  # %s\n", strings.Join(e.Arms, ", "), c.Where("law.evolution.arms"))
+	fmt.Fprintf(&b, "split reads large at: %d lines or %d files  # %s · %s\n", e.SplitLines, e.SplitFiles, c.Where("law.evolution.splitLines"), c.Where("law.evolution.splitFiles"))
+	fmt.Fprintf(&b, "a minted skill lands: %s  # %s\n", or(c.Law.Forge.EvolvedStatus, "trial"), c.Where("law.forge.evolvedStatus"))
+	return b.String()
 }
