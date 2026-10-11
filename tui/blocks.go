@@ -87,7 +87,7 @@ func (t Theme) Welcome(w Welcome, width int) string {
 	vw := inner - 9 // the value column: the widest label and its gap ride left of it
 	facts := []kv{{w.WorldWord, t.text.Render(tailPath(w.World, vw))}, {"model", t.text.Render(w.Model)}}
 	if s := officeSummary(w.Offices); s != "" {
-		facts = append(facts, kv{"offices", s})
+		facts = append(facts, kv{"offices", t.text.Render(s)})
 	}
 	facts = append(facts, kv{"session", t.dim.Render(w.Session)})
 	if w.Dash != "" {
