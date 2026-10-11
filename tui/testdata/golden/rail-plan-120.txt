@@ -1,10 +1,14 @@
  isekai                             
  kimi-3-conduit                     
- ▌▌▌░░░░░ 42%                       
- 15k tok · $0.0123                  
-─ ▾ courts · 1 ─────────────────────
- ● elf-isekai        THINKING 1m12s 
+ ○ idle                             
+─ vitals ───────────────────────────
+ ᴄᴛx   ━━━━━━━━────────── 42%       
+ ᴛᴏᴋ   15k                          
+ ᴄᴏꜱᴛ  $0.0123                      
+─ ▾ courts · 1 · 1 live ────────────
+ ● elf-isekai              THINKING 
 ─ ▾ plan ▸ elf-isekai · 4 ──────────
+ ━━━━━━────────────────── 1/4       
  ▸ Coordinate the files-panel slic… 
  ✓ Land the token file              
  · Ask orc-db for the store slice   

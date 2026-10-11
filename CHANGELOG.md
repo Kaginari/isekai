@@ -8,6 +8,21 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **The terminal UI wears the Cyberpunk palette, with volume.** The colours are one named palette
+  (`tui/palette.go`, role → hex for dark and light, read by one constructor): omoro.io's Cyberpunk —
+  Void ground, surfaces stepping toward Smog Purple, Scanner Cyan the primary, a Danger Red rose the
+  human's accent, Amber Haze the warning, the plan in Smog Purple's violet — retuned where a swatch
+  fails 4.5:1. Titles wear colour, each region its own gradient; a Court's card is tinted in its
+  race's lane with a state chip, the plan its own violet family in the chat and the sidebar. Slabs
+  gain volume: a gradient face, a gloss under the top edge, a two-tone bevel, a soft two-column
+  shadow with quarter-block corners, a rim glow on the running Court, a fresh toast and the ask's
+  well while typing. The conversation and the sidebar wear a draggable scrollbar while they
+  overflow. The sidebar is a cockpit column: a header tile (sprite, world, model, state), the
+  vitals as a grid of meters, each race's share of the work, the courts live first, the plan's
+  progress and current step, the files. The ask's well starts three rows tall with a
+  placeholder, soft-wraps, grows to eight rows (or 35% of the window), then scrolls inside, its
+  rule saying the draft's size and what enter does.
+
 - **The 3D net is a brain.** The throne sits at the centre and each rank is a shell further out
   (elves inner, orcs middle, slimes on the outer cortex); each lane is a region of the brain, tinted
   by a faint glow and switchable to its four weeks of work (heat) or its runs' pass rate (health).

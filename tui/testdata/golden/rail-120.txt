@@ -1,11 +1,17 @@
  isekai                             
  kimi-3-conduit                     
- ▌▌▌░░░░░ 42% / 128k                
- 15k tok · $0.0123                  
- rimuru 8.2k elf 2.3k orc 3.3k      
- slime 1.6k                         
-─ ▾ courts · 3 ─────────────────────
- ● elf-isekai        THINKING 1m12s 
+ ○ idle                             
+─ vitals ───────────────────────────
+ ᴄᴛx   ━━━━━━━────────── 42% / 128k 
+ ᴛᴏᴋ   15k                          
+ ᴄᴏꜱᴛ  $0.0123                      
+─ ▾ races · 4 ──────────────────────
+ ● rimuru ━━━━━━━━━━─────────  8.2k 
+ ● elf    ━━━────────────────  2.3k 
+ ● orc    ━━━━───────────────  3.3k 
+ ● slime  ━━─────────────────  1.6k 
+─ ▾ courts · 3 · 1 live ────────────
+ ● elf-isekai              THINKING 
  ● orc-security              ✗ DONE 
  ● slime-auth                ✓ DONE 
 ─ ▾ files · 3 ──────────────────────

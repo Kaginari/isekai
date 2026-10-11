@@ -30,7 +30,7 @@ one place the binary takes third-party code; versions pinned in go.sum.
   ultra`; `/offices` has them whole), the session, the board URL, a waiting handoff, the off-list
   count; what the engine could not settle, one `▲` line each; one row of where to start (`⏎ ask
   · / commands · ctrl+k palette · ? keys`). It reads at 80 columns.
-- **Your message** — a bar (`▌`) in the human's magenta down its left edge, the words beside it.
+- **Your message** — a bar (`▌`) in the human's accent down its left edge, the words beside it.
 - **The answer** — the turn's first piece wears the primary's `✦` in the gutter; the text sits
   two cells in, so asks, answers and cards each own a column-0 marker.
 - **Assistant text** — streamed, rendered as markdown (Glamour, a theme that follows the terminal's
@@ -59,23 +59,39 @@ one place the binary takes third-party code; versions pinned in go.sum.
 A window of at least 60×26 is owned by one box-drawn grid (`tui/frame.go`) under a blank first
 row — the headroom VS Code's sticky scroll paints the launching command over:
 
-- **Header** — the brand on its gradient and the version, the world, the model; on the right the
-  session's short id and its state chip (`○ idle`, `● thinking 12s` in the primary, `◆ waiting for
-  you` in magenta). Items yield right to left as the window narrows.
+- **Header** — the brand on its gradient (the primary's cyan through the plan's violet into the
+  accent's rose) and the version, the world, the model; on the right the session's short id and
+  its state chip (`○ idle`, `● thinking 12s` in the primary, `◆ waiting for you` in the accent).
+  Items yield right to left as the window narrows.
 - **Conversation** — the main column, titled in its top edge: the transcript in a viewport
   (pgup/pgdn, shift+↑/↓, the wheel), the live rows under it. Scrolled up, the edge says `↓ N more`.
+  While the transcript overflows the pane a slim scrollbar rides its right padding column: a quiet
+  `▕` track, a thumb in the primary sized to the visible fraction and placed by the offset at
+  half-row precision (`▐`, its ends `▗`/`▝`); a click on it jumps there, a drag walks it. It is
+  drawing, never text: a selection never reaches it.
 - **Ask** — the input lives inside the main column, under the conversation, its own rule titled
-  `ask` (the aside says `enter queues for rimuru` while a turn runs). It never reaches under the
-  sidebar. The slash menu, `@` completions and the `?` keys sheet rise from its top edge as cards
-  over the conversation's last rows — the frame never reflows for them.
-- **Sidebar** — the right third, full height from header to status bar, titled `session`: the
-  vitals (the sprite beside the world, the model, the context meter, the spend, each race's spend
-  as a lane chip, the board's link), then a ruled section each for the courts (a roster, the
-  state a chip on the right edge), the plan deck (titled in its office's lane), the files touched
-  (a Lip Gloss tree). A section's rule carries a fold glyph and a count: `alt+c` / `alt+p` /
-  `alt+f` or a click on the rule folds it; a click on a roster row shows that body's plan; the
-  wheel over the column scrolls it, `▲`/`▼` on its right edge say what lies beyond. `alt+s` or
-  `/sidebar` hides it — the conversation takes the whole frame.
+  `ask`. Its well starts three rows tall with a placeholder (`ask anything · / for commands · @
+  for files`), soft-wraps a long line inside the box (never a sideways scroll), grows with its
+  rows up to eight (or 35% of the window), then scrolls inside; the conversation gives the rows
+  up and the frame stays rectangle-exact. The rule's right end says the draft's size (`3 lines ·
+  342 chars`), then what enter does (`enter sends`, `enter queues for rimuru` while a turn runs)
+  and `shift+enter newline`, yielding right to left. It never reaches under the sidebar. The slash
+  menu, `@` completions and the `?` keys sheet rise from its top edge as cards over the
+  conversation's last rows — the frame never reflows for them.
+- **Sidebar** — the right third, full height from header to status bar, titled `session`: a
+  cockpit column of tiles, each its title in its own hue. The header tile: the world's sprite
+  beside (or above, when narrow) the world's name, the model and the session's state chip. The
+  vitals: a label/value grid — the context meter (a bar ramping calm → warning → danger, the
+  percentage, the cap), the tokens, the cost, the board's link. The races: each race's dot, name,
+  a bar of its share of the session's tokens in its lane, its tokens. The courts: a roster, the
+  live ones first, each state a chip on the right edge (the lane's while it runs, the verdict's
+  once landed). The plan: a progress bar of the deck's done steps and the count, the current step
+  lit in the plan's violet, the rest under it. The files touched: a Lip Gloss tree. The races,
+  courts, plan and files fold to their title: `alt+c` / `alt+p` / `alt+f` or a click on it; a
+  click on a roster row shows that body's plan. Taller than its column, the sidebar scrolls with
+  the wheel and wears the same scrollbar on its right border (the border its track, a heavy `┃`
+  thumb, half-row ends `╹`/`╻`), draggable. `alt+s` or `/sidebar` hides it — the conversation
+  takes the whole frame.
 - **Status bar** — the context meter (and raw counts on wide windows), the session's tokens, the
   cost, live bodies, queued lines, a mode badge; on the right a transient message or the key hints.
 
@@ -89,40 +105,67 @@ the wheel goes — nothing scans glyphs. Below 60×26 the session flows inline a
 
 Inside the cell grid type is weight, case and tone: bold is for titles only; region and section
 titles are small caps (`ᴄᴏɴᴠᴇʀꜱᴀᴛɪᴏɴ`), as are the welcome's labels; text, then label, then dim
-carry the hierarchy. The palette has roles — the terminal's own ground; borders quieter than any
-text; cyan the primary (brand, focus, the live state, headings and links); magenta the human's
-accent (the ask's bar, the waiting chip, inline code), never a second accent in a region that
-wears the primary; green/amber/red for verdicts; the race lanes for bodies. Dark wears the HUD
-neons softened to read as text; light wears their deep-ink twins; every text role holds 4.5:1 on
-its ground. Nothing glows: chips are a hue over a tint of itself, never a neon slab.
+carry the hierarchy. Titles wear colour, each region its own: the conversation on a gradient of
+the primary into the slime's blue, the session the throne's amber into the accent's rose, the ask
+the rose into the plan's violet; each sidebar tile's title its own hue (vitals the primary, races
+amber, courts rose, plan violet, files blue); a tool card's name its class's hue, a Court's its
+race's lane; a panel's title the primary into the violet.
+
+The colours come from one palette (`tui/palette.go`): a named value, role → hex for a dark and a
+light variant, read by one constructor (`NewThemeFrom`) — nothing else names a colour of the
+scheme. The default is omoro.io's **Cyberpunk** (Void `#0D1117`, Smog Purple `#1A0A2E`, Danger
+Red `#FF003C`, Amber Haze `#FF9900`, Scanner Cyan `#00FFFF`): the ground is Void, the surfaces
+step from it toward Smog Purple; Scanner Cyan is the primary (brand, focus, the live state,
+links); a rose from Danger Red is the human's accent (the ask's spine, the waiting chip); the
+verdicts are a mint (the palette has no green), Amber Haze and Danger Red lifted to read; the plan
+is Smog Purple's violet at text lightness; the race lanes are rimuru amber, elf magenta, orc acid
+lime, slime blue, kijin red, dark-elf indigo. Light is the same scheme as deep ink on a
+smog-tinted paper. Every text role, lane, tool class and the plan's hue holds 4.5:1 on every
+surface it can sit on, every row of every gradient and every chip included (`TestDepthContrast`);
+where a raw swatch fails, the palette's role is the swatch retuned, and the palette's comment
+says which.
 
 ## Depth
 
 On a truecolor terminal the frame is drawn as layered planes (`tui/depth.go`), in colour and the
 block elements alone — no animation, no glyph that is not drawing:
 
-- **One tonal scale.** Every surface is a step off the ground — the terminal's own background, its
-  answer to the background query (VS Code's `#1f1f1f` / `#ffffff` until it answers). Elevation
-  `-1` the input well, `0` the ground (the borders sit on it), `1` the planes (the conversation,
-  the sidebar, the status bar), `2` the cards, `3` the floats. On a dark ground a closer surface is
-  lighter; on a light ground the planes are a soft grey and the cards and floats paper-white over
-  them. Each surface leans a few percent toward the hue that says what it is: the human's ask
-  magenta, the answer the primary, a tool its class, a Court its race's lane, a toast its verdict.
-- **Raised.** A card wears a lit top face (a half row of `▄` a step lighter), a lit left edge `▏`
-  or a coloured spine `▌`, a shaded right edge `▕` and bottom edge `▝▀…`, and casts a shadow one
-  cell right and half a row down, tinted from the plane it falls on — never black; a float's
-  shadow is the deepest. Text sits inside a cell of padding on every side.
+- **One tonal scale.** Every surface is a step of the palette's tonal anchors — the palette owns
+  the ground (the depth paints every cell of the frame; the terminal's answer to the background
+  query only tells dark from light). Elevation `-1` the input well, `0` the ground (the borders
+  sit on it), `1` the planes (the conversation, the sidebar, the status bar), `2` the cards, `3`
+  the floats. On the dark variant a closer surface is lighter; on the light one the planes are a
+  soft lavender grey and the cards and floats paper-white over them. Each surface leans toward
+  the hue that says what it is: the human's ask the accent, the answer the primary, a tool its
+  class, a Court its race's lane, the plan its violet, a toast its verdict.
+- **Raised, with volume.** A card's face is a gradient — each row a step from lit at the top to
+  shaded at the bottom (an answer stays flat: its pieces join into one slab); a glossy half row
+  `▄` a tone lighter than the lit face runs under its top edge; its left bevel is crisp and lit
+  (`▏`, or a coloured spine `▌`), its right bevel two tones deep (a half-tone face under a shaded
+  `▕`), its bottom edge `▝▀…` shaded. It casts a shadow two cells right and half a row down: the
+  near column dark, the far one a half-width fade (`▌`), its corners quarter blocks (`▖`, `▘`, a
+  half-tone `▀` where it begins) so it falls soft; a float's shadow is the deepest, with a faint
+  halo of the primary. Text sits inside a cell of padding on every side.
+- **Glow.** An active surface lights its rim in its hue instead of a shade: the running Court in
+  its lane (its gloss and lit edge lean into the hue, its shadow becomes the hue's spill), a
+  fresh toast in its verdict, the ask's well in the primary while the human types.
 - **Sunk.** The input sits in a well: its top and left edges in shadow, its right and bottom edges
-  lit — the inverse of a card. It costs the conversation two rows.
+  lit — the inverse of a card; its first row sits in the lip's shade. It costs the conversation
+  two rows.
 - **The blocks.** The ask and each answer are slabs with a spine (a turn's answer pieces join into
   one slab, a code fence sunk into its own inset inside it); a tool and a Court are smaller chips,
-  their head on the lit band; the welcome is the hero slab, its face drifting from the primary's
-  tint to the magenta's row by row; a gate verdict is a pill with half-block caps. The header is a
+  their head on the lit band — a Court's chip tinted deeper in its lane than a tool's, its band
+  deeper still, its state a chip of its own (the lane's while it runs, the verdict's once landed);
+  the plan tool's card wears the plan's violet and shows the deck's progress and the step in hand;
+  the welcome is the hero slab, its face drifting from the primary's
+  tint to the accent's row by row; a gate verdict is a pill with half-block caps. The header is a
   raised bar on a horizontal drift of the same two tints. The sidebar's sections are stacked tiles
-  — the vitals, the courts, the plan, the files — each its own tint, its title on the lit band (a
-  click on it folds the tile). A toast is a float over the conversation's top-right corner; the ask
+  — the header, the vitals, the races, the courts, the plan, the files — each its own tint, its
+  title on the lit band (a click on a foldable one folds the tile). The meters are slim half-row
+  bars (`▄`, a half cell `▖` at the fill's end) over a tint of their hue. A toast is a float over the conversation's top-right corner; the ask
   card floats over the frame sunk flat beneath it; the palette and the popups are floats.
-- **Text first.** Every text role holds 4.5:1 on every tint, dark and light (`TestDepthContrast`).
+- **Text first.** Every text role holds 4.5:1 on every tint and every row of every gradient, dark
+  and light (`TestDepthContrast`).
   A drag selection copies the text — the spines, bevels and shadows copy as nothing, and a slab's
   padding is taken off the copy.
 - **Fallbacks.** A 256-colour terminal (its tonal steps would band) and a colourless one draw the
@@ -132,7 +175,8 @@ block elements alone — no animation, no glyph that is not drawing:
 
 - **Input** — multiline (`shift+enter` where the terminal reports it apart from `enter` — Bubble
   Tea v2 asks for key disambiguation — and everywhere `\` + enter, `alt+enter`, `ctrl+j`); the box
-  grows with its visual rows, a long line's wraps included, up to eight, then scrolls inside;
+  soft-wraps and grows with its visual rows from three (one inline) up to eight, then scrolls
+  inside — the text itself is never capped;
   history with ↑/↓ on the first/last row, a paste of three lines or more collapsed to
   `[pasted N lines]` and restored on send, `@path` completes files in the world (tab).
 - **Slash commands** — typing `/` opens an inline menu of built-in and discovered commands with
@@ -203,7 +247,8 @@ overdrawn):
 ## Blocks as cards
 
 - **Tool cards** — every line of a tool block carries an edge (`▎`) in its class's colour: read
-  cyan, write violet, outward amber, destructive red — the class is seen before it is read. Under
+  blue, write magenta, outward amber, destructive red — the class is seen before it is read; the
+  plan tool's edge is the plan's violet. Under
   the depth the edge is the raised chip's spine and the chip is tinted in the same hue.
 - **Diffs in colour** — added and removed lines keep their `+`/`-` and line numbers, their code in
   its language's colours (chroma, per line; catppuccin-mocha dark, github light) over a green or
@@ -224,7 +269,8 @@ overdrawn):
   detail), on a graph node selects it; the wheel scrolls.
 - **Mouse under the panes** — on a window wide enough for the sidebar the transcript lives in the
   chat pane, so the program takes the mouse: the wheel scrolls the chat (the sidebar over its own
-  column), a click on a sidebar section's rule or a roster row acts on it. A drag selects in the
+  column), a click on a sidebar section's rule or a roster row acts on it, a click or a drag on a
+  scrollbar walks its pane. A drag selects in the
   conversation only — never a border, the input or the sidebar — scrolling when it rests on the
   pane's edge; a double
   click takes a word, a triple click a line; `esc` clears it. The release copies the plain text
