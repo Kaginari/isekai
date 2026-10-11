@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Kaginari/isekai/value"
 	"sort"
 	"strings"
 )
@@ -9,21 +10,24 @@ import (
 // RankDef is a rank as config writes it; every field is optional and overrides the built-in
 // table's field of the same name (rankSet: extend) or defines a new rank outright.
 type RankDef struct {
-	ReportsTo   string   `json:"reportsTo"`
-	Job         string   `json:"job"`
-	Authors     *bool    `json:"authors"`
-	HoldsGate   *bool    `json:"holdsGate"`
-	Body        string   `json:"body"` // read by nothing: every dispatched body is a Court (a set value is a hole)
-	Office      string   `json:"office"`
-	Tools       []string `json:"tools"` // globs over tool names
-	Model       ModelRef `json:"model"`
-	Dir         string   `json:"dir"`
-	Prefix      string   `json:"prefix"`
-	AscendsFrom string   `json:"ascendsFrom"`
-	Sideways    *bool    `json:"sideways"`    // may speak to its own rank (orc ↔ orc) and name its layer-mates
-	Layer       int      `json:"layer"`       // a rung, 0 when unset; two ranks share a layer iff equal and nonzero
-	DivineRules []string `json:"divineRules"` // an ascended rank's absolute rules, laced into the base rank's prompt
-	AscendsWhen string   `json:"ascendsWhen"` // the ASL condition under which a body of this rank ascends ("" = never)
+	ReportsTo   string     `json:"reportsTo"`
+	Job         string     `json:"job"`
+	Authors     *bool      `json:"authors"`
+	HoldsGate   *bool      `json:"holdsGate"`
+	Body        string     `json:"body"` // read by nothing: every dispatched body is a Court (a set value is a hole)
+	Office      string     `json:"office"`
+	Tools       []string   `json:"tools"` // globs over tool names
+	Model       ModelRef   `json:"model"`
+	Dir         string     `json:"dir"`
+	Prefix      string     `json:"prefix"`
+	AscendsFrom string     `json:"ascendsFrom"`
+	Sideways    *bool      `json:"sideways"`    // may speak to its own rank (orc ↔ orc) and name its layer-mates
+	Layer       int        `json:"layer"`       // a rung, 0 when unset; two ranks share a layer iff equal and nonzero
+	DivineRules []string   `json:"divineRules"` // an ascended rank's absolute rules, laced into the base rank's prompt
+	AscendsWhen string     `json:"ascendsWhen"` // the ASL condition under which a body of this rank ascends ("" = never)
+	Family      string     `json:"family"`      // the value family (rank.Families); unset = derived from the flags
+	Portrait    string     `json:"portrait"`    // a portrait file, relative to the world root, before the embedded one
+	Value       *RankValue `json:"value"`       // the race's own value law over its family's
 }
 
 // Rank is one resolved rank with the origin of each field ("law" for the built-in table).
@@ -43,8 +47,12 @@ type Rank struct {
 	Layer       int
 	DivineRules []string
 	AscendsWhen string
-	Origins     map[string]string // field → origin
-	Builtin     bool
+	Family      string
+	Portrait    string
+	// Value is the race's resolved value law: its own score/meter/minRecord over its family's.
+	Value   value.Spec
+	Origins map[string]string // field → origin (value.score, value.meter, value.minRecord, family included)
+	Builtin bool
 }
 
 // RootRank is the session's rank: the tree's root, never configured.
@@ -118,7 +126,7 @@ func (c *Config) buildRanks() error {
 				r.Origins[field] = c.Where(path)
 			}
 		}
-		set("reportsTo", func() { r.ReportsTo = def.ReportsTo })
+		set("reportsTo", func() { r.ReportsTo = canonicalRank(def.ReportsTo) })
 		set("job", func() { r.Job = def.Job })
 		set("authors", func() { r.Authors = *def.Authors })
 		set("holdsGate", func() { r.HoldsGate = *def.HoldsGate })
@@ -132,11 +140,13 @@ func (c *Config) buildRanks() error {
 		set("model", func() { r.Model = def.Model })
 		set("dir", func() { r.Dir = def.Dir })
 		set("prefix", func() { r.Prefix = def.Prefix })
-		set("ascendsFrom", func() { r.AscendsFrom = def.AscendsFrom })
+		set("ascendsFrom", func() { r.AscendsFrom = canonicalRank(def.AscendsFrom) })
 		set("sideways", func() { r.Sideways = *def.Sideways })
 		set("layer", func() { r.Layer = def.Layer })
 		set("divineRules", func() { r.DivineRules = def.DivineRules })
 		set("ascendsWhen", func() { r.AscendsWhen = def.AscendsWhen })
+		set("family", func() { r.Family = strings.ToLower(strings.TrimSpace(def.Family)) })
+		set("portrait", func() { r.Portrait = def.Portrait })
 		// models.ranks.<r> and ranks.<r>.model are one slot.
 		if mr, ok := c.Models.Ranks[name]; ok && def.Model.Model != "" && mr.Model != def.Model.Model {
 			return fmt.Errorf("%s: ranks.%s.model %q conflicts with models.ranks.%s %q (%s) — one slot, one value",
@@ -255,15 +265,16 @@ func (c *Config) buildRanks() error {
 	return nil
 }
 
-var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways", "layer", "divineRules", "ascendsWhen"}
+var rankFields = []string{"reportsTo", "job", "authors", "holdsGate", "office", "tools", "model", "dir", "prefix", "ascendsFrom", "sideways", "layer", "divineRules", "ascendsWhen", "family", "portrait"}
 
 func (c *Config) rankWhere(name, field string) string { return c.Where("ranks." + name + "." + field) }
 
 // Ranks returns the resolved hierarchy in law order then config order; Rimuru is implicit.
 func (c *Config) Ranks() []Rank { return append([]Rank(nil), c.ranks...) }
 
-// Rank finds one rank by name.
+// Rank finds one rank by any spelling of its name (rank.Canon).
 func (c *Config) Rank(name string) (Rank, bool) {
+	name = canonicalRank(name)
 	for _, r := range c.ranks {
 		if r.Name == name {
 			return r, true
@@ -287,7 +298,8 @@ func (c *Config) Deviations() []string {
 		fields := sortedKeys(r.Origins)
 		for _, f := range fields {
 			o := r.Origins[f]
-			if o != "law" && !strings.HasPrefix(o, "ascends:") {
+			// a derived family and a family's own law are the law's; a race's own value is not
+			if o != "law" && !strings.HasPrefix(o, "ascends:") && !strings.HasPrefix(o, "derived:") && !(strings.HasPrefix(o, "family:") && !strings.Contains(o, "(")) {
 				out = append(out, fmt.Sprintf("rank %s.%s: %s", c.Dist.Word(r.Name), f, o))
 			}
 		}

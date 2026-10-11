@@ -12,10 +12,10 @@
   .timeline-item:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: -1px; }
   .timeline-item[data-rank="rimuru"] { --timeline-rank: var(--series-6); }
   .timeline-item[data-rank="slime"] { --timeline-rank: var(--series-1); }
-  .timeline-item[data-rank="orc"], .timeline-item[data-rank="highorc"] { --timeline-rank: var(--series-2); }
+  .timeline-item[data-rank="orc"], .timeline-item[data-rank="high-orc"] { --timeline-rank: var(--series-2); }
   .timeline-item[data-rank="kijin"] { --timeline-rank: var(--series-3); }
-  .timeline-item[data-rank="elf"], .timeline-item[data-rank="highelf"] { --timeline-rank: var(--series-4); }
-  .timeline-item[data-rank="darkelf"] { --timeline-rank: var(--series-5); }
+  .timeline-item[data-rank="elf"], .timeline-item[data-rank="high-elf"] { --timeline-rank: var(--series-4); }
+  .timeline-item[data-rank="dark-elf"] { --timeline-rank: var(--series-5); }
   .timeline-time { font: var(--step--2) var(--font-code); color: var(--ink-muted); white-space: nowrap; }
   .timeline-dot { inline-size: 0.55rem; block-size: 0.55rem; border-radius: var(--radius-s); transform: rotate(45deg); background: var(--timeline-rank); box-shadow: 0 0 0 0.2rem color-mix(in oklch, var(--timeline-rank) 22%, transparent); }
   .timeline-item[data-live] .timeline-dot { animation: timeline-breathe calc(var(--time-slow) * 4) var(--ease) infinite; }

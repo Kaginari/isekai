@@ -138,7 +138,11 @@ refused at load, whatever layer they come from, each naming `file:line` and the 
 - shown once at REPL start, in human prose.
 
 A feature the binary itself ships off (origin `default`, such as `law.doomLoop`) is not a
-finding: the finding is a switch someone threw. Every `law.humanGate.approve` entry and
+finding: the finding is a switch someone threw. Numeric and string switches count the same way:
+`law.stress.escalateAt` or `.relieveAt` at 0 or below, `law.doomLoop.threshold` at 0,
+`law.guts.benchThrashVisits` below 0, `law.guts.digestEvery` at 0 or below,
+`law.budget.salvageTokens` below 0 and an ascended rank's `ascendsWhen: ""` are listed with their
+origins. Every `law.humanGate.approve` entry and
 `instruments.status.showOff: false` are listed the same way. `status` also
 lists every **loosening**: each `allow` rule on `bash`, `git`, `webfetch` or `websearch`, each
 standing approval, and a gate switched off — one line each with its origin.
@@ -247,6 +251,18 @@ document is JSON here; the same keys in YAML are the same config.
                                                       // @SPLIT / @ESCALATE, sideways counsel allowed); past maxConsults the
                                                       // run hardens @S ESCALATE and rises to the human; escalateAt 0/-1 = off
                                                       // (strain = the run's sent-backs + 1 per unlanded run, per body, clear on clean)
+    "guts":      { "enabled": true, "window": 5, "floor": -2, "benchThrashVisits": 6, "digestEvery": 10, "ring": 12,
+                   "benches": [],                     // [] = the loop's: go (go test/vet), pytest, js (npm/yarn/pnpm test, jest,
+                                                      // vitest), cargo test, make test/check — {name, match, red, green}; a
+                                                      // command carrying a match word is a bench, a red lexeme pins it red
+                   "lexemes": { "negative": [], "positive": [] },  // [] = the loop's (FAILED, Traceback …; PASSED …)
+                   "weights": null,                   // {fail, negative, positive, repeat, echo, thrash}; null = -1 -1 +1 -1 -1 -1
+                   "clamp": null },                   // {min, max} of one act's lexeme reading; null = -2..+1
+                                                      // floor ≤ 0 (a positive floor is refused); ring = benches the echo remembers
+    "value":     { "enabled": true, "window": "28d", "pass": ["DONE", "PASS"], "fail": ["FAIL", "ESCALATE", "CHECKPOINT"],
+                   "neutral": ["DENIED", "INTERRUPTED", "DRY", "SUSPENDED"], "reopenTurns": 3, "minRecord": 5,
+                   "families": {} },                  // the one definition of success and each family's {score, meter,
+                                                      // minRecord} (races.md §Value); the ledger is instruments/value.jsonl
     "forge":     { "demandAtSteps": 12 }              // a turn this long is asked once, at its close, for its @FORGE draft
                                                       // (or why the path is one-off) — every body, closingCheck or not;
                                                       // 0 = off, and `status` lists it as switched off
@@ -366,7 +382,9 @@ document is JSON here; the same keys in YAML are the same config.
   "undo":    { "enabled": true, "dir": "~/.local/share/[dist]/undo", "keepDays": 7 },
   "output":  { "format": "text", "stream": true, "thinking": false, "color": "auto" },
   "budgets": { "session": { "tokens": 0, "usd": 0 }, "court": { "tokens": 0, "usd": 0 } },   // 0 = off; shown in status
-  "ui":      { "statusLine": true, "announceCourts": true, "board": { "autostart": true, "port": 7411 } },
+  "ui":      { "statusLine": true, "announceCourts": true, "board": { "autostart": true, "port": 7411 },
+               "meters": {} },                        // ctx (unset: bands from law.budget — ok under the NEAR line, warn to
+                                                      // the stress line), plan, score: {signal, label, scale, bands, direction}
   "logLevel": "WARN",
 
   // ---------------------------------------------------------------- ranks
@@ -522,7 +540,9 @@ the voice; neither authors nor gates), `orc` → elf (holds the gate, speaks sid
 `slime` → orc (authors), `kijin` → rimuru (authors and gates its own subsystem; commands no one, so it holds no dispatch),
 `high-elf` / `high-orc` ascend from elf / orc, `dark-elf` → rimuru (the auditor: read-only
 tools, never authors). `ranks.<name>` is `{ reportsTo, job, authors, holdsGate, office, tools:
-[globs], model, dir, prefix, ascendsFrom, sideways, layer, divineRules, ascendsWhen }`. `job` is
+[globs], model, dir, prefix, ascendsFrom, sideways, layer, divineRules, ascendsWhen, family,
+portrait, value }`. A rank has one spelling (`rank.Canon`: lower case, words joined by `-`):
+`dark_elf`, `darkelf` and `DarkElf` all read `dark-elf`, keys and values alike. `job` is
 one line carried into the body's system prompt. `body` is accepted and reported as a hole: every
 dispatched body runs as a Court with a fresh context. A rank's `tools` is the most it may hold —
 a rank no other rank reports to (and not `sideways`) is never handed `dispatch`.
@@ -530,9 +550,9 @@ a rank no other rank reports to (and not `sideways`) is never handed `dispatch`.
 An ascended rank (`ascendsFrom`) inherits every field of its base it does not set, and may not
 drop `authors`, `holdsGate` or `sideways`; four fields are its own: `dir` and `prefix` (default:
 its name — `high-orc/`, `high-orc-`; agent-one `principal-domain/`), `divineRules` and
-`ascendsWhen`. `ascendsWhen` is an ASL condition, `ascend <base> when <expr>`, over `reports`,
-`passes`, `fails`, `holes`, `passRate`, `failRate`, `holeRate`, `intelligence` (`&&`, `||`, `!`,
-parentheses; a `%` reads a rate). The defaults are
+`ascendsWhen`. `ascendsWhen` is an ASL condition, `ascend <base> when <expr>`, over every value
+signal (`races.md` §Value) and `score`: comparisons of arithmetic (`+ - * /`, numbers, a `%` reads
+a rate) joined by `&&`, `||`, `!` and parentheses. The defaults — here, and nowhere else — are
 
 ```yaml
 ranks:
@@ -540,9 +560,49 @@ ranks:
   high-orc: {ascendsWhen: "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"}
 ```
 
-and `ascendsWhen: ""` turns ascension off. The tally behind it is
-`<world>/instruments/ascension.jsonl`, append-only and replayed at open; an ascension carries the
-base's doc into the ascended rank's dir, retires the base's seat and is appended to `log.md`.
+and `ascendsWhen: ""` turns ascension off. The record behind it is the value ledger
+`<world>/instruments/value.jsonl`, append-only and replayed at open (seeded once from an older
+`instruments/ascension.jsonl`); an ascension carries the base's doc into the ascended rank's dir,
+retires the base's seat and is appended to `log.md`.
+
+`family` names the rank's value family (`root`, `planner`, `gate`, `author`, `steward`,
+`auditor`, `generic`); unset, its flags derive it. `portrait` is an image path, root-relative,
+the board draws for the rank when `<world>/portraits/<rank>.png` does not stand (the order:
+the world's own file in any spelling → `portrait` → the embedded race portrait → the family's
+glyph → the generic glyph). `value` is the race's own law over its family's:
+
+```yaml
+ranks:
+  night-watch:                  # a custom race: read-only, so its family is auditor
+    reportsTo: rimuru
+    tools: [read, grep, glob]
+  slime:
+    value:
+      score: "0.5*landRate + 0.5*gateRate"   # value.Expr over signals, clamped 0..100
+      meter: {signal: gateRate, label: First try, scale: percent, bands: {ok: 85, warn: 60}, direction: up}
+      minRecord: 8                            # fewer reports: low-confidence, never ranked
+law:
+  value:
+    enabled: true
+    window: 28d                 # the fold's window (28d, 7d, 24h, all)
+    pass: [DONE, PASS]
+    fail: [FAIL, ESCALATE, CHECKPOINT]
+    neutral: [DENIED, INTERRUPTED, DRY, SUSPENDED]
+    reopenTurns: 3              # a throne pass rewritten within this many turns is reopened
+    minRecord: 5
+    families:
+      gate: {score: "0.6*gateRight + 0.4*slimeHealth"}
+ui:
+  meters:                       # the session's meters; ctx unset derives from law.budget
+    score: {signal: score, label: Score, bands: {ok: 70, warn: 40}}
+```
+
+A grammar that does not parse, an unknown signal or family, bands a meter cannot honour (a rising
+meter's `ok` under its `warn`), overlapping pass/fail/neutral words and a malformed window are
+refused at load; a signal the race can never produce is a hole. `isekai config explain value`
+prints each race's resolved family, score, meter and record with the origin of each part
+(`law`, `family:<f>`, `derived: <flags>` or `file:line`), the definition of success, the window
+and the session meters.
 
 With `rankSet: extend` (the default) a field given overrides the built-in field and
 a new name adds a rank; with `rankSet: replace` only the ranks listed exist and the built-in

@@ -18,7 +18,7 @@ func TestRelateTheThreeBonds(t *testing.T) {
 		{Name: "elf", ReportsTo: Rimuru, Layer: 1},
 		{Name: "elf2", ReportsTo: Rimuru, Layer: 1},
 		{Name: "orc", ReportsTo: "elf", Layer: 2},
-		{Name: "high_orc", ReportsTo: "elf", Base: "orc", Layer: 2},
+		{Name: "high-orc", ReportsTo: "elf", Base: "orc", Layer: 2},
 		{Name: "slime", ReportsTo: "orc", Layer: 3},
 		{Name: "slime2", ReportsTo: "orc", Layer: 3},
 	}
@@ -30,8 +30,8 @@ func TestRelateTheThreeBonds(t *testing.T) {
 		{Rimuru, "elf", RelParent},     // the throne is the elf's parent
 		{"orc", "slime", RelParent},    // an orc is one hop above its slime
 		{"slime", "orc", RelChild},     // a slime one hop below its orc
-		{"high_orc", "orc", RelDivine}, // a high orc ascends its base
-		{"orc", "high_orc", RelDivine}, // the divine bond reads both ways
+		{"high-orc", "orc", RelDivine}, // a high orc ascends its base
+		{"orc", "high-orc", RelDivine}, // the divine bond reads both ways
 		{"elf", "elf2", RelNeighbor},   // one configured layer shares the neighbor bond
 		{"slime", "slime2", RelNeighbor},
 		{"orc", "orc", RelNeighbor}, // a rank is its own neighbor
@@ -76,11 +76,11 @@ func TestNeighborRanksSharesLayer(t *testing.T) {
 	// layers unset: the neighbors are the ranks reporting to the same parent
 	reportBased := Ranks{
 		{Name: "orc", ReportsTo: "elf"},
-		{Name: "high_orc", ReportsTo: "elf", Base: "orc"},
+		{Name: "high-orc", ReportsTo: "elf", Base: "orc"},
 		{Name: "slime", ReportsTo: "orc"},
 	}
 	got := reportBased.NeighborRanks("orc")
-	if strings.Join(got, ",") != "orc,high_orc" {
+	if strings.Join(got, ",") != "orc,high-orc" {
 		t.Errorf("report-based layer-mates: %v", got)
 	}
 	// the slime shares its report-line with no one else
@@ -115,7 +115,7 @@ func TestDirectChildOneHopDown(t *testing.T) {
 	// the divine bond: a base rank's ascended self sits at its own layer — the base may
 	// reach its ascended, for the ascended reports to the same parent as the base's own
 	// parent (high_orc reports to elf, one hop under the elf, same as orc)
-	if !rs.DirectChild("elf", "high_orc") {
+	if !rs.DirectChild("elf", "high-orc") {
 		t.Error("elf → high_orc is one hop down: the ascended orc still answers to the elf")
 	}
 }
@@ -175,14 +175,14 @@ func TestStrictFlowRefusesThroneToOrcSkip(t *testing.T) {
 func TestDivineRulesReachTheBase(t *testing.T) {
 	rs := Ranks{
 		{Name: "orc", ReportsTo: "elf", HoldsGate: true},
-		{Name: "high_orc", ReportsTo: "elf", Base: "orc",
+		{Name: "high-orc", ReportsTo: "elf", Base: "orc",
 			DivineRules: []string{"hold the gate even when pressed", "a reverted pass is a fail"}},
 	}
 	got := rs.DivineRulesFor("orc")
 	if len(got) != 2 || got[0] != "hold the gate even when pressed" {
 		t.Errorf("the base hears its ascended's rules: %v", got)
 	}
-	if got := rs.DivineRulesFor("high_orc"); len(got) != 0 {
+	if got := rs.DivineRulesFor("high-orc"); len(got) != 0 {
 		t.Errorf("the ascended does not hear its own rules echoed back: %v", got)
 	}
 	if got := rs.DivineRulesFor("elf"); len(got) != 0 {
@@ -192,7 +192,18 @@ func TestDivineRulesReachTheBase(t *testing.T) {
 
 func TestAscensionsWalksTheBonds(t *testing.T) {
 	rs := Ranks(DefaultRanks(Isekai()))
-	// the default table wires both divine ascensions on the conservative record band
+	// the world's table carries no condition: config wires both on the conservative record band
+	if got := rs.Ascensions(); len(got) != 0 {
+		t.Fatalf("no condition, no ascension: %v", got)
+	}
+	for i := range rs {
+		switch rs[i].Name {
+		case "high-elf":
+			rs[i].AscendsWhen = config.DefaultAscendElf
+		case "high-orc":
+			rs[i].AscendsWhen = config.DefaultAscendOrc
+		}
+	}
 	got := rs.Ascensions()
 	if len(got) != 2 {
 		t.Fatalf("the default table wires high_elf and high_orc: %v", got)
@@ -201,13 +212,13 @@ func TestAscensionsWalksTheBonds(t *testing.T) {
 	for _, a := range got {
 		byFrom[a.From] = a
 	}
-	if byFrom["elf"].When != DefaultAscendElf || byFrom["orc"].When != DefaultAscendOrc {
+	if byFrom["elf"].When != config.DefaultAscendElf || byFrom["orc"].When != config.DefaultAscendOrc {
 		t.Fatalf("ascendsWhen = %q / %q, want the defaults", byFrom["elf"].When, byFrom["orc"].When)
 	}
 	// a custom ascendsWhen still carries through
 	rs2 := append(Ranks(nil), rs...)
 	for i, r := range rs2 {
-		if r.Name == "high_orc" {
+		if r.Name == "high-orc" {
 			rs2[i].AscendsWhen = "ascend orc when reports >= 3"
 		}
 	}

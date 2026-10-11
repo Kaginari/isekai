@@ -13,6 +13,7 @@ import (
 
 	"github.com/Kaginari/isekai/loop"
 	"github.com/Kaginari/isekai/onto"
+	"github.com/Kaginari/isekai/rank"
 )
 
 // lexiconJSON is the binary's copy of agent-one/lexicon.json; a test keeps the two equal.
@@ -119,9 +120,10 @@ func ParseLexicon(data []byte, vocab string) (Lexicon, error) {
 	l.Thoughts = str("heading.thoughts", vocab)
 	l.Territory = str("field.territory", vocab)
 	for _, r := range append(append([]string(nil), Races...), "high_elf", "high_orc", "dark_elf") {
-		l.Ranks[r] = str("rank."+r, "dir")
-		l.Prefixes[r] = str("rank."+r, "prefix")
-		l.Display[r] = str("rank."+r, vocab)
+		c := rank.Canon(r) // the lexicon's keys are its own; the map speaks the one spelling
+		l.Ranks[c] = str("rank."+r, "dir")
+		l.Prefixes[c] = str("rank."+r, "prefix")
+		l.Display[c] = str("rank."+r, vocab)
 	}
 	for _, k := range []string{"law", "colony", "territory"} {
 		l.Unsaid[k] = str("kind.unsaid."+k, "token")

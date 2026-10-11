@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/Kaginari/isekai/onto"
+	"github.com/Kaginari/isekai/rank"
 	"github.com/Kaginari/isekai/tool"
+	"github.com/Kaginari/isekai/value"
 )
 
 // Rank is one row of the hierarchy — data, not code (binary.md §Ranks and bodies). The
@@ -14,7 +16,7 @@ import (
 // the whole table. Territory, the gate and dispatch read Authors, HoldsGate and Tools; nothing
 // below names elf, orc or slime.
 type Rank struct {
-	Name        string   // canonical id: elf | orc | slime | kijin | high_elf | high_orc | dark_elf | anything from config
+	Name        string   // canonical id (rank.Canon): elf | orc | slime | kijin | high-elf | high-orc | dark-elf | anything from config
 	ReportsTo   string   // the rank one hop up; "rimuru" at the top
 	Job         string   // one line
 	Authors     bool     // authors changes in its territory (territory is enforced on it)
@@ -28,6 +30,14 @@ type Rank struct {
 	Layer       int      // config-declared rung (0 when unset); two ranks share a layer iff equal and nonzero
 	DivineRules []string // an ascended rank's absolute rules; they reach the base rank as coded rules
 	AscendsWhen string   // the metrics condition under which a body of this rank ascends (ASL); "" = never
+	// The value law (races.md §Value): the family a rank's job is measured as ("" = derived from
+	// its flags), its score expression and meter ("" / zero = the family's), the record below
+	// which a body's score is low-confidence (0 = the world's), and a configured portrait file.
+	Family    string
+	Score     string
+	Meter     value.MeterDef
+	MinRecord int
+	Portrait  string
 }
 
 // Relation names the three coded bonds between two ranks.
@@ -80,17 +90,9 @@ var AllTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", 
 
 var baseTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law"}
 
-// The default ascension conditions (config/ranks.go carries the same two strings; a world test
-// keeps them equal). Conservative on purpose: a body ascends only on a long record — twenty
-// reports — nearly all of them landed (a pass rate of 90% or more) and nearly none leaving a
-// hole behind (at most one hole per ten reports). `ranks.high-elf.ascendsWhen` and
-// `ranks.high-orc.ascendsWhen` override them; an empty string turns ascension off.
-const (
-	DefaultAscendElf = "ascend elf when reports >= 20 && passRate >= 90% && holeRate <= 10%"
-	DefaultAscendOrc = "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"
-)
-
-// DefaultRanks is the law's table (isekai.md §The world), dirs and prefixes from the lexicon.
+// DefaultRanks is the law's table (isekai.md §The world), dirs and prefixes from the lexicon. The
+// ascended ranks carry no ascendsWhen here: config is the one source of the default conditions
+// (config.DefaultAscendElf / DefaultAscendOrc), so a world opened without config never ascends.
 func DefaultRanks(lex Lexicon) []Rank {
 	d := func(r string) string { return lex.Ranks[r] }
 	p := func(r string) string { return lex.Prefixes[r] }
@@ -99,9 +101,9 @@ func DefaultRanks(lex Lexicon) []Rank {
 		{Name: "orc", ReportsTo: "elf", Job: "rules its domain, commands its slimes, holds the gate — the slice's verify is written before its slime is ordered (the gate proves the landing, never after)", HoldsGate: true, Sideways: true, Office: "raphael", Tools: AllTools, Dir: d("orc"), Prefix: p("orc")},
 		{Name: "slime", ReportsTo: "orc", Job: "the ground truth of its zone: authors changes there", Authors: true, Office: "great-sage", Tools: baseTools, Dir: d("slime"), Prefix: p("slime")},
 		{Name: "kijin", ReportsTo: Rimuru, Job: "standing domain lead: owns one subsystem end-to-end across sessions", Authors: true, HoldsGate: true, Office: "raphael", Tools: AllTools, Dir: d("kijin"), Prefix: p("kijin")},
-		{Name: "high_elf", ReportsTo: Rimuru, Job: "ascended elf: the cross-domain traits an elf distilled", Office: "ciel", Tools: AllTools, Dir: d("high_elf"), Prefix: p("high_elf"), Base: "elf", AscendsWhen: DefaultAscendElf},
-		{Name: "high_orc", ReportsTo: "elf", Job: "ascended orc: the domain traits an orc distilled", HoldsGate: true, Sideways: true, Office: "raphael", Tools: AllTools, Dir: d("high_orc"), Prefix: p("high_orc"), Base: "orc", AscendsWhen: DefaultAscendOrc},
-		{Name: "dark_elf", ReportsTo: Rimuru, Job: "the auditor: reviews verdicts and the log, never authors", Office: "raphael", Tools: []string{"read", "bash", "glob", "grep", "law"}, Dir: d("dark_elf"), Prefix: p("dark_elf")},
+		{Name: "high-elf", ReportsTo: Rimuru, Job: "ascended elf: the cross-domain traits an elf distilled", Office: "ciel", Tools: AllTools, Dir: d("high-elf"), Prefix: p("high-elf"), Base: "elf"},
+		{Name: "high-orc", ReportsTo: "elf", Job: "ascended orc: the domain traits an orc distilled", HoldsGate: true, Sideways: true, Office: "raphael", Tools: AllTools, Dir: d("high-orc"), Prefix: p("high-orc"), Base: "orc"},
+		{Name: "dark-elf", ReportsTo: Rimuru, Job: "the auditor: reviews verdicts and the log, never authors", Office: "raphael", Tools: []string{"read", "glob", "grep", "law"}, Dir: d("dark-elf"), Prefix: p("dark-elf")},
 	}
 }
 
@@ -112,7 +114,7 @@ type Ranks []Rank
 // throne holds no office: its calls run on the mount and are journaled with no office label —
 // offices belong to dispatched Courts and to the binary's own routed calls.
 func (rs Ranks) Get(name string) (Rank, bool) {
-	name = strings.ToLower(strings.TrimSpace(name))
+	name = rank.Canon(name)
 	if name == Rimuru {
 		return Rank{Name: Rimuru, Job: "the session: thinks, decides, orders", Tools: []string{"*"}}, true
 	}
@@ -533,4 +535,24 @@ func (rs Ranks) Ascensions() []Ascension {
 		}
 	}
 	return out
+}
+
+// Flags are a rank's capabilities as the value law reads them.
+func (rs Ranks) Flags(name string) rank.Flags {
+	if rank.Canon(name) == Rimuru {
+		return rank.Flags{Root: true, Commands: true}
+	}
+	r, ok := rs.Get(name)
+	if !ok {
+		return rank.Flags{}
+	}
+	return rank.Flags{Authors: r.Authors, HoldsGate: r.HoldsGate, Commands: rs.Commands(r.Name), ReportsToRoot: r.ReportsTo == Rimuru, ReadOnly: rank.ReadOnly(rs.Tools(r.Name))}
+}
+
+// FamilyOf is a rank's value family: its own when config named one, else derived from its flags.
+func (rs Ranks) FamilyOf(name string) string {
+	if r, ok := rs.Get(name); ok && r.Family != "" {
+		return r.Family
+	}
+	return rank.FamilyOf(rs.Flags(name))
 }

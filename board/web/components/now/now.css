@@ -17,10 +17,10 @@
   .now-ctx[data-level="danger"] { color: var(--danger); }
   .now-chip[data-rank="rimuru"] { --now-rank: var(--series-6); }
   .now-chip[data-rank="slime"] { --now-rank: var(--series-1); }
-  .now-chip[data-rank="orc"], .now-chip[data-rank="highorc"] { --now-rank: var(--series-2); }
+  .now-chip[data-rank="orc"], .now-chip[data-rank="high-orc"] { --now-rank: var(--series-2); }
   .now-chip[data-rank="kijin"] { --now-rank: var(--series-3); }
-  .now-chip[data-rank="elf"], .now-chip[data-rank="highelf"] { --now-rank: var(--series-4); }
-  .now-chip[data-rank="darkelf"] { --now-rank: var(--series-5); }
+  .now-chip[data-rank="elf"], .now-chip[data-rank="high-elf"] { --now-rank: var(--series-4); }
+  .now-chip[data-rank="dark-elf"] { --now-rank: var(--series-5); }
   .now-wait {
     --now-tone: var(--warn);
     flex: 0 0 auto; padding: 0 var(--space-s); border: var(--hairline) solid var(--now-tone); border-radius: var(--radius-pill);

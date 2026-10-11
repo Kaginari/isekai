@@ -15,6 +15,7 @@ import (
 	"github.com/Kaginari/isekai/loop"
 	"github.com/Kaginari/isekai/provider"
 	"github.com/Kaginari/isekai/tool"
+	"github.com/Kaginari/isekai/value"
 	"github.com/Kaginari/isekai/wire"
 )
 
@@ -189,6 +190,10 @@ func (w *World) Engine(as string, b Build) *loop.Engine {
 	}
 	e.Tools = shelf.Only(names...)
 	e.Hooks = MergeHooks(w.Hooks(b.Hooks), b.Extra)
+	if b.Depth == 0 {
+		// the throne's turns are the root's record: every human ask folds into the value ledger
+		e.Hooks = MergeHooks(e.Hooks, loop.Hooks{Ended: w.turnEnded(as)})
+	}
 	if closer != nil {
 		w.mu.Lock()
 		w.closers[e] = closer
@@ -523,8 +528,10 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		if strings.TrimSpace(rep.Text) != "" && len(rep.Text) > reportEnvelopeFloor {
 			rep.ReportPath, rep.ReportBytes, rep.ReportHash = w.fileReport(body, rep.Text)
 		}
+		warrant := false
 		if stamp, escalate := w.councilLedger(body, verdictOf(r), r, b.Court); stamp != "" {
 			rep.Text += stamp
+			warrant = true
 			if escalate {
 				rep.Status, rep.Failed = "ESCALATE", true
 			}
@@ -543,14 +550,14 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 			}
 		}
 		w.courtGated(parent, body, rep.Wrote)
-		// the tally grows before the return: the ranking body's report is its record, and an
-		// ascension may mint off it. A pass is a landed run the body itself calls DONE: its own
-		// @S FAIL / ESCALATE overrides a clean loop status.
-		status := string(r.Status)
-		if v := verdictOf(r); v != "" && v != "DONE" {
-			status = v
-		}
-		w.FoldMetrics(cr.Name, status, len(r.Holes)) // the roster's name: a short or old name folds into one record
+		// the value ledger grows before the return: the ranking body's report is its record, and
+		// an ascension may mint off it. One definition of success (law.value): the run's word is
+		// the loop's when the loop did not close DONE, else the body's own @S — its FAIL /
+		// ESCALATE overrides a clean loop status. The gate verdict credits the body that held it.
+		w.mu.Lock()
+		strainNow := w.stress[body]
+		w.mu.Unlock()
+		w.foldResult(cr.Name, parent.As, r, strainNow, warrant, false) // the roster's name: a short or old name folds into one record
 		if lines := w.ascendLines(); len(lines) > 0 {
 			note := strings.Join(lines, "\n")
 			if rep.ReportPath != "" {
@@ -600,12 +607,8 @@ func (w *World) firstChildLine(rank string) string {
 // lifecycle status is not the verdict — a court that reports "@S FAIL" landed its run cleanly
 // (the Law-9 lesson); the journal's status says DONE where the body says FAIL.
 func verdictOf(r *loop.Result) string {
-	if s := r.Report.Status; s != "" {
-		tok := strings.ToUpper(strings.Fields(s)[0])
-		switch tok {
-		case "DONE", "FAIL", "ESCALATE", "DENIED", "INTERRUPTED":
-			return tok
-		}
+	if r.Report.Status != "" {
+		return value.Word(r.Report.Status)
 	}
 	return ""
 }
@@ -620,21 +623,25 @@ func verdictOf(r *loop.Result) string {
 // (law.stress.maxConsults); past the bound the warrant hardens: the report ends @S ESCALATE
 // and rises to the human. A clean landing clears the ledger.
 //
-// The loop's DENIED and INTERRUPTED never consult: the human's word and the clock's law
-// already answered.
+// Landed and struggled are law.value's one definition (value.Def): a pass word lands, a fail
+// word struggles, a neutral word — the human's DENIED, an INTERRUPTED, a DRY run — never
+// consults: the human's word and the clock's law already answered.
 func (w *World) councilLedger(body string, verdict string, r *loop.Result, court CourtOptions) (stamp string, escalate bool) {
+	word := value.RunWord(r.Status, verdict)
+	if r.Interrupted {
+		word = "INTERRUPTED"
+	}
+	outcome := w.ValueOpts().Def.Outcome(word)
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	landed := r.Status == loop.Done && verdict == "DONE"
-	if landed { // a clean landing clears the ledger — management by exception
+	if outcome == value.Pass { // a clean landing clears the ledger — management by exception
 		delete(w.stress, body)
 		delete(w.consults, body)
 		w.ledgerNote(ledgerRow{Kind: "stressClear", Body: body})
 		return "", false
 	}
-	struggled := r.Status == loop.Fail || r.Status == loop.Checkpoint || verdict == "FAIL" || verdict == "ESCALATE"
-	if !struggled {
-		return "", false // self-DENIED, INTERRUPTED, off-verdict: another law already spoke
+	if outcome != value.Fail {
+		return "", false // neutral: another law already spoke
 	}
 	at := court.StressEscalateAt
 	if at <= 0 {

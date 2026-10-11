@@ -271,13 +271,13 @@ func TestGutsRedPin(t *testing.T) {
 	benchOut := "=== RUN TestGutsRedPinX\n--- FAIL: TestGutsRedPinX (0.00s)\n    loop_test.go:000: boom\nFAIL\tgithub.com/Kaginari/isekai/loop\t0.123s\nFAIL\n"
 	st := &StepRecord{}
 	// bench FAIL → red pin (0). res.Err=false so we exercise the output-lexicon path.
-	v, why := gutsValue(st, benchCall, tool.Result{Output: benchOut}, "")
+	v, why, _ := (*Guts)(nil).value(st, benchCall, tool.Result{Output: benchOut}, "")
 	if v != 0 || !strings.Contains(why, "red pin") {
 		t.Fatalf("bench FAIL must score 0 'red pin — failure is the signal', got v=%d why=%q", v, why)
 	}
 	// go vet bench failing must also pin.
 	vetCall := provider.ToolCall{Name: "shell.exec", Input: json.RawMessage(`{"command":"go vet ./..."}`)}
-	v2, _ := gutsValue(st, vetCall, tool.Result{Output: "# x\nvet.go:1: FAIL\n"}, "")
+	v2, _, _ := (*Guts)(nil).value(st, vetCall, tool.Result{Output: "# x\nvet.go:1: FAIL\n"}, "")
 	if v2 != 0 {
 		t.Fatalf("go vet FAIL must score 0 red pin, got v=%d", v2)
 	}
@@ -289,7 +289,7 @@ func TestGutsRedPin(t *testing.T) {
 	}
 	// non-test tool with FAIL output still eats the negative lexicon (−1).
 	catCall := provider.ToolCall{Name: "read", Input: json.RawMessage(`{"path":"loop.go"}`)}
-	v3, _ := gutsValue(st, catCall, tool.Result{Output: "FAILED\n"}, "")
+	v3, _, _ := (*Guts)(nil).value(st, catCall, tool.Result{Output: "FAILED\n"}, "")
 	if v3 == 0 {
 		t.Fatalf("non-test tool FAIL output must still score −1 via lexicon, got v=%d", v3)
 	}

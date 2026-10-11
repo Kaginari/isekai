@@ -212,6 +212,16 @@ func MergeHooks(base, over loop.Hooks) loop.Hooks {
 	if over.Budget != nil {
 		out.Budget = over.Budget
 	}
+	if over.Ended != nil {
+		if base.Ended == nil {
+			out.Ended = over.Ended
+		} else {
+			out.Ended = func(s *loop.Session, r *loop.Result) {
+				base.Ended(s, r)
+				over.Ended(s, r)
+			}
+		}
+	}
 	return out
 }
 

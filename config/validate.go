@@ -14,7 +14,7 @@ var fileLayers = map[string]bool{"global": true, "project": true, "local": true}
 func (c *Config) finish() error {
 	steps := []func() error{
 		c.checkScalars, c.checkProviders, c.checkTools, c.checkMCP, c.checkPermissions,
-		c.resolveRules, c.mergeRegistry, c.buildRanks, c.checkModels, c.checkGate, c.checkCompaction,
+		c.resolveRules, c.mergeRegistry, c.buildRanks, c.resolveValues, c.checkModels, c.checkGate, c.checkCompaction, c.checkGuts,
 	}
 	for _, s := range steps {
 		if err := s(); err != nil {
@@ -147,6 +147,31 @@ func (c *Config) Off() []Finding {
 	if c.Law.Forge.DemandAtSteps <= 0 {
 		add("law.forge.demandAtSteps")
 	}
+	// the numeric and string switches: a zero, a negative or an empty string someone wrote is a
+	// feature turned off, named with its origin like any `enabled: false`
+	if c.Law.Stress.EscalateAt <= 0 {
+		add("law.stress.escalateAt")
+	}
+	if c.Law.Stress.RelieveAt <= 0 {
+		add("law.stress.relieveAt")
+	}
+	if c.Law.DoomLoop.Threshold <= 0 {
+		add("law.doomLoop.threshold")
+	}
+	if c.Law.Guts.BenchThrashVisits < 0 {
+		add("law.guts.benchThrashVisits")
+	}
+	if c.Law.Guts.DigestEvery <= 0 {
+		add("law.guts.digestEvery")
+	}
+	if c.Law.Budget.SalvageTokens < 0 {
+		add("law.budget.salvageTokens")
+	}
+	for _, r := range c.ranks {
+		if r.AscendsFrom != "" && strings.TrimSpace(r.AscendsWhen) == "" {
+			add("ranks." + r.Name + ".ascendsWhen")
+		}
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out
 }
@@ -212,6 +237,27 @@ func (c *Config) mergeRegistry() error {
 		}
 		if _, ok := prov.Models[id]; !ok {
 			prov.Models[id] = c.Registry.Models[key]
+		}
+	}
+	return nil
+}
+
+// checkGuts refuses a guts floor above zero: the floor is the momentum the gut speaks at, and a
+// positive one would speak on a run that is gaining ground. Zero is a floor like any other.
+func (c *Config) checkGuts() error {
+	g := c.Law.Guts
+	if g.Floor > 0 {
+		return fmt.Errorf("%s: law.guts.floor: %d — the gut speaks when the momentum falls to the floor, so the floor is ≤ 0", c.Where("law.guts.floor"), g.Floor)
+	}
+	if g.Clamp != nil && g.Clamp.Min > g.Clamp.Max {
+		return fmt.Errorf("%s: law.guts.clamp: min %d over max %d", c.Where("law.guts.clamp"), g.Clamp.Min, g.Clamp.Max)
+	}
+	if g.Ring < 0 {
+		return fmt.Errorf("%s: law.guts.ring: %d is below zero", c.Where("law.guts.ring"), g.Ring)
+	}
+	for i, b := range g.Benches {
+		if len(b.Match) == 0 {
+			return fmt.Errorf("%s: law.guts.benches[%d]: a bench names the commands it matches (match)", c.Where(fmt.Sprintf("law.guts.benches[%d]", i)), i)
 		}
 	}
 	return nil

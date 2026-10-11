@@ -183,7 +183,11 @@ func (a *App) REPL(ctx context.Context) int {
 		case <-wake:
 			if turnDone != nil {
 				for _, rep := range a.Court.TakeWake() {
-					_ = a.Court.Send(world.Rimuru, rep)
+					// the turn may already be closing (its body reads done): the report then
+					// waits in the inbox for the turn-done drain, never lost
+					if a.Court.Send(world.Rimuru, rep) != nil {
+						_ = a.Court.Enqueue(world.Rimuru, rep)
+					}
 				}
 				continue
 			}

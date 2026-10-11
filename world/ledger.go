@@ -18,7 +18,7 @@ import (
 const ledgerShelf = "instruments/ledgers.jsonl"
 
 type ledgerRow struct {
-	Kind   string    `json:"kind"` // stress | consults | stressClear | death | courtWrite
+	Kind   string    `json:"kind"` // stress | consults | stressClear | death | courtWrite | relief (a council relief: the zone split or retired — Lane names the act, Path the young)
 	Body   string    `json:"body"`
 	Value  int       `json:"value,omitempty"`
 	Lane   string    `json:"lane,omitempty"`

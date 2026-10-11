@@ -8,6 +8,37 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Each race is valued by its own job.** One definition of success (`law.value`: pass, fail and
+  neutral words; a run's word is the loop's when it did not close `DONE`, else the body's `@S`) is
+  read by the ascension fold, the council, the dashboard's leaderboard and activity, and the loop
+  journal's new `word`. Every run of every body is one row of an append-only value ledger
+  (`instruments/value.jsonl`), kept whether or not anything ascends, replayed at open and seeded
+  once from the old ascension tally. A gate verdict credits the body that held the gate, and a
+  pass later failed on the same paths is an overturn. Holes split by kind — infra, harness, self —
+  and only harness holes cost; `holeRate` is per report and never passes 100%; the human's
+  `DENIED` and an interrupted run are neutral. A rank's flags give it a family (root, planner,
+  gate, author, steward, auditor, generic) and the family a score — an arithmetic expression over
+  the ledger's signals (`landRate`, `gateRate`, `gateRight`, `slimeHealth`, `planLandRate`,
+  `askDoneRate`, …) — and a meter with config's bands; `ranks.<r>.value` overrides both,
+  `ascendsWhen` reads `score` and every signal with arithmetic, and a signal a race can never
+  produce is a load-time hole. `/api/value` and `/api/meters` serve it; `isekai config explain
+  value` prints each race's law with its origins.
+- **The dashboard ranks by value.** The Metrics leaderboard sorts by score (score, the race's own
+  measure in its band, strain, work, tokens; a body under its race's record hatched and unranked)
+  under a row of each race's meter; every neuron wears a band ring; the 3D health tint is the
+  ranked bodies' score; every band the page draws comes from `/api/meters` (the context bands from
+  `law.budget`, the one line the context instrument's NEAR zone reads too).
+- **Faces and sizes.** One portrait resolver (`board/icons.go`): the world's own
+  `portraits/<rank>.png`, `ranks.<r>.portrait`, the embedded race portrait, the family's glyph
+  (Tabler outline icons, MIT), the generic glyph; `/portraits/<rank>` serves it and `/api/colony`
+  nodes carry `icon`, `family`, `value` and `mass` (lines of code owned). Every creature wears its
+  face at every depth, the focus card shows it large, the minds wear Lucide's `brain-circuit`
+  (ISC); neurons are small and sized by the code they own, and the 3D tint switch carries its key.
+- **The guts speak any language.** `law.guts.benches` (go, pytest, the JS runners, cargo, make —
+  each with red and green lexemes), `lexemes`, `weights`, `clamp` and `ring` are config; a reading
+  journals a stable `class` (fail, neg-lexeme, echo, thrash, repeat, red-pin) and `lessons` groups
+  by it.
+
 - **The terminal UI wears the Cyberpunk palette, with volume.** The colours are one named palette
   (`tui/palette.go`, role → hex for dark and light, read by one constructor): omoro.io's Cyberpunk —
   Void ground, surfaces stepping toward Smog Purple, Scanner Cyan the primary, a Danger Red rose the
@@ -284,6 +315,15 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **A rank has one spelling.** `rank.Canon` (lower case, hyphenated) is used by config, the
+  world, the ontology's colony, the board, the portraits' file names and the TUI's keys;
+  `dark_elf`, `darkelf` and `DarkElf` are read as `dark-elf`.
+- **Config is the one source of the default ascension band**; the world's table carries none.
+- **`status` names numeric and string switches** (`law.stress.escalateAt`, `.relieveAt`,
+  `law.doomLoop.threshold`, `law.guts.benchThrashVisits`, `.digestEvery`,
+  `law.budget.salvageTokens`, an empty `ascendsWhen`) like any `enabled: false`; a guts floor of 0
+  is honoured and a positive one refused.
+
 - **`--containered` is now `--docker-agent`** — the flag that runs the whole binary inside a Docker
   container; the old name still works and says what it is called now. The marker inside the
   container is `<PREFIX>DOCKER_AGENT`.
@@ -319,6 +359,9 @@ All notable changes to Isekai are recorded here. The format follows
   names the missing key and the rerun, and does not start a founding session it cannot finish.
 
 ### Fixed
+
+- A background Court's report that arrived while the session's turn was closing was lost; it now
+  waits in the inbox for the turn-done drain.
 
 - **The orc's verify check reads the slime's doc fresh.** A verify line the orc wrote earlier in
   the same turn now counts when it dispatches the slime.

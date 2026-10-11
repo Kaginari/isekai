@@ -20,7 +20,7 @@
   const ms = n => !n ? '—' : n < 1000 ? n + ' ms' : n < 60000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n / 60000) + ' min';
   const section = (title, ...kids) => el('section', { class: 'stack', 'data-gap': 's' }, el('h3', { class: 'panel-note', text: title }), ...kids);
   const empty = (cls, text) => el('p', { class: cls, text });
-  const rankOf = name => { const low = String(name || '').toLowerCase(); for (const r of ['rimuru', 'darkelf', 'highelf', 'highorc', 'kijin', 'slime', 'orc', 'elf']) if (low === r || low.startsWith(r + '-')) return r; return ''; };
+  const rankOf = name => { const low = String(name || '').toLowerCase(); for (const r of ['rimuru', 'dark-elf', 'high-elf', 'high-orc', 'kijin', 'slime', 'orc', 'elf']) if (low === r || low.startsWith(r + '-')) return r; return ''; };
   function feed(items, emptyText) {
     if (!items.length) return empty('feed-empty', emptyText);
     return el('ol', { class: 'feed' }, items.map(i => el('li', { class: 'feed-item', 'data-tone': i.tone || false },

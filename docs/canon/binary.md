@@ -35,6 +35,7 @@ line of `go.mod` (Go ≥ 1.26).
 | `memory` | port of `memory.js`: status, index, recall (meaning + relation rank), remember (`--kind law|colony|territory`) | §Memory tiers — same files, same formats |
 | `toolbox` | port of `toolbox.js`: registry build, `brief` (level-1 `@T` manifest under a budget), `load` (level 2, journaled) | §Minds & Bodies — the toolbox |
 | `wire` | parse and emit the envelope (`@S @F @V @? @U @FORGE @E`, `@ROOT @SCOPE @ASK @CAP @DUMP`); `@CAP` enforced | Absolute Rule II, Nature 8 |
+| `rank` · `value` | a rank's one spelling (`Canon`) and its family from its flags; the value law — the one definition of success, the ledger (`instruments/value.jsonl`), the signals' fold, the score's arithmetic, the meters | races.md §Value |
 | `world` | world discovery, the law loader (crest always; code sections on demand), ranks and bodies from `.isekai/{elf,orc,slime}/`, `log.md` append-only writer, the Orc gate and the Vitality check, Court dispatch | Natures 1–4, the gate, Laws 2–4 |
 | `onto` | the ontology: schema, graph, reasoning, validation, projection | §The ontology below |
 | `config` | the switchboard (`canon/config.md`): layers, origins, refusals, permission rules, models per office/rank/task, ranks as data | the honesty rule; a disabled law is a finding |
@@ -560,8 +561,9 @@ button, `t`, or Alt+T from the prompt; Esc or a click away closes it); hovering 
 neuron that owns it; open, the drawer is a modal dialog that keeps the focus inside it. Narrow,
 the cockpit stacks: net, timeline, console; the header's vitals become one row that scrolls, and
 the vitals' row fades at the edge that has more. The net, metrics (tokens,
-cost, calls, context, cache; a leaderboard of the creatures by their work — rank, runs, pass rate,
-tokens, live or idle; by day, model and body), relations (the bond matrix and its
+cost, calls, context, cache; a row of each race by its own meter; a leaderboard of the creatures
+by their race's value score — score, the race's measure in its band, strain, work, tokens, live
+or idle, a body under its race's record hatched and unranked; by day, model and body), relations (the bond matrix and its
 dimensions: by rank, lane and bond) and the tree keep their own full-size views.
 With the terminal open the dashboard mirrors the session and can ask into it; approvals stay in the
 terminal. `<dist> dash [--open]` runs the session headless with the dashboard as its only ui, and
@@ -589,11 +591,32 @@ box grows and its stage scrolls. The minds keep out of the way as a strip of bra
 layers (their names on hover or focus), a column only when that alone lets the layers fit.
 Narrow, it is an outline, one row per neuron, indented by depth. `board/testdata/netlayout`
 holds a ~60-creature fixture and a check that lays it out at the boxes 1280, 1440 and 1920 wide
-give the net (`TestNetLayoutHolds` runs it when node is on the PATH). Each neuron is a rank-coloured tile whose 28 cells are its last
+give the net (`TestNetLayoutHolds` runs it when node is on the PATH). Each neuron is a rank-coloured tile (a custom race wears its value family's
+hue) whose 28 cells are its last
 four weeks (`/api/activity`: runs from the loop journals, tokens from the usage journal — blank
 where no instrument saw any, never a made-up zero); each tree bond is as thick as the commissions
 it carried. Hover or keyboard focus lights a neuron's path to the throne and its subtree, the rest
-steps back; a click pins it and the side card reads its doc, territory, minds, bonds and work. Every action pulses on its own neuron — a session step on the throne, a Court's step on its
+steps back; a click pins it and the side card shows the race's face large (its resolved portrait,
+else its family's glyph, ringed in the rank's hue) and reads its doc, territory, minds, bonds,
+work, value and size. Every creature wears its face as a badge at every depth; its tile is sized
+by the code it owns (`mass` on `/api/colony`: lines of source in its territory, tests and
+generated code left out, its subtree's summed, the throne the whole world) and ringed in its
+value band (ok · warn · bad by its race's meter, dashed below its record). The minds wear the
+board's brain (Lucide `brain-circuit`). In 3D a neuron is small and sized the same way (a leaf
+on the square root of its lines, a commander on the cube root of its subtree's, the throne
+capped); the region tint switch (lane · heat · health — health is the ranked bodies' mean score,
+banded by `ui.meters.score`) carries its key and "size = code owned".
+
+**Value, icons, meters.** `/api/value` serves the value report (per body and per rank: signals,
+score, confidence, meter, strain, ascension progress — each condition leaf's distance);
+`/api/meters` the resolved meters (the session's ctx, plan and score; each rank's), the one
+source of every band the page draws; `/api/colony` nodes carry `icon: {kind, url}`, `family`,
+`value` and `mass`, and the live court rows a `value`. `/portraits/<rank>` serves a rank's face
+through the one resolver (`board/icons.go`, any spelling of the rank): the world's own
+`<world>/portraits/<rank>.png` → `ranks.<r>.portrait` → the embedded race portrait → the
+family's glyph → the generic glyph. The glyphs are one sprite, `board/web/icons/icons.svg`
+(Tabler outline icons, MIT, and Lucide `brain-circuit`, ISC — `web/icons/SOURCE` names each
+package and version beside the two licences). Every action pulses on its own neuron — a session step on the throne, a Court's step on its
 creature: a read is a soft accent ripple, a write and a plain turn's end the rank's own pulse, an
 outward or destructive act and a waiting gate an amber ring; green and red are for real verdicts
 only — a passing one flares green, a failure or denial red. Bursts coalesce: within a burst (acts

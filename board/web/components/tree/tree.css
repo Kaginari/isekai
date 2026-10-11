@@ -19,10 +19,10 @@
   .tree-node:hover .tree-path, .tree-node[data-lit] .tree-path { opacity: 0.85; }
   /* rank tints (as net.css maps them): slime --series-1, orc/highorc --series-2, kijin --series-3, elf/highelf --series-4, darkelf --series-5, crown --series-6, default --series-2 */
   .tree-node[data-rank="slime"] { --body-tint: var(--series-1); }
-  .tree-node[data-rank="orc"], .tree-node[data-rank="highorc"] { --body-tint: var(--series-2); }
+  .tree-node[data-rank="orc"], .tree-node[data-rank="high-orc"] { --body-tint: var(--series-2); }
   .tree-node[data-rank="kijin"] { --body-tint: var(--series-3); }
-  .tree-node[data-rank="elf"], .tree-node[data-rank="highelf"] { --body-tint: var(--series-4); }
-  .tree-node[data-rank="darkelf"] { --body-tint: var(--series-5); }
+  .tree-node[data-rank="elf"], .tree-node[data-rank="high-elf"] { --body-tint: var(--series-4); }
+  .tree-node[data-rank="dark-elf"] { --body-tint: var(--series-5); }
   .tree-node[data-rank="rimuru"], .tree-node[data-rank="throne"] { --body-tint: var(--series-6); }
   .tree-node[data-rank="other"] { --body-tint: var(--series-2); }
   /* class picks the heat colour: read = --series-1, write/gate/outward/destructive = --warn */

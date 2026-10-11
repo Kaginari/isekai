@@ -27,7 +27,7 @@ func TestRankTable(t *testing.T) {
 	if r, _ := rs.Get(Rimuru); len(r.Tools) != 1 || r.Tools[0] != "*" {
 		t.Error("rimuru holds everything")
 	}
-	if rs.Of("slime-x") != "slime" || rs.Of("dark-elf-y") != "dark_elf" || rs.Of("rimuru") != "" || rs.Of("elf-z") != "elf" {
+	if rs.Of("slime-x") != "slime" || rs.Of("dark-elf-y") != "dark-elf" || rs.Of("rimuru") != "" || rs.Of("elf-z") != "elf" {
 		t.Error("Of")
 	}
 	if !rs.Below("slime", "elf") || !rs.Below("slime", "orc") || rs.Below("elf", "orc") || !rs.Below("orc", Rimuru) || rs.Below("orc", "orc") {
@@ -36,7 +36,7 @@ func TestRankTable(t *testing.T) {
 	if !rs.GateAbove("slime") || rs.GateAbove("elf") || !rs.GateAbove("kijin") {
 		t.Error("GateAbove")
 	}
-	if strings.Join(rs.Tools("slime"), ",") != "read,write,edit,bash,glob,grep,law" || strings.Join(rs.Tools("high_orc"), ",") != strings.Join(AllTools, ",") || strings.Join(rs.Tools("nobody"), ",") != strings.Join(AllTools, ",") {
+	if strings.Join(rs.Tools("slime"), ",") != "read,write,edit,bash,glob,grep,law" || strings.Join(rs.Tools("high-orc"), ",") != strings.Join(AllTools, ",") || strings.Join(rs.Tools("nobody"), ",") != strings.Join(AllTools, ",") {
 		t.Error("Tools")
 	}
 	az := Ranks(DefaultRanks(AgentOne()))

@@ -13,13 +13,12 @@ import (
 	"github.com/Kaginari/isekai/instrument"
 	"github.com/Kaginari/isekai/loop"
 	"github.com/Kaginari/isekai/provider"
+	"github.com/Kaginari/isekai/rank"
 	"github.com/Kaginari/isekai/world"
 )
 
-// canonRank folds config's rank spelling (high-elf) to the world's (high_elf).
-func canonRank(name string) string {
-	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
-}
+// canonRank is the one spelling of a rank (rank.Canon): config's, the world's, the board's.
+func canonRank(name string) string { return rank.Canon(name) }
 
 // ranksFor turns config's resolved rank table into the world's: builtin ranks take their dirs
 // and prefixes from the lexicon (agent-one renames them), a custom rank its own dir (its name
@@ -34,7 +33,8 @@ func ranksFor(cfg *config.Config, lex world.Lexicon) world.Ranks {
 		name := canonRank(r.Name)
 		wr := world.Rank{Name: name, ReportsTo: canonRank(r.ReportsTo), Job: r.Job, Authors: r.Authors, HoldsGate: r.HoldsGate, Sideways: r.Sideways,
 			Office: r.Office, Tools: append([]string(nil), r.Tools...), Base: canonRank(r.AscendsFrom), Layer: r.Layer,
-			DivineRules: append([]string(nil), r.DivineRules...), AscendsWhen: r.AscendsWhen}
+			DivineRules: append([]string(nil), r.DivineRules...), AscendsWhen: r.AscendsWhen,
+			Family: r.Family, Score: r.Value.Score, Meter: r.Value.Meter, MinRecord: r.Value.MinRecord, Portrait: r.Portrait}
 		if d, ok := def[name]; ok && r.Builtin {
 			wr.Dir, wr.Prefix = d.Dir, d.Prefix
 			if wr.ReportsTo == "" {
@@ -84,7 +84,16 @@ func openWorld(cfg *config.Config, root string, lex world.Lexicon) (*world.World
 		Instructions: world.InstructionOptions{Enabled: cfg.Discovery.Instructions.Enabled, Files: cfg.Discovery.Instructions.Files, Global: cfg.Discovery.Instructions.Global, WalkUp: cfg.Discovery.Instructions.WalkUp},
 		Ontology:     cfg.Ontology.Enabled,
 		Ranks:        ranksFor(cfg, lex),
+		Value:        valueOptions(cfg),
 	})
+}
+
+// valueOptions is law.value as the world reads it: the one definition of success, the window,
+// the council's strain line and the session meters.
+func valueOptions(cfg *config.Config) world.ValueOptions {
+	meters, _ := cfg.Meters()
+	return world.ValueOptions{Off: !cfg.Law.Value.Enabled, Def: cfg.ValueDef(), Window: cfg.ValueWindow(), WindowText: cfg.Law.Value.Window,
+		ReopenTurns: cfg.Law.Value.ReopenTurns, MinRecord: cfg.Law.Value.MinRecord, EscalateAt: cfg.Law.Stress.EscalateAt, Meters: meters}
 }
 
 // foreignBodies turns discovered agent files into bodies on the roster: the rank from the
@@ -183,8 +192,20 @@ func lawGuts(cfg *config.Config) *loop.Guts {
 	if !cfg.Law.Guts.Enabled {
 		return nil
 	}
-	return &loop.Guts{Window: cfg.Law.Guts.Window, Floor: cfg.Law.Guts.Floor,
-		BenchThrashVisits: cfg.Law.Guts.BenchThrashVisits, DigestEvery: cfg.Law.Guts.DigestEvery}
+	g := cfg.Law.Guts
+	out := &loop.Guts{Window: g.Window, Floor: g.Floor, FloorExact: true,
+		BenchThrashVisits: g.BenchThrashVisits, DigestEvery: g.DigestEvery,
+		Negative: g.Lexemes.Negative, Positive: g.Lexemes.Positive, Ring: g.Ring}
+	for _, b := range g.Benches {
+		out.Benches = append(out.Benches, loop.Bench{Name: b.Name, Match: b.Match, Red: b.Red, Green: b.Green})
+	}
+	if w := g.Weights; w != nil {
+		out.Weights = &loop.GutsWeights{Fail: w.Fail, Negative: w.Negative, Positive: w.Positive, Repeat: w.Repeat, Echo: w.Echo, Thrash: w.Thrash}
+	}
+	if c := g.Clamp; c != nil {
+		out.ClampMin, out.ClampMax = c.Min, c.Max
+	}
+	return out
 }
 
 // lawDoom: the thoughts-stress auto-relief ladder (law.yaml doomLoop). A body's guts spoke

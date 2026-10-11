@@ -112,7 +112,7 @@ func TestKijinHoldsNoDispatch(t *testing.T) {
 	if !has("orc-a") {
 		t.Error("an orc commands its slimes: dispatch on its shelf")
 	}
-	if Ranks(DefaultRanks(Isekai())).Commands("kijin") || !Ranks(DefaultRanks(Isekai())).Commands("high_orc") {
+	if Ranks(DefaultRanks(Isekai())).Commands("kijin") || !Ranks(DefaultRanks(Isekai())).Commands("high-orc") {
 		t.Error("Commands: kijin none; a high orc commands its base's slimes")
 	}
 }

@@ -315,13 +315,15 @@ dispatcher's rank and strict-flow checks apply again.
 
 All three are coded; none asks the body.
 
-- **Council warrant** (`world/court.go` `councilLedger`). A Court whose work did not land — the
-  run ended `FAIL` or `CHECKPOINT`, or its own `@S` reads `FAIL`/`ESCALATE` — adds strain:
+- **Council warrant** (`world/court.go` `councilLedger`). A Court whose run's word is a fail
+  under `law.value` (§Value: the loop's status when it did not close `DONE`, else its own `@S`;
+  `FAIL`, `ESCALATE`, `CHECKPOINT` by default) adds strain:
   `failed acts + gate re-asks + wire re-asks + 1`, accumulating across re-dispatches. At `law.stress.escalateAt` (5) a warrant rides
   the report to its dispatcher: answer as its manager with `@INSTRUCT` (re-commission with the
   instruction folded in), `@SPLIT` (one commission per slice) or `@ESCALATE`. Past
   `law.stress.maxConsults` (3) warrants the report ends `@S ESCALATE`, toward the human. A clean
-  landing (`DONE` run, `@S DONE`) clears the ledger. `DENIED` and interrupted runs never count.
+  landing (a pass word) clears the ledger. A neutral word — the human's `DENIED`, an
+  `INTERRUPTED` or `DRY` run, a `SUSPENDED` question — never counts.
 - **Relief** (`world/relief.go` `relieve`), at `law.stress.relieveAt` (7): a creature with two
   or more territory prefixes splits into two same-race young (`slime-loop-a` holding `instrument/`,
   `slime-loop-b` holding `loop/`), each inheriting the doc, verify and Minds; a one-prefix zone
@@ -337,27 +339,96 @@ Escalation is always one hop: a slime's `@?` reaches its orc in the report; the 
 carries it up in its own; `ESCALATE` from a failed-act streak or an exhausted council ends the
 turn and the dispatcher decides.
 
+## Value
+
+Every race is measured by its own job, by one law (`law.value`), from one ledger
+(`<world>/instruments/value.jsonl`). Nothing here asks a model: every number is a fold over rows
+the harness wrote (`value/`, `world/value.go`).
+
+**One definition of success.** A run's word is the loop's status when the loop did not close
+`DONE` (the clock, the human or the gate spoke), else the body's own `@S` word. `law.value.pass`
+(`DONE`, `PASS`), `.fail` (`FAIL`, `ESCALATE`, `CHECKPOINT`) and `.neutral` (`DENIED`,
+`INTERRUPTED`, `DRY`, `SUSPENDED`) classify it; a word on no list is neutral. The ascension fold,
+the council, the dashboard's leaderboard and activity, and the loop journal's `end` line (its
+`word`) all read it the same way. A neutral run counts in `runs`, never in `reports`, so no rate
+reads the human's word as the body's failure.
+
+**The ledger.** One append-only line per row, always kept — a world that ascends nobody is still
+measured — and replayed at `Open`. Kinds:
+
+| kind | written when | carries |
+|---|---|---|
+| `run` | a Court's report is taken; a throne turn closes (the `Ended` hook) | the loop status, the body's word, the run's word, the gate's verdict and retries, verify lines run / red, holes by kind, `@F` findings, strain after the council, a warrant, the guts' closing momentum and thrash count, tokens, the paths written, the dispatcher (`by`) |
+| `verdict` | an end gate judged a Court's writes | the body that held the gate (the dispatcher when its rank holds the gate, else the author when it holds its own), the author (`of`), pass or fail, the paths |
+| `overturn` | a fail lands on paths a standing pass covered | the holder whose pass it undid |
+| `ascend` | an ascension is minted | the base and the risen body |
+| `seed` | the ledger was first written from the old `instruments/ascension.jsonl` | the shelf it read (the old report rows become run rows, their holes harness holes) |
+
+**Holes by kind.** The harness raises holes of two kinds (`loop.HoleKind`): *harness* — it caught
+the body's discipline (an answer off the wire, a missing `@U`, a gate sent back, a plan left open,
+a failed-act streak); *infra* — the world's fault or a switch (the provider refused, a cut at
+`max_tokens`, a drain or recall failure, `law.gate` off, a note that could not be filed). The
+body's own `@?` lines are *self*. Only harness holes cost: `holes` counts them, `holeRate` is the
+share of reports that carried one (never above 100%).
+
+**Signals.** The fold over the window (`law.value.window`, default `28d`) gives each body:
+`runs`, `reports`, `passes`, `fails`, `neutral`, `holes`, `passRate`, `failRate`, `holeRate`,
+`landRate` (the loop closed `DONE`, the word is no fail, no gate failed), `intelligence`
+(passRate less holeRate, floored at zero), `gateRate` (first-try gate passes, authors),
+`verifyGreenRate` (verify lines green at the gate, authors), `gateRight` (verdicts held and not
+overturned, gate holders), `verdicts`, `overturned`, `slimeHealth` (100 less the mean strain of the
+bodies it dispatched, strain read as a percent of `law.stress.escalateAt`), `planLandRate` and
+`reaskRate` (its dispatches that landed / that re-commissioned a body after a council warrant,
+commanders), `askDoneRate` (the throne: human turns closed with a pass and not reopened — the same
+paths rewritten — within `law.value.reopenTurns` turns), `upheldRate` (reports with findings that
+landed), `findings`, `thrashRate`, `momentum`, `strain`, `strainPct`, `tokens`, and `score`. A
+rate on no basis reads zero.
+
+**Families.** A rank's flags pick its family, in order: the throne → `root`; authors that hold
+their own gate under the throne → `steward` (kijin); authors with no gate → `author` (slime); a
+gate that commands → `gate` (orc, high-orc); a commander with no gate → `planner` (elf, high-elf);
+a read-only shelf → `auditor` (dark-elf); else `generic`. `ranks.<r>.family` names one outright.
+
+**Scores and meters.** A race's score is an arithmetic expression over signals (`+ - * /`,
+numbers, parens), clamped 0..100: its own `ranks.<r>.value.score`, else its family's
+(`law.value.families.<f>.score`, else the binary's):
+
+| family | score | meter (ok · warn) |
+|---|---|---|
+| root | `askDoneRate` | Asks done 80 · 50 |
+| planner | `0.6*planLandRate - 0.2*reaskRate + 0.2*landRate` | Plans landed 80 · 50 |
+| gate | `0.5*gateRight + 0.3*slimeHealth + 0.2*landRate` | Gate right 90 · 70 |
+| author | `0.6*landRate + 0.3*gateRate - 0.1*holeRate` | Landed 80 · 50 |
+| steward | `0.7*verifyGreenRate + 0.3*landRate` | Verify green 90 · 70 |
+| auditor | `0.7*upheldRate + 0.3*passRate` | Upheld 80 · 50 |
+| generic | `0.8*passRate - 0.2*holeRate` | Pass 90 · 50 |
+
+A body with fewer reports than its race's `minRecord` (`law.value.minRecord`, 5) is
+low-confidence: shown, never ranked. A score, a meter or an `ascendsWhen` that reads a signal the
+race can never produce (a read-only race scored on `gateRight`) loads with a hole naming it. The
+meter is `{signal, label, scale: percent|count|momentum, bands: {ok, warn}, direction: up|down}`;
+one renderer (`world.Meter`, `value.Render`) bands it for every surface. `isekai config explain
+value` prints each race's resolved law with the origin of every part.
+
 ## Ascension
 
-After every Court report the world folds the body's tally — reports, passes, fails, holes — and
-evaluates each ascended rank's `ascendsWhen` (`world/ascend.go` `FoldMetrics`,
-`world/rank_eval.go`). A pass is a run the loop ended `DONE` whose own `@S` is not `FAIL` or
-`ESCALATE`. The language reads `reports`, `passes`, `fails`, `holes`, `passRate`, `failRate`,
-`holeRate` and `intelligence` (pass rate less hole rate, floored at zero).
+After every Court report the world folds the value ledger and evaluates each ascended rank's
+`ascendsWhen` (`world/ascend.go`, `world/rank_eval.go`) against the base body's signals — every
+signal above, `score` included, with arithmetic inside the comparisons.
 
-The default band, in both tables (`ranks.high-elf.ascendsWhen`, `ranks.high-orc.ascendsWhen`;
-an empty string turns ascension off):
+The default band lives in config alone (`config.DefaultAscendElf`, `config.DefaultAscendOrc`;
+`ranks.high-elf.ascendsWhen`, `ranks.high-orc.ascendsWhen`; an empty string turns ascension off,
+and `status` lists that switch):
 
 ```
 ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%
 ```
 
-— a long record, nearly all landed, at most one hole per ten reports.
+— a long record, nearly all landed, at most one report in ten carrying a harness hole.
 
-The tally is a ledger: each report appends one row to `.isekai/instruments/ascension.jsonl`, and
-`Open` replays it, so a record earned over many sessions counts.
+The record is the value ledger, replayed at `Open`, so a record earned over many sessions counts.
 
-A crossing mints the ascended body once (the shelf's `ascend` row and the risen body on the
+A crossing mints the ascended body once (the ledger's `ascend` row and the risen body on the
 roster both remember):
 
 1. **The body rises whole.** `orc-engine` becomes `high-orc-engine`: its doc is carried into

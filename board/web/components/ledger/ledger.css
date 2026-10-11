@@ -16,10 +16,10 @@
   .ledger-text { color: var(--ink-muted); min-inline-size: 22rem; max-inline-size: 64ch; }
   .ledger tr { --ledger-rank: var(--ink-muted); }
   .ledger tr[data-rank="slime"] { --ledger-rank: var(--series-1); }
-  .ledger tr[data-rank="orc"], .ledger tr[data-rank="highorc"] { --ledger-rank: var(--series-2); }
+  .ledger tr[data-rank="orc"], .ledger tr[data-rank="high-orc"] { --ledger-rank: var(--series-2); }
   .ledger tr[data-rank="kijin"] { --ledger-rank: var(--series-3); }
-  .ledger tr[data-rank="elf"], .ledger tr[data-rank="highelf"] { --ledger-rank: var(--series-4); }
-  .ledger tr[data-rank="darkelf"] { --ledger-rank: var(--series-5); }
+  .ledger tr[data-rank="elf"], .ledger tr[data-rank="high-elf"] { --ledger-rank: var(--series-4); }
+  .ledger tr[data-rank="dark-elf"] { --ledger-rank: var(--series-5); }
   .ledger tr[data-rank="rimuru"] { --ledger-rank: var(--series-6); }
   .ledger tr[data-rank] .ledger-name::before { content: ""; inline-size: 0.5em; block-size: 0.5em; flex: none; background: var(--ledger-rank); transform: rotate(45deg); }
   .ledger-tag {

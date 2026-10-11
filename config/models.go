@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Kaginari/isekai/rank"
 	"sort"
 	"strings"
 )
@@ -86,12 +87,13 @@ func canonicalOffice(o string) string {
 	return o
 }
 
+// canonicalRank folds a distribution's word (coord, auditor) and any spelling (dark_elf,
+// DarkElf) to the one canonical rank name (rank.Canon).
 func canonicalRank(r string) string {
-	r = strings.ToLower(r)
-	if to, ok := rankAliases[r]; ok {
+	if to, ok := rankAliases[strings.ToLower(strings.TrimSpace(r))]; ok {
 		return to
 	}
-	return r
+	return rank.Canon(r)
 }
 
 // ModelTable lists the resolved model per office, rank and task, with origins — for status.

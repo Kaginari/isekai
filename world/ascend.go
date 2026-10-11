@@ -1,8 +1,6 @@
 package world
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,10 +9,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Kaginari/isekai/value"
 )
 
 // Ascension is the coded answer to "an orc with experience evolves": a rank declares
-// ascendsWhen (ASL), the world keeps a MetricsStore that every Court report folds into, and
+// ascendsWhen (ASL), the world keeps the value ledger every Court report folds into, and
 // after each fold the world evaluates the divine bonds. A base body whose snapshot crosses the
 // condition ascends: the harness mints the ascended body in the ascended rank's own dir under
 // the base's short name (orc-engine → high-orc-engine), carrying the base's doc whole — every
@@ -23,7 +23,7 @@ import (
 // soil and territories stay disjoint. The retired seat keeps its graph memory; creatures that
 // reported to it now report to its ascendant (the roster resolves the succession).
 //
-// Each report folds into an append-only tally (`<worldDir>/instruments/ascension.jsonl`)
+// Each report folds into the value ledger (`<worldDir>/instruments/value.jsonl`, world/value.go)
 // replayed at Open, so a record earned over many sessions counts. Each ascension is appended
 // to log.md with the reading that earned it; each failure is a hole, logged and surfaced to
 // the dispatcher as `@?`.
@@ -31,45 +31,32 @@ import (
 // Nothing here reads a prompt. Evaluation is the ASL condition over the tally, deterministic;
 // the mint and the doc write are the world's own.
 
-// ascensionShelf is the tally's ledger under the world dir.
-const ascensionShelf = "instruments/ascension.jsonl"
-
 // ascender is one resolved divine bond the world watches.
 type ascender struct {
 	To  Rank // the ascended rank (holds AscendsWhen)
 	ASL ASL  // its parsed condition
 }
 
-// ascendState is World's ascension machinery, guarded by its own lock.
+// ascendState is World's ascension machinery, guarded by its own lock. The record it reads is
+// the value ledger (world/value.go); it keeps only the watch list and what it minted.
 type ascendState struct {
-	mu      sync.Mutex
-	metrics *MetricsStore
-	watch   map[string]ascender // base rank → what ascends from it
-	done    map[string]bool     // base bodies already ascended (replayed from the shelf)
-	Events  []AscendEvent       // the ascensions of this session
-	news    []AscendEvent       // minted, not yet announced to a dispatcher
-	holes   []string            // mint failures, drained by AscendHoles
+	mu     sync.Mutex
+	watch  map[string]ascender // base rank → what ascends from it
+	done   map[string]bool     // base bodies already ascended (replayed from the ledger)
+	Events []AscendEvent       // the ascensions of this session
+	news   []AscendEvent       // minted, not yet announced to a dispatcher
+	holes  []string            // mint failures, drained by AscendHoles
 }
 
 // AscendEvent is one minted ascension.
 type AscendEvent struct {
 	Base  string    `json:"base"` // the ranking body (orc-auth)
 	New   string    `json:"new"`  // the ascended body (high-orc-auth)
-	Rank  string    `json:"rank"` // the ascended rank (high_orc)
+	Rank  string    `json:"rank"` // the ascended rank (high-orc)
 	When  string    `json:"when"` // the ASL condition, as config wrote it
 	At    time.Time `json:"at"`
 	Doc   string    `json:"doc"` // the doc the harness wrote for the new body
 	MetAt string    `json:"met"` // the snapshot line that crossed the condition
-}
-
-// tallyRow is one line of the ascension shelf: a report folded, or an ascension minted.
-type tallyRow struct {
-	Kind   string    `json:"kind"` // report | ascend
-	Body   string    `json:"body"`
-	Status string    `json:"status,omitempty"`
-	Holes  int       `json:"holes,omitempty"`
-	New    string    `json:"new,omitempty"`
-	At     time.Time `json:"at"`
 }
 
 // newAscendState builds the watch list from the rank table, or nil when no rank ascends.
@@ -78,7 +65,7 @@ func newAscendState(rs Ranks) *ascendState {
 	if len(as) == 0 {
 		return nil
 	}
-	st := &ascendState{metrics: NewMetricsStore(), watch: map[string]ascender{}, done: map[string]bool{}}
+	st := &ascendState{watch: map[string]ascender{}, done: map[string]bool{}}
 	for _, a := range as {
 		cond, err := ParseASL(a.When)
 		if err != nil { // Validate has already refused this; belt and braces
@@ -88,71 +75,6 @@ func newAscendState(rs Ranks) *ascendState {
 		st.watch[a.From] = ascender{To: to, ASL: cond}
 	}
 	return st
-}
-
-// tallyNote appends one row to the shelf (callers hold ascend.mu, so the file's order is the
-// tally's order).
-func (w *World) tallyNote(r tallyRow) {
-	if r.At.IsZero() {
-		r.At = time.Now().UTC()
-	}
-	b, err := json.Marshal(r)
-	if err != nil {
-		return
-	}
-	p := filepath.Join(w.Dir(), filepath.FromSlash(ascensionShelf))
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return
-	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	_, _ = f.Write(append(b, '\n'))
-}
-
-// loadTally replays the shelf: every report folds again, every ascension marks its base done.
-// An unreadable shelf opens the world with an empty tally, never blocks it.
-func (w *World) loadTally() {
-	if w.ascend == nil {
-		return
-	}
-	f, err := os.Open(filepath.Join(w.Dir(), filepath.FromSlash(ascensionShelf)))
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 16<<20)
-	w.ascend.mu.Lock()
-	defer w.ascend.mu.Unlock()
-	for sc.Scan() {
-		var r tallyRow
-		if json.Unmarshal(sc.Bytes(), &r) != nil || r.Body == "" {
-			continue
-		}
-		switch r.Kind {
-		case "report":
-			w.ascend.metrics.Fold(r.Body, r.Status, r.Holes)
-		case "ascend":
-			w.ascend.done[r.Body] = true
-		}
-	}
-}
-
-// FoldMetrics counts one Court report — on the shelf and in memory — and runs the ascension
-// pass. The tally belongs to the body that filed the report; ascension reads its rank, never
-// the dispatcher's.
-func (w *World) FoldMetrics(body, status string, holes int) {
-	if w.ascend == nil {
-		return
-	}
-	w.ascend.mu.Lock()
-	w.ascend.metrics.Fold(body, status, holes)
-	w.tallyNote(tallyRow{Kind: "report", Body: body, Status: status, Holes: holes})
-	w.ascend.mu.Unlock()
-	w.ascendMaybe(body)
 }
 
 // ascendMaybe evaluates the divine bond over the body's rank. A body ascends once: the shelf
@@ -171,8 +93,13 @@ func (w *World) ascendMaybe(body string) {
 		w.ascend.mu.Unlock()
 		return
 	}
-	m := w.ascend.metrics.Metrics(body)
+	w.ascend.mu.Unlock()
+	m := w.Metrics(body)
 	if !watcher.ASL.Cond.Eval(m) {
+		return
+	}
+	w.ascend.mu.Lock()
+	if w.ascend.done[body] {
 		w.ascend.mu.Unlock()
 		return
 	}
@@ -188,8 +115,12 @@ func (w *World) ascendMaybe(body string) {
 	w.ascend.mu.Lock()
 	w.ascend.Events = append(w.ascend.Events, ev)
 	w.ascend.news = append(w.ascend.news, ev)
-	w.tallyNote(tallyRow{Kind: "ascend", Body: body, New: ev.New, At: ev.At})
 	w.ascend.mu.Unlock()
+	if w.val != nil {
+		w.val.mu.Lock()
+		w.appendValue(value.Row{Kind: value.KindAscend, Body: body, New: ev.New, At: ev.At})
+		w.val.mu.Unlock()
+	}
 	if err := w.AppendLog(Entry{At: ev.At, Author: ev.New, Title: fmt.Sprintf("ascension — %s rose as %s", body, ev.New),
 		Task:    "ascendsWhen `" + ev.When + "`",
 		Files:   []string{ev.Doc, w.docOf(body)},
@@ -270,8 +201,8 @@ func (w *World) mintAscended(base string, a ascender, m Metrics) (AscendEvent, e
 	}
 	now := time.Now().UTC()
 	date := now.Format("2006-01-02")
-	metAt := fmt.Sprintf("reports %d, passes %d, fails %d, holes %d, passRate %.0f%%, holeRate %.0f%%",
-		m.Reports, m.Passes, m.Fails, m.Holes, m.rate(m.Passes), m.rate(m.Holes))
+	metAt := fmt.Sprintf("reports %.0f, passes %.0f, fails %.0f, holes %.0f, passRate %.0f%%, holeRate %.0f%%, score %.0f",
+		m["reports"], m["passes"], m["fails"], m["holes"], m["passRate"], m["holeRate"], m["score"])
 	when := a.ASL.String()
 	if err := os.WriteFile(abs, []byte(ascendDoc(string(text), newName, a.To, base, when, metAt, date)), 0o644); err != nil {
 		return AscendEvent{}, err
@@ -367,14 +298,4 @@ func (w *World) ascendLines() []string {
 		out = append(out, "@? ascension hole — "+h)
 	}
 	return out
-}
-
-// Metrics reads one body's ascension snapshot (for the world's self-measure and tests).
-func (w *World) Metrics(body string) Metrics {
-	if w.ascend == nil {
-		return Metrics{}
-	}
-	w.ascend.mu.Lock()
-	defer w.ascend.mu.Unlock()
-	return w.ascend.metrics.Metrics(body)
 }

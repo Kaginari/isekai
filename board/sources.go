@@ -15,7 +15,9 @@ import (
 	"github.com/Kaginari/isekai/loop"
 	"github.com/Kaginari/isekai/memory"
 	"github.com/Kaginari/isekai/onto"
+	"github.com/Kaginari/isekai/rank"
 	"github.com/Kaginari/isekai/toolbox"
+	"github.com/Kaginari/isekai/value"
 )
 
 // Reading says where a figure came from and whether the instrument behind it is lit
@@ -66,6 +68,9 @@ type Body struct {
 	CacheRead     int       `json:"cacheRead"`
 	CacheWrite    int       `json:"cacheWrite"`
 	USD           *float64  `json:"usd"` // nil = unpriced
+	// Value is the body's value as the ledger reads it (nil when it has no record or no
+	// session keeps a ledger): score, confidence, its race's meter and band, strain.
+	Value *NodeValue `json:"value,omitempty"`
 }
 
 // Tokens is the body's spend so far.
@@ -228,7 +233,7 @@ type BodyActivity struct {
 	Runs   []int  `json:"runs"`
 	Tokens []int  `json:"tokens"`
 	Total  int    `json:"total"`  // runs in the window
-	Failed int    `json:"failed"` // runs in the window whose end was not DONE/PASS
+	Failed int    `json:"failed"` // runs in the window whose word law.value reads a fail
 	Last   string `json:"last,omitempty"`
 }
 
@@ -244,9 +249,17 @@ type RecentRun struct {
 // RecentRuns is how many runs the timeline carries.
 const RecentRuns = 40
 
-// BuildActivity folds the journals into days ending at now's UTC day. Runs without a readable
-// start time and records outside the window are left out, never guessed into a day.
+// BuildActivity folds the journals into days ending at now's UTC day under the shipped
+// definition of success.
 func BuildActivity(runs []Run, recs []UsageRecord, now time.Time, days int) Activity {
+	return BuildActivityDef(runs, recs, now, days, value.DefaultDef())
+}
+
+// BuildActivityDef folds the journals into days ending at now's UTC day. Runs without a readable
+// start time and records outside the window are left out, never guessed into a day. A run
+// failed when law.value's definition reads its word a fail — a neutral run (DENIED, DRY) is no
+// failure.
+func BuildActivityDef(runs []Run, recs []UsageRecord, now time.Time, days int, def value.Def) Activity {
 	a := Activity{Bodies: map[string]*BodyActivity{}}
 	end := now.UTC().Truncate(24 * time.Hour)
 	start := end.AddDate(0, 0, -(days - 1))
@@ -280,7 +293,11 @@ func BuildActivity(runs []Run, recs []UsageRecord, now time.Time, days int) Acti
 		x := body(r.As)
 		x.Runs[d]++
 		x.Total++
-		if s := strings.ToUpper(r.Status); s != "DONE" && s != "PASS" && s != "" {
+		word := r.Word
+		if word == "" {
+			word = r.Status // a journal from before the word: the loop's status is all it says
+		}
+		if def.Outcome(word) == value.Fail {
 			x.Failed++
 		}
 		if r.At > x.Last {
@@ -319,6 +336,7 @@ type Run struct {
 	As       string
 	Ask      string
 	Status   string
+	Word     string // the run's one word under law.value (the loop's, else the body's @S); "" on an old journal
 	At       string
 	Turns    int
 	Steps    int
@@ -366,6 +384,16 @@ type Node struct {
 	Parent string `json:"parent,omitempty"`
 	Throne bool   `json:"throne,omitempty"` // the session body at the top of the tree
 	Label  string `json:"label,omitempty"`  // the lexicon's word for it (the throne's); "" = Name
+	// Family is the rank's value family (its hue and glyph fall back to it); Icon how a
+	// surface draws it (the one resolver: icons.go); Value its score, band and meter.
+	Family string     `json:"family,omitempty"`
+	Icon   *Icon      `json:"icon,omitempty"`
+	Value  *NodeValue `json:"value,omitempty"`
+	// Mass is the creature's size: lines of source in its territory, its subtree's included
+	// (the throne: the whole world); for a mind, how many wear it. Own is the lines whose
+	// deepest owner it is. Activity never changes it.
+	Mass int `json:"mass"`
+	Own  int `json:"own,omitempty"`
 }
 
 // Edge is one typed bond.
@@ -451,6 +479,11 @@ type Sources struct {
 	RunDetail func(id string) (*RunDetail, error)
 	Recall    func(q, tier, kind string) (*memory.RecallResult, error)
 	Review    func() (*memory.ReviewResult, error)
+	// Value is the value ledger's picture (law.value); Ranks every rank's family and configured
+	// portrait. Both nil = no session keeps a ledger: the value API answers silent, icons fall
+	// back to the embedded portraits and the generic glyph.
+	Value func() *ValueView
+	Ranks func() []RankMeta
 }
 
 // BodyInfo is one minted Body: the vessel a ranked creature rides (Minds & Bodies).
@@ -580,6 +613,12 @@ func (s Sources) withDefaults(d Sources) Sources {
 	if s.Skills == nil {
 		s.Skills = d.Skills
 	}
+	if s.Value == nil {
+		s.Value = d.Value
+	}
+	if s.Ranks == nil {
+		s.Ranks = d.Ranks
+	}
 	if s.Tree == nil {
 		s.Tree = d.Tree
 	}
@@ -694,7 +733,7 @@ func (f *fileSources) loop() ([]Run, Reading) {
 	var out []Run
 	var latest time.Time
 	for _, s := range states {
-		r := Run{ID: s.ID, As: s.As, Ask: s.Ask, Status: s.Status, At: s.At, Turns: s.Turns, Steps: len(s.Steps), Provider: s.Provider}
+		r := Run{ID: s.ID, As: s.As, Ask: s.Ask, Status: s.Status, Word: s.Word, At: s.At, Turns: s.Turns, Steps: len(s.Steps), Provider: s.Provider}
 		for _, st := range s.Steps {
 			if st.Status != "done" && st.Status != "pending" {
 				r.Failed++
@@ -823,8 +862,9 @@ func BuildColony(w *onto.World) *Colony {
 			if l == "creature" || l == "class" || l == "fact" || l == "doc" || l == "mind" {
 				continue
 			}
+			// the class's own spelling (NightWatch) keeps its humps so rank.Canon reads night-watch
 			if best == "" || l == "slime" || l == "orc" || l == "elf" || l == "kijin" || l == "rimuru" {
-				best = l
+				best = ty.Local()
 			}
 		}
 		return best
@@ -841,7 +881,7 @@ func BuildColony(w *onto.World) *Colony {
 	}
 	wearers := map[string][]string{}
 	for _, t := range creatures {
-		n := Node{ID: t.Local(), Name: t.Local(), Kind: "creature", Rank: rankOf(t), Doc: docOf(t)}
+		n := Node{ID: t.Local(), Name: t.Local(), Kind: "creature", Rank: rank.Canon(rankOf(t)), Doc: docOf(t)}
 		n.Lane = n.Rank
 		for _, o := range g.Objects(t, onto.Is("owns")) {
 			n.Owns = append(n.Owns, o.Value)
@@ -892,6 +932,7 @@ func BuildColony(w *onto.World) *Colony {
 		return a.To < b.To
 	})
 	c.Lanes = []string{"mind:zone", "slime", "mind:verdict", "orc", "mind:global", "elf", "rimuru"}
+	// the lanes and the node ranks speak the one spelling
 	extra := map[string]bool{}
 	for _, n := range c.Nodes {
 		if n.Kind == "creature" && n.Rank != "" && !containsStr(c.Lanes, n.Rank) && !extra[n.Rank] {

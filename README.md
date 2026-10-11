@@ -189,6 +189,30 @@ everything the world enforces without asking a body to believe anything.
   budgets read as instruments, the closing witness demand, the guts' scoring. A body can only
   tighten a law, never loosen it; `status` names every switched-off law aloud.
 
+## Value and meters
+
+Each race is measured by its own job, from one ledger (`.isekai/instruments/value.jsonl`, one row
+per run per body, always kept) under one definition of success (`law.value`: `DONE`/`PASS`
+pass, `FAIL`/`ESCALATE`/`CHECKPOINT` fail, the human's `DENIED`, `INTERRUPTED`, `DRY` and
+`SUSPENDED` neutral). A rank's flags give it a family and the family a score: a slime is scored
+on what landed and passed its gate first try, an orc on verdicts nobody overturned and the health
+of the slimes it ran, an elf on the plans that landed, the throne on the asks it closed for good.
+Only the holes the harness caught against the body cost it — a provider refusal or an honest `@?`
+never does.
+
+```yaml
+ranks:
+  slime:
+    value:
+      score: "0.5*landRate + 0.5*gateRate"
+      meter: {signal: gateRate, label: First try, bands: {ok: 85, warn: 60}}
+```
+
+The dashboard's Metrics tab ranks the creatures by score (a body under its race's record is shown,
+never ranked), each race shows its own meter, every neuron wears a band ring, and `ascendsWhen`
+can read `score` and every signal. `isekai config explain value` prints each race's resolved law
+and where each part came from; the full law is [`docs/canon/races.md`](docs/canon/races.md) §Value.
+
 ## The forge
 
 A run that walked a path worth repeating can leave it behind as a skill or a tool.
@@ -429,7 +453,10 @@ rules:
 | `hooks` | shell hooks at preTool, postTool, sessionStart, preCompact, stop, userPrompt | `preTool: [{ match: "bash", command: "./check.sh" }]` |
 | `discovery` | where instructions, skills, commands and agents are found (Claude Code and OpenCode dirs included) | `skills: { paths: [.claude/skills] }` |
 | `budgets` | spend ceilings for the session and each Court | `session: { tokens: 400000, usd: 5 }` |
-| `ui` · `output` | the dashboard, the status line, output format | `board: { autostart: false }` |
+| `law.value` | the one definition of success, the value ledger's window, each family's score and meter | `value: { window: 7d, minRecord: 8 }` · `families: { gate: { score: "0.6*gateRight + 0.4*slimeHealth" } }` |
+| `ranks.<r>.value` · `.family` · `.portrait` | a race's own score, meter and record; its family; its picture | `slime: { value: { score: "0.5*landRate + 0.5*gateRate", meter: { signal: gateRate, bands: { ok: 85, warn: 60 } } } }` |
+| `law.guts` | the per-step gut: benches (go, pytest, js, cargo, make), lexemes, weights, clamp | `benches: [{ name: mix, match: ["mix test"], red: [failure], green: ["0 failures"] }]` |
+| `ui` · `output` | the dashboard, the status line, the session's meters (ctx bands follow `law.budget`), output format | `board: { autostart: false }` · `meters: { score: { signal: score, bands: { ok: 75, warn: 45 } } }` |
 | `sessions` · `undo` | where sessions and undo snapshots live, how long | `sessions: { keepDays: 30 }` |
 
 | `toolbox` · `ontology` · `instruments` | the searchable tool registry, the creature graph, the journals | `toolbox: { budgetTokens: 1500 }` |

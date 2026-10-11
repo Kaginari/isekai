@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/Kaginari/isekai/config"
+	"github.com/Kaginari/isekai/value"
 )
 
 // ascendRanks is the law's table with a short ascension band, so a fixture can earn it.
 func ascendRanks(when string) Ranks {
 	rs := Ranks(DefaultRanks(Isekai()))
 	for i := range rs {
-		if rs[i].Name == "high_orc" {
+		if rs[i].Name == "high-orc" {
 			rs[i].AscendsWhen = when
 		}
 	}
@@ -50,7 +51,7 @@ func TestAscensionCarriesTheBodyAndRetiresTheBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, frag := range []string{"# high-orc-auth", "- **Rank:** high_orc", "**Ascendant of:** `orc-auth`", "- **Territory:** `auth/`", "- **Reports to:** elf-core", "`test -d auth`", "tokens expire after one hour", "## Ascension", "reports 3, passes 3"} {
+	for _, frag := range []string{"# high-orc-auth", "- **Rank:** high-orc", "**Ascendant of:** `orc-auth`", "- **Territory:** `auth/`", "- **Reports to:** elf-core", "`test -d auth`", "tokens expire after one hour", "## Ascension", "reports 3, passes 3"} {
 		if !strings.Contains(string(doc), frag) {
 			t.Errorf("the ascended doc must carry %q:\n%s", frag, doc)
 		}
@@ -66,7 +67,7 @@ func TestAscensionCarriesTheBodyAndRetiresTheBase(t *testing.T) {
 		}
 	}
 	hi := w.Creature("high-orc-auth")
-	if hi == nil || hi.Rank != "high_orc" || strings.Join(hi.Territory, ",") != "auth" || hi.Parent != "elf-core" || !hi.VerifyCoded() {
+	if hi == nil || hi.Rank != "high-orc" || strings.Join(hi.Territory, ",") != "auth" || hi.Parent != "elf-core" || !hi.VerifyCoded() {
 		t.Fatalf("the risen body holds the base's territory, line and verify: %+v", hi)
 	}
 	if sl := w.Creature("slime-login"); sl == nil || sl.Parent != "high-orc-auth" {
@@ -110,19 +111,19 @@ func TestAscensionTallyOutlivesTheSession(t *testing.T) {
 		t.Fatal("two reports do not cross")
 	}
 	w2 := openWorldRanks(t, root, rs)
-	if m := w2.Metrics("orc-auth"); m.Reports != 2 || m.Passes != 2 {
+	if m := w2.Metrics("orc-auth"); m["reports"] != 2 || m["passes"] != 2 {
 		t.Fatalf("the tally replays at Open: %+v", m)
 	}
 	w2.FoldMetrics("orc-auth", "DONE", 0)
 	if got := w2.Ascensions(); len(got) != 1 {
 		t.Fatalf("the third report, a session later, crosses: %+v holes %v", got, w2.AscendHoles())
 	}
-	shelf, err := os.ReadFile(filepath.Join(root, ".isekai", filepath.FromSlash(ascensionShelf)))
-	if err != nil || strings.Count(string(shelf), `"kind":"report"`) != 3 || strings.Count(string(shelf), `"kind":"ascend"`) != 1 {
+	shelf, err := os.ReadFile(filepath.Join(root, ".isekai", filepath.FromSlash(value.Shelf)))
+	if err != nil || strings.Count(string(shelf), `"kind":"run"`) != 3 || strings.Count(string(shelf), `"kind":"ascend"`) != 1 {
 		t.Fatalf("the shelf is append-only, one row per report and per ascension: %v\n%s", err, shelf)
 	}
 	w3 := openWorldRanks(t, root, rs)
-	if m := w3.Metrics("orc-auth"); m.Reports != 3 {
+	if m := w3.Metrics("orc-auth"); m["reports"] != 3 {
 		t.Fatalf("replayed again: %+v", m)
 	}
 	w3.FoldMetrics("orc-auth", "DONE", 0)
@@ -136,7 +137,7 @@ func TestAscensionHoleSurfaces(t *testing.T) {
 	root := ascendWorld(t)
 	rs := ascendRanks("ascend orc when reports >= 1")
 	for i := range rs {
-		if rs[i].Name == "high_orc" { // the old shape: the ascended rank on its base's dir
+		if rs[i].Name == "high-orc" { // the old shape: the ascended rank on its base's dir
 			rs[i].Dir, rs[i].Prefix = "orc", "orc-"
 		}
 	}
@@ -164,36 +165,38 @@ func TestAscensionCountsTheBodysVerdict(t *testing.T) {
 	w := openWorldRanks(t, root, ascendRanks("ascend orc when reports >= 2 && passRate >= 100%"))
 	w.FoldMetrics("orc-auth", "DONE", 0)
 	w.FoldMetrics("orc-auth", "FAIL", 0)
-	if m := w.Metrics("orc-auth"); m.Passes != 1 || m.Fails != 1 || len(w.Ascensions()) != 0 {
+	if m := w.Metrics("orc-auth"); m["passes"] != 1 || m["fails"] != 1 || len(w.Ascensions()) != 0 {
 		t.Fatalf("a fail is a fail: %+v", m)
 	}
 }
 
-// The binary's table (config) and the world's default table ascend on the same conditions, in
-// the ascended ranks' own dirs.
+// Config is the one source of the default ascension conditions; the ascended ranks live in their
+// own dirs.
 func TestDefaultAscensionAgrees(t *testing.T) {
-	if config.DefaultAscendElf != DefaultAscendElf || config.DefaultAscendOrc != DefaultAscendOrc {
-		t.Fatal("config and world disagree on the default ascension conditions")
+	for _, r := range DefaultRanks(Isekai()) {
+		if r.AscendsWhen != "" {
+			t.Fatalf("the world carries no default ascension of its own — config is the one source: %s %q", r.Name, r.AscendsWhen)
+		}
 	}
-	for _, s := range []string{DefaultAscendElf, DefaultAscendOrc} {
+	for _, s := range []string{config.DefaultAscendElf, config.DefaultAscendOrc} {
 		if _, err := ParseASL(s); err != nil {
 			t.Fatalf("%q: %v", s, err)
 		}
 	}
 	rs := Ranks(DefaultRanks(Isekai()))
-	for _, n := range []string{"high_elf", "high_orc"} {
+	for _, n := range []string{"high-elf", "high-orc"} {
 		r, _ := rs.Get(n)
 		b, _ := rs.Get(r.Base)
 		if r.Dir == b.Dir || r.Prefix == b.Prefix || r.Prefix != r.Dir+"-" {
 			t.Errorf("%s needs its own dir and prefix: %+v", n, r)
 		}
 	}
-	if r, _ := Ranks(DefaultRanks(AgentOne())).Get("high_orc"); r.Prefix != "principal-domain-" {
+	if r, _ := Ranks(DefaultRanks(AgentOne())).Get("high-orc"); r.Prefix != "principal-domain-" {
 		t.Errorf("agent-one's words: %+v", r)
 	}
 	// the conservative band: 19 clean reports do not cross, 20 do; one hole in five blocks it
-	a, _ := ParseASL(DefaultAscendOrc)
-	if a.Cond.Eval(Metrics{Reports: 19, Passes: 19}) || !a.Cond.Eval(Metrics{Reports: 20, Passes: 20}) || a.Cond.Eval(Metrics{Reports: 20, Passes: 20, Holes: 4}) || a.Cond.Eval(Metrics{Reports: 20, Passes: 17}) {
+	a, _ := ParseASL(config.DefaultAscendOrc)
+	if a.Cond.Eval(Tally(19, 19, 0, 0)) || !a.Cond.Eval(Tally(20, 20, 0, 0)) || a.Cond.Eval(Tally(20, 20, 0, 4)) || a.Cond.Eval(Tally(20, 17, 0, 0)) {
 		t.Error("the default band")
 	}
 }

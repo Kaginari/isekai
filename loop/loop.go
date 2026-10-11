@@ -24,6 +24,7 @@ import (
 	"github.com/Kaginari/isekai/instrument"
 	"github.com/Kaginari/isekai/provider"
 	"github.com/Kaginari/isekai/tool"
+	"github.com/Kaginari/isekai/value"
 	"github.com/Kaginari/isekai/wire"
 )
 
@@ -183,6 +184,9 @@ type Hooks struct {
 	// Budget reads the session and court budgets before a model call; a non-empty reason
 	// checkpoints the run honestly.
 	Budget func(s *Session) string
+	// Ended sees every turn's result once it closes, whatever its status (the value ledger
+	// folds the throne's turns here).
+	Ended func(s *Session, r *Result)
 }
 
 // Decision is a permission rule's word on an act.
@@ -300,6 +304,9 @@ type Session struct {
 	gutsBench     []string             // recent act workbench keys, echo-penalty window
 	gutsBenchWrot map[string]int       // bench → cumulative writes as of its last visit
 	gutsBenchHits map[string]*benchHit // bench → visit tally (red/green/muted) — the thrash arm's and pulse's record
+	gutsThrash    int                  // readings that priced a bench thrash this session
+	gutsMomentum  int                  // the momentum at the last reading
+	gutsReads     int                  // readings this session
 	wroteTot      int                  // every write the world has landed (echo penalty's divider)
 	// TestsBefore is the test files' text as the turn opened (the gate's "tests intact" check).
 	TestsBefore map[string]string
@@ -324,6 +331,66 @@ type Result struct {
 	// the end + failed-gate re-asks + off-wire re-asks. A clean turn reads 0; a struggling one
 	// reads how often its thought-line broke. The dispatch ledger weighs it per body.
 	Strains int `json:"strains,omitempty"`
+	// GateTries is how often the end gate sent this turn back before it closed.
+	GateTries int `json:"gateTries,omitempty"`
+	// Interrupted: the hand was lowered mid-drive (the context ended) — the human's word, never
+	// the body's failure.
+	Interrupted bool `json:"interrupted,omitempty"`
+	// HoleKinds names each of Holes' kind at the close, index for index: infra (the world's
+	// fault), harness (the discipline the harness caught). The body's own @? are Report.Holes.
+	HoleKinds []string `json:"holeKinds,omitempty"`
+	// Guts is the turn's closing gut reading.
+	Guts GutsSum `json:"guts,omitempty"`
+}
+
+// GutsSum is a run's gut at its close: whether it read at all, the momentum at the last reading,
+// and how many readings priced a bench thrash.
+type GutsSum struct {
+	Read     bool `json:"read,omitempty"`
+	Momentum int  `json:"momentum,omitempty"`
+	Thrash   int  `json:"thrash,omitempty"`
+}
+
+// The hole kinds. Only a harness hole is the body's: the world's faults and the body's honest @?
+// never cost it.
+const (
+	HoleInfra   = "infra"   // the provider, the drain, recall, the output ceiling, a config switch, a filing error
+	HoleHarness = "harness" // the harness caught the body's discipline: off the wire, no @U, a gate sent back
+	HoleSelf    = "self"    // the body's own @? on the wire
+)
+
+// harnessHoles are the openings of every hole the loop raises against the body's own discipline.
+var harnessHoles = []string{
+	"answer off the wire", "report carries no @U line", "answer is not on the wire",
+	"gate failed and was sent back", "end-of-turn gate:", "closed with an open plan",
+	"+unsaid was asked and no @U came back", "consecutive failed acts", "doom loop",
+}
+
+// HoleKind classifies one hole the harness raised: harness when it names the body's discipline,
+// infra for everything else (the provider refused, a drain or recall failed, the output ceiling
+// cut the answer, the gate is switched off, a note could not be filed).
+func HoleKind(h string) string {
+	for _, p := range harnessHoles {
+		if strings.Contains(h, p) {
+			return HoleHarness
+		}
+	}
+	return HoleInfra
+}
+
+// HoleCount splits the run's holes by kind; self counts the body's own @? lines.
+func (r *Result) HoleCount() (infra, harness, self int) {
+	for _, h := range r.Holes {
+		if HoleKind(h) == HoleHarness {
+			harness++
+		} else {
+			infra++
+		}
+	}
+	if r.IsWire {
+		self = len(r.Report.Holes)
+	}
+	return infra, harness, self
 }
 
 func (r *Result) hole(h string) {
@@ -583,6 +650,7 @@ func (s *Session) drive(ctx context.Context) (*Result, error) {
 	stepsThisTurn := 0
 	s.gateTries = 0
 	s.wireTries = 0
+	s.gutsThrash, s.gutsReads = 0, 0 // the turn's gut summary is the turn's own
 	end := func(status string, why string) (*Result, error) {
 		r.Status = status
 		if why != "" {
@@ -590,6 +658,11 @@ func (s *Session) drive(ctx context.Context) (*Result, error) {
 		}
 		r.Usage, r.Context, r.Turns = s.Spend, s.Context, s.Turns
 		r.Strains = s.failures + s.gateTries + s.wireTries
+		r.GateTries = s.gateTries
+		r.Interrupted = ctx.Err() != nil
+		if e.Guts != nil {
+			r.Guts = GutsSum{Read: s.gutsReads > 0, Momentum: s.gutsMomentum, Thrash: s.gutsThrash}
+		}
 		if status == Done && e.Hooks.Answer != nil {
 			for _, h := range e.Hooks.Answer(s, r) {
 				r.hole(h)
@@ -608,7 +681,24 @@ func (s *Session) drive(ctx context.Context) (*Result, error) {
 		if ctx.Err() != nil {
 			ev["cause"] = e.Lexicon.human()
 		}
+		r.HoleKinds = r.HoleKinds[:0]
+		for _, h := range r.Holes {
+			r.HoleKinds = append(r.HoleKinds, HoleKind(h))
+		}
+		ev["holeKinds"] = r.HoleKinds
+		// the run's one word (law.value): what the leaderboard and the activity count by
+		word := ""
+		if r.IsWire {
+			word = r.Report.Status
+		}
+		ev["word"] = value.RunWord(status, word)
+		if ctx.Err() != nil {
+			ev["word"] = "INTERRUPTED"
+		}
 		s.Journal.Log(ev)
+		if e.Hooks.Ended != nil {
+			e.Hooks.Ended(s, r)
+		}
 		s.state("done")
 		return r, nil
 	}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Kaginari/isekai/board"
 	"github.com/Kaginari/isekai/config"
+	"github.com/Kaginari/isekai/world"
 )
 
 // boardOptions feeds the board what files cannot know (board/README.md §Feeds): the live
@@ -60,6 +61,8 @@ func (a *App) boardOptions() board.Options {
 		Session: func() board.Session {
 			return board.Session{ID: a.SessionID, Model: a.mountModel.Ref.Model, Provider: a.mountModel.Provider, Started: a.started, State: a.sessionState()}
 		},
+		Value: a.valueView,
+		Ranks: a.rankMetas,
 	}
 	names["bin"] = a.Cfg.Dist.Name
 	return board.Options{WorldRoot: a.Root, WorldDir: a.Cfg.Dist.WorldDir, Layout: a.World.Ranks.Layout(a.Lex), Names: names, Sources: src, Live: a.webBus()}
@@ -264,4 +267,41 @@ func (a *App) boardToken(ctx context.Context) string {
 		}
 	}
 	return b.Token()
+}
+
+// valueView is the value ledger as the board reads it, folded at most once a second however
+// many surfaces ask (the colony, the court rows, /api/value).
+func (a *App) valueView() *board.ValueView {
+	a.valueMu.Lock()
+	defer a.valueMu.Unlock()
+	if a.valueAt.IsZero() || time.Since(a.valueAt) > time.Second {
+		a.valueMemo = a.foldValueView()
+		a.valueAt = time.Now()
+	}
+	return a.valueMemo
+}
+
+func (a *App) foldValueView() *board.ValueView {
+	cfg := a.liveConfig()
+	meters, _ := cfg.Meters()
+	v := &board.ValueView{Lit: cfg.Law.Value.Enabled, Window: cfg.ValueWindow(), Def: cfg.ValueDef(), Meters: meters, Bodies: map[string]board.NodeValue{}}
+	if !v.Lit {
+		v.Why = "law.value is off (" + cfg.Where("law.value.enabled") + ")"
+		return v
+	}
+	rep := a.World.ValueReport()
+	v.Report = rep
+	for _, bv := range rep.Bodies {
+		v.Bodies[bv.Body] = board.NodeValue{Score: bv.Score, Confidence: bv.Confidence, Band: bv.Meter.Band, Meter: bv.Meter, Family: bv.Family, Strain: bv.Strain, Reports: int(bv.Signals["reports"])}
+	}
+	return v
+}
+
+// rankMetas are every rank's family and configured portrait, the throne's included.
+func (a *App) rankMetas() []board.RankMeta {
+	out := []board.RankMeta{{Rank: world.Rimuru, Family: a.World.Ranks.FamilyOf(world.Rimuru), Label: a.Lex.Session}}
+	for _, r := range a.World.Ranks {
+		out = append(out, board.RankMeta{Rank: r.Name, Family: a.World.Ranks.FamilyOf(r.Name), Portrait: r.Portrait, Label: a.Lex.Display[r.Name]})
+	}
+	return out
 }
