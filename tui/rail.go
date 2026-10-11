@@ -266,14 +266,14 @@ func (t Theme) railRows(v RailView, rw int) []railRow {
 				}
 				frac := fmt.Sprintf(" %d/%d", done, len(v.Plan.Items))
 				cells := min(inner-ansi.StringWidth(frac), 24)
-				// the bar in the plan meter's band (config's ui.meters.plan); a deck with nothing done
-				// yet has no basis and keeps the plan's own violet
+				// the bar in the plan's own violet; the count in the plan meter's band (config's
+				// ui.meters.plan) once a slice is done — a deck with nothing done has no basis yet
 				pct := 100 * float64(done) / float64(len(v.Plan.Items))
-				fill := hue.GetForeground()
+				fracS := t.label.Render(frac)
 				if done > 0 {
-					fill = t.bandHue(value.Render(meterDef(v.Meters, "plan"), pct, true).Band)
+					fracS = lipgloss.NewStyle().Foreground(t.bandHue(value.Render(meterDef(v.Meters, "plan"), pct, true).Band)).Render(frac)
 				}
-				line(t.gauge(pct/100, cells, fill, nil) + t.label.Render(frac))
+				line(t.gauge(pct/100, cells, hue.GetForeground(), nil) + fracS)
 			}
 			for _, it := range v.Plan.Items {
 				var mark string
