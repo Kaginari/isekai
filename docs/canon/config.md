@@ -392,7 +392,8 @@ document is JSON here; the same keys in YAML are the same config.
   "undo":    { "enabled": true, "dir": "~/.local/share/[dist]/undo", "keepDays": 7 },
   "output":  { "format": "text", "stream": true, "thinking": false, "color": "auto" },
   "budgets": { "session": { "tokens": 0, "usd": 0 }, "court": { "tokens": 0, "usd": 0 } },   // 0 = off; shown in status
-  "ui":      { "statusLine": true, "announceCourts": true, "board": { "autostart": true, "port": 7411 },
+  "ui":      { "statusLine": true, "announceCourts": true, "theme": "cyberpunk", "mode": "dark",   // the look, §Notes
+               "board": { "autostart": true, "port": 7411 },
                "meters": {} },                        // ctx (unset: bands from law.budget — ok under the NEAR line, warn to
                                                       // the stress line), plan, score: {signal, label, scale, bands, direction}
   "logLevel": "WARN",
@@ -430,6 +431,17 @@ document is JSON here; the same keys in YAML are the same config.
   to the honesty rule like any layer; `--no-human-gate` does not exist.
 - **`budgets`** are honest stop lines: a session or a Court that reaches its token or USD line
   checkpoints, reports and stops, never mid-write. A cost is computed only for priced models.
+- **`ui.theme` · `ui.mode`** — the palette both faces wear, the terminal and the dashboard, from
+  the binary's palettes (package `theme`): `cyberpunk` (the default), `neon-dystopia`,
+  `corporate-rebellion`, `rain-city`, `synthwave`, `glitch`, `chromecore`, `realm`; an unknown name
+  is refused at load naming them all. `ui.mode` is `dark` (the default), `light`, or `system` (the
+  terminal's background, the browser's `prefers-color-scheme`); the terminal's
+  `<PREFIX>_THEME=dark|light` still wins for that terminal. The live switches (`/theme`,
+  `/settings`, the dashboard's menus, `POST /api/theme`) write both keys to the world's
+  `config.local.yaml` — machine-local, like every look — and reload; when a layer above it (the
+  environment, a `--set` flag) still names another look, the session wears the switch anyway and
+  the file keeps it for the next start. `isekai config explain theme` prints the look in force
+  with its origin and every palette with its swatches and source.
 
 ## Registry — where things come from
 

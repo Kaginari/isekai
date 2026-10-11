@@ -81,11 +81,21 @@ row — the headroom VS Code's sticky scroll paints the launching command over:
 - **Sidebar** — the right third, full height from header to status bar, titled `session`: a
   cockpit column of tiles, each its title in its own hue. The header tile: the world's sprite
   beside (or above, when narrow) the world's name, the model and the session's state chip. The
-  vitals: a label/value grid — the context meter (a bar ramping calm → warning → danger, the
-  percentage, the cap), the tokens, the cost, the board's link. The races: each race's dot, name,
-  a bar of its share of the session's tokens in its lane, its tokens. The courts: a roster, the
-  live ones first, each state a chip on the right edge (the lane's while it runs, the verdict's
-  once landed). The plan: a progress bar of the deck's done steps and the count, the current step
+  vitals: a label/value grid — the context meter (each cell in the band its position reads under
+  the ctx meter's law, `cfg.Meters()`: ok to the NEAR line, warn to the stress line, danger past
+  it — never a number of the terminal's own), the percentage, the cap; the tokens, the cost; `val`
+  the throne's own score (its meter, a bar in its band); `asc` the body nearest its ascension
+  (`orc-engine · reports 17/20 to ascend`, or how many conditions are left and the nearest); the
+  board's link. The races (law.value, `docs/canon/races.md` §Value): each race's dot and name in
+  its lane (a custom race in its family's: root the throne's, planner the elf's, gate the orc's,
+  author the slime's, steward the kijin's, auditor the dark-elf's), its meter's label, a bar in its
+  band's colour and the reading; confident races first by their mean score, a race with no
+  confident record dimmed and unranked (`low`), the session's tokens at the row's end on a wide
+  column. While the law has no record (off, a young world) the tile is each race's share of the
+  session's tokens in its lane. The courts: a roster, the live ones first, each state a chip on
+  the right edge (the lane's while it runs, the verdict's once landed), the body's reading beside
+  it in its band (dimmed under its record). The plan: a progress bar of the deck's done steps in
+  the plan's violet and the count in the plan meter's band once a step is done, the current step
   lit in the plan's violet, the rest under it. The files touched: a Lip Gloss tree. The races,
   courts, plan and files fold to their title: `alt+c` / `alt+p` / `alt+f` or a click on it; a
   click on a roster row shows that body's plan. Taller than its column, the sidebar scrolls with
@@ -111,17 +121,25 @@ the rose into the plan's violet; each sidebar tile's title its own hue (vitals t
 amber, courts rose, plan violet, files blue); a tool card's name its class's hue, a Court's its
 race's lane; a panel's title the primary into the violet.
 
-The colours come from one palette (`tui/palette.go`): a named value, role → hex for a dark and a
+The colours come from one palette — the binary's, shared with the dashboard (package `theme`;
+`tui/palette.go` only names it in the terminal's words): a named value, role → hex for a dark and a
 light variant, read by one constructor (`NewThemeFrom`) — nothing else names a colour of the
-scheme. The default is omoro.io's **Cyberpunk** (Void `#0D1117`, Smog Purple `#1A0A2E`, Danger
+scheme. Config picks it (`ui.theme`: cyberpunk, neon-dystopia, corporate-rebellion, rain-city,
+synthwave, glitch, chromecore, realm) and its variant (`ui.mode`: dark, light, or system — the
+terminal's answer to the background query; `<PREFIX>_THEME=dark|light` in the environment still
+wins). `/theme <name> [dark|light|system]` wears another at once (alone it flips dark and light;
+an unknown name lists them), `/settings` picks both; the host writes the choice to the world's
+`config.local.yaml` and the dashboard follows, and a switch made on the dashboard reaches the
+terminal as `EvTheme` and is worn the same way. The default is omoro.io's **Cyberpunk** (Void `#0D1117`, Smog Purple `#1A0A2E`, Danger
 Red `#FF003C`, Amber Haze `#FF9900`, Scanner Cyan `#00FFFF`): the ground is Void, the surfaces
 step from it toward Smog Purple; Scanner Cyan is the primary (brand, focus, the live state,
 links); a rose from Danger Red is the human's accent (the ask's spine, the waiting chip); the
 verdicts are a mint (the palette has no green), Amber Haze and Danger Red lifted to read; the plan
 is Smog Purple's violet at text lightness; the race lanes are rimuru amber, elf magenta, orc acid
 lime, slime blue, kijin red, dark-elf indigo. Light is the same scheme as deep ink on a
-smog-tinted paper. Every text role, lane, tool class and the plan's hue holds 4.5:1 on every
-surface it can sit on, every row of every gradient and every chip included (`TestDepthContrast`);
+smog-tinted paper. In every palette, both variants, every text role, lane, tool class and the
+plan's hue holds 4.5:1 on every surface it can sit on, every row of every gradient and every chip
+included (`TestDepthContrast`, run over `theme.All`);
 where a raw swatch fails, the palette's role is the swatch retuned, and the palette's comment
 says which.
 
@@ -234,13 +252,14 @@ overdrawn):
   offices, help, clear, quit) and
   the host's, fuzzy-matched as you type: a subsequence, word starts and runs scoring higher, the
   matched letters lit. Enter runs a command that takes nothing at once; one that takes arguments
-  lands in the input to be finished. `theme` switches dark and light and reprints the transcript.
+  lands in the input to be finished. `theme` flips dark and light in the palette worn and
+  reprints the transcript.
 - **Toasts.** A Court landing (✓ done / ✗ failed) and the gate's verdict raise a one-line pill at
   the live area's top right (under the depth a floating card, the highest elevation); it slides in
   on a spring and leaves after four seconds, three at most.
   The block it echoes is in the scrollback already — a toast is a glance, never the record.
-- **Settings — `/settings`.** A huh form floating over the frame: the theme, who owns the mouse,
-  the sidebar — inline selects (`←→` change, `tab` next, `enter` saves, `esc` closes unchanged).
+- **Settings — `/settings`.** A huh form floating over the frame: the palette (every one the
+  binary ships), its mode (dark, light, system), who owns the mouse, the sidebar — inline selects (`←→` change, `tab` next, `enter` saves, `esc` closes unchanged).
   The form is a Bubble Tea model inside the session's: while it is open every message reaches it
   first.
 

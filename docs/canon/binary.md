@@ -542,10 +542,20 @@ action, Orbitron for display type and tracked capital labels, Rajdhani for readi
 for numbers and code (all SIL OFL, vendored under `board/web/fonts/` and served by the board, so
 the self-only CSP holds), a faint slow scanline and a one-time glitch on the brand — every motion
 off under `prefers-reduced-motion`. Its colour roles (ground, panel, sunken, border, text, muted,
-primary, accent, ok/warn/danger, a hue per rank) are named the same in the terminal ui; dark is
-the default, light is a real light mode in the same language (deep cyan and magenta inks on a
-cool paper ground), and "system" follows the reader's system; every text colour clears 4.5:1 in
-both. Its overview is a cockpit: the living neural net is the
+primary, accent, ok/warn/danger, a hue per rank) are named the same in the terminal ui, and their
+values are the terminal's own: the board generates them at `/theme.css` from the binary's palette
+(package `theme`: cyberpunk — the default for both faces — neon-dystopia, corporate-rebellion,
+rain-city, synthwave, glitch, chromecore and realm, the HUD's own; `ui.theme`, `ui.mode`).
+`theme.css` keeps the faces, the type, the shape and the meaning tier, and derives the glows from
+the roles. Dark is the default, light a real light mode in the same language, and "system" follows
+the reader's system; every text colour clears 4.5:1 on every surface of every palette in both.
+The topbar's theme and mode menus switch the look for the whole session (`POST /api/theme` with
+the page's token, loopback only — answered even without a session; `GET /api/theme` lists the
+palettes): the choice lands in the world's `config.local.yaml`, the terminal follows, and a switch
+made in the terminal (`/theme`, `/settings`) arrives as a `theme` event on the session stream;
+either way the page swaps the role stylesheet in place and sets `data-scheme`, which the 3D net
+watches to re-read its colours through its probes (the 2D net and every component read the tokens
+live). Its overview is a cockpit: the living neural net is the
 hero; the session's console docks beside it (the transcript read like a page, tool calls, Courts
 and verdicts as folded cards, approvals and questions as choice cards, one input: Enter sends, ↑
 recalls, Esc interrupts, `/` runs a command) — a splitter resizes it, a button folds it to a rail,

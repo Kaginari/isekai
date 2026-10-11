@@ -38,7 +38,12 @@ instrument.
 The board is one page — isekai's dashboard at the root, its views as tabs — built on this UI
 system itself: the foundation's tokens, palettes and layout copied byte for byte into board/web,
 its components linted like any project's, and a page theme (board/web/theme.css, the "realm" neon
-HUD) holding the literal values. The Bootstrap grid and pages below remain the guidance for the
+HUD: its faces, its type and shape, the meaning tier mapped from the colour roles). The roles
+themselves are not literal values in the page: the board generates them at `/theme.css` from the
+binary's palette (package `theme`, the same palettes the terminal wears; `ui.theme` and `ui.mode`
+pick one) as `--realm-*` custom properties, dark on `:root`, light under `data-theme="light"` and
+under a light system. The page's theme and mode menus swap that stylesheet in place, so every
+component, and the 3D net through its probes, repaints without a reload. The Bootstrap grid and pages below remain the guidance for the
 pages a world builds for its own project when it has no system of its own.
 
 ## Layout: the Bootstrap grid
