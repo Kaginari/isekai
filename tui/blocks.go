@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/tree"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/Kaginari/isekai/value"
 )
 
 // The view model: every block the session draws, as a pure function of a view and a width.
@@ -828,7 +830,8 @@ type RailPlan struct {
 	Archived bool
 }
 
-// RailCourt is one roster row: the race dot, the name, the state, the age.
+// RailCourt is one roster row: the race dot, the name, the state, the age, and the body's value
+// meter (nil when the value law has no record of it).
 type RailCourt struct {
 	Name   string
 	State  string
@@ -836,6 +839,26 @@ type RailCourt struct {
 	Lane   color.Color
 	Done   bool
 	Failed bool
+	Value  *RailValue
+}
+
+// RailValue is one body's value reading (law.value) as the terminal shows it: its meter, banded
+// by its race's law; Low when its record is under the race's minRecord (shown dimmed, never
+// ranked).
+type RailValue struct {
+	Meter value.Meter
+	Low   bool
+}
+
+// RailRace is one race's standing (law.value): its rank (canonical), its family (the hue a
+// custom race wears), the meter its confident bodies read, how many bodies it has and how many
+// of them hold a confident record, and their mean score.
+type RailRace struct {
+	Rank, Family string
+	Meter        value.Meter
+	Bodies       int
+	Confident    int
+	Mean         float64
 }
 
 // RailView is the right rail's data: the world's mascot and name, the run's vitals (ctx gauge,
@@ -867,6 +890,12 @@ type RailView struct {
 	Verb  string
 	// Evolved is the session's last evolution, one line ("slime-x mutated its genome")
 	Evolved string
+	// the value law's readings (FooterView's): the meters' bands, the races, the throne's own
+	// score and the nearest ascension
+	Meters map[string]value.MeterDef
+	Races  []RailRace
+	Score  *RailValue
+	Ascend string
 }
 
 const railFilesMax = 10
@@ -1239,6 +1268,16 @@ type FooterView struct {
 	// render exactly as before.
 	CtxTokens int
 	CtxLimit  int
+	// Meters are the session's meters (ctx, plan, score) as config resolves them
+	// (cfg.Meters()): every gauge bands by them; nil reads the binary's defaults.
+	Meters map[string]value.MeterDef
+	// Races are the races' value standing (law.value), Values the bodies' meters by body name
+	// (a court row's chip), Score the throne's own meter, Ascend the nearest ascension
+	// ("orc-engine · 3 to ascend"); empty when the value law is off or has no record.
+	Races  []RailRace
+	Values map[string]RailValue
+	Score  *RailValue
+	Ascend string
 }
 
 // Footer renders the line under the input.
@@ -1247,7 +1286,7 @@ func (t Theme) Footer(f FooterView, width int) string {
 	parts = parts[:0:0]
 	ctx := f.Ctx
 	if f.CtxKnown && width >= 72 {
-		ctx = "ctx " + t.Meter(f.CtxPct, 8) + fmt.Sprintf(" %d%%", f.CtxPct)
+		ctx = "ctx " + t.MeterFor(f.CtxPct, 8, meterDef(f.Meters, "ctx")) + fmt.Sprintf(" %d%%", f.CtxPct)
 		// raw counts ride only on wide screens — a narrow terminal keeps the meter
 		if f.CtxTokens > 0 && f.CtxLimit > 0 && width >= 88 {
 			ctx += fmt.Sprintf(" · %s/%s", humanTokens(f.CtxTokens), humanTokens(f.CtxLimit))

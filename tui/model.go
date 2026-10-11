@@ -985,6 +985,10 @@ func (m *Model) railView(rw int) RailView {
 		CtxMax:   m.footer.CtxMax,
 		Layers:   m.footer.Layers,
 		Evolved:  m.evolved,
+		Meters:   m.footer.Meters,
+		Races:    m.footer.Races,
+		Score:    m.footer.Score,
+		Ascend:   m.footer.Ascend,
 	}
 	switch {
 	case m.choice != nil:
@@ -1041,7 +1045,7 @@ func (m *Model) railView(rw int) RailView {
 		if c.Elapsed > 0 {
 			aged = c.Elapsed.Round(time.Second).String()
 		}
-		v.Courts = append(v.Courts, RailCourt{Name: n, State: st, Aged: aged, Lane: m.theme.lane(c.Rank), Done: c.State == "done", Failed: c.Failed})
+		v.Courts = append(v.Courts, RailCourt{Name: n, State: st, Aged: aged, Lane: m.raceLane(c.Rank), Done: c.State == "done", Failed: c.Failed, Value: m.bodyValue(n)})
 	}
 	for i := len(m.logOrder) - 1; i >= 0 && len(v.Courts) < 8; i-- {
 		b := m.logOrder[i]
@@ -1052,12 +1056,34 @@ func (m *Model) railView(rw int) RailView {
 		if l == nil || l.state != "done" {
 			continue
 		}
-		v.Courts = append(v.Courts, RailCourt{Name: b, State: "done", Lane: m.theme.lane(l.rank), Done: true})
+		v.Courts = append(v.Courts, RailCourt{Name: b, State: "done", Lane: m.raceLane(l.rank), Done: true, Value: m.bodyValue(b)})
 	}
 	if len(v.Courts) > 8 {
 		v.Courts = v.Courts[:8]
 	}
 	return v
+}
+
+// raceLane is a race's hue: its lane, else its family's (the value law names a custom race's
+// family), else nil (the quiet tone).
+func (m *Model) raceLane(rank string) color.Color {
+	if c := m.theme.lane(rank); c != nil {
+		return c
+	}
+	for _, r := range m.footer.Races {
+		if r.Rank == rank {
+			return m.theme.raceHue(rank, r.Family)
+		}
+	}
+	return nil
+}
+
+// bodyValue is a body's value reading for its court row, nil when the law has none.
+func (m *Model) bodyValue(name string) *RailValue {
+	if v, ok := m.footer.Values[name]; ok {
+		return &v
+	}
+	return nil
 }
 
 func (m *Model) isSession(body string) bool {
