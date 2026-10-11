@@ -40,6 +40,7 @@ type Options struct {
 	Ontology     bool         // load the ontology (creatures need it; off = an empty roster)
 	Ranks        Ranks        // the rank table; nil = DefaultRanks(lex) (config's `rankSet: replace` passes the whole table)
 	Value        ValueOptions // law.value: the one definition of success and the ledger's window
+	Evolution    EvolutionOptions
 }
 
 // World is one opened world.
@@ -103,6 +104,8 @@ type World struct {
 	// same gate failing on the same files for the same body hardens into a spec directive).
 	pairMarks   map[string]time.Time
 	gateStreaks map[string]*gateStreak
+	// evo is law.evolution: the armed options, this session's evolutions (world/evolve.go)
+	evo evoState
 }
 
 // Discover walks up from dir for the first lexicon whose world dir exists. Both `.isekai` and
@@ -141,6 +144,7 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 		return nil, fmt.Errorf("ranks: %v", err)
 	}
 	w.ascend = newAscendState(w.Ranks)
+	w.SetEvolution(opt.Evolution)
 	w.loadLedgers() // the scars come home before the first body runs (freeze law 2026-10-07)
 	w.openValue()   // and the value ledger: a body's runs count across sessions
 	lawPath := filepath.Join(abs, lex.WorldDir, lex.Law)

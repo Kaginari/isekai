@@ -362,6 +362,50 @@ type BodyValue struct {
 	Meter      value.Meter     `json:"meter"`
 	Strain     int             `json:"strain"`
 	Ascension  *AscendProgress `json:"ascension,omitempty"`
+	Evolution  *BodyEvolution  `json:"evolution,omitempty"`
+}
+
+// BodyEvolution is where a body stands against law.evolution: its desk, its stress, its cooldown
+// and its last evolution.
+type BodyEvolution struct {
+	Thoughts     int        `json:"thoughts"`
+	ThoughtsMax  int        `json:"thoughtsMax"`
+	Stressed     bool       `json:"stressed"`
+	Why          []string   `json:"why,omitempty"`
+	RunsSince    int        `json:"runsSince"`
+	CooldownLeft int        `json:"cooldownLeft"`
+	Last         *value.Row `json:"last,omitempty"`
+}
+
+// EvolutionReport is law.evolution as armed, and the latest evolutions the ledger holds.
+type EvolutionReport struct {
+	Enabled      bool        `json:"enabled"`
+	Mode         string      `json:"mode"`
+	ThoughtsMax  int         `json:"thoughtsMax"`
+	StressAt     int         `json:"stressAt"`
+	FailStreak   int         `json:"failStreak"`
+	CooldownRuns int         `json:"cooldownRuns"`
+	Arms         []string    `json:"arms"`
+	Recent       []value.Row `json:"recent"`
+	Open         int         `json:"open"` // proposals waiting on the human
+}
+
+// EvolutionView reads law.evolution and the ledger's evolution rows, newest first (at most n).
+func (w *World) EvolutionView(n int) EvolutionReport {
+	o := w.Evolution()
+	rep := EvolutionReport{Enabled: o.on(), Mode: o.Mode, ThoughtsMax: o.ThoughtsMax, StressAt: o.StressAt, FailStreak: o.FailStreak, CooldownRuns: o.CooldownRuns, Arms: o.Arms, Recent: []value.Row{}}
+	rows := w.Ledger()
+	for i := len(rows) - 1; i >= 0 && len(rep.Recent) < n; i-- {
+		if rows[i].Kind == value.KindEvolve {
+			rep.Recent = append(rep.Recent, rows[i])
+		}
+	}
+	for _, p := range w.Proposals() {
+		if p.Status == "open" {
+			rep.Open++
+		}
+	}
+	return rep
 }
 
 // AscendProgress is a body's distance to its ascension: each condition leaf's reading.
@@ -387,14 +431,15 @@ type RankValue struct {
 
 // ValueReport is the whole value picture: what /api/value serves.
 type ValueReport struct {
-	Window string                    `json:"window"`
-	Def    value.Def                 `json:"def"`
-	Ledger string                    `json:"ledger"`
-	Rows   int                       `json:"rows"`
-	Off    bool                      `json:"off"`
-	Bodies []BodyValue               `json:"bodies"`
-	Ranks  []RankValue               `json:"ranks"`
-	Meters map[string]value.MeterDef `json:"meters"`
+	Window    string                    `json:"window"`
+	Def       value.Def                 `json:"def"`
+	Ledger    string                    `json:"ledger"`
+	Rows      int                       `json:"rows"`
+	Off       bool                      `json:"off"`
+	Bodies    []BodyValue               `json:"bodies"`
+	Ranks     []RankValue               `json:"ranks"`
+	Meters    map[string]value.MeterDef `json:"meters"`
+	Evolution EvolutionReport           `json:"evolution"`
 }
 
 // valueOf renders one body's value from its signals.
@@ -414,6 +459,10 @@ func (w *World) valueOf(body string, s value.Signals) BodyValue {
 		if ok {
 			bv.Ascension = &AscendProgress{To: watcher.To.Name, When: watcher.ASL.Cond.String(), Met: watcher.ASL.Cond.Eval(s), Leaves: watcher.ASL.Cond.Leaves(s)}
 		}
+	}
+	if c := w.Creature(body); c != nil && c.Doc != "" && c.Name == body {
+		st, cd := w.StressOf(body), w.CooldownOf(body)
+		bv.Evolution = &BodyEvolution{Thoughts: w.DeskOf(body), ThoughtsMax: w.Evolution().ThoughtsMax, Stressed: st.Stressed, Why: st.Why, RunsSince: cd.RunsSince, CooldownLeft: cd.Left, Last: cd.Last}
 	}
 	return bv
 }
@@ -441,6 +490,7 @@ func (w *World) ValueReport() ValueReport {
 	}
 	all := w.AllSignals()
 	rep.Rows = len(w.Ledger())
+	rep.Evolution = w.EvolutionView(10)
 	// every body on the roster appears, a body with no record as a low-confidence zero
 	names := map[string]bool{}
 	for b := range all {

@@ -536,19 +536,6 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 				rep.Status, rep.Failed = "ESCALATE", true
 			}
 		}
-		// the relief arm (law.stress.relieveAt): the warrant talked, now the zone changes —
-		// outside the council's lock; relieve rereads safely, and both the act and the ledger
-		// shall witness it
-		if rel := b.Court.StressRelieveAt; rel > 0 {
-			w.mu.Lock()
-			strainNow := w.stress[body]
-			w.mu.Unlock()
-			if strainNow >= rel {
-				if act, ok := w.relieve(body); ok {
-					rep.Text += "\n@? council relief — " + body + " crosses relieveAt: " + act
-				}
-			}
-		}
 		w.courtGated(parent, body, rep.Wrote)
 		// the value ledger grows before the return: the ranking body's report is its record, and
 		// an ascension may mint off it. One definition of success (law.value): the run's word is
@@ -558,7 +545,25 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		strainNow := w.stress[body]
 		w.mu.Unlock()
 		w.foldResult(cr.Name, parent.As, r, strainNow, warrant, false) // the roster's name: a short or old name folds into one record
-		if lines := w.ascendLines(); len(lines) > 0 {
+		lines := w.ascendLines()
+		// law.evolution: a stressed body whose desk overflowed heals itself in the same wave —
+		// split, mutate or rebirth, proven before it lands (world/evolve.go)
+		evolved := w.evolveAfterRun(cr.Name)
+		lines = append(lines, evolved...)
+		// the relief arm (law.stress.relieveAt): the warrant talked, now the zone changes —
+		// outside the council's lock; relieve rereads safely, and both the act and the ledger
+		// shall witness it. A body that just evolved has had its zone changed already.
+		if rel := b.Court.StressRelieveAt; rel > 0 && len(evolved) == 0 {
+			w.mu.Lock()
+			strainNow := w.stress[body]
+			w.mu.Unlock()
+			if strainNow >= rel && w.Creature(body) != nil {
+				if act, ok := w.relieve(body); ok {
+					rep.Text += "\n@? council relief — " + body + " crosses relieveAt: " + act
+				}
+			}
+		}
+		if len(lines) > 0 {
 			note := strings.Join(lines, "\n")
 			if rep.ReportPath != "" {
 				rep.Text = note + "\n" + rep.Text // the envelope's digest shows the head: lead with it
