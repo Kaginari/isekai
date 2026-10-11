@@ -54,7 +54,7 @@ func TestPalettesAreWhole(t *testing.T) {
 		for _, dark := range []bool{true, false} {
 			r := p.Variant(dark)
 			for _, kv := range CSSVars(r, dark) {
-				if strings.HasPrefix(kv[0], "--glow") || kv[0] == "--realm-primary-wash" {
+				if kv[0] == "--realm-primary-wash" {
 					continue
 				}
 				if !reHex.MatchString(kv[1]) {
