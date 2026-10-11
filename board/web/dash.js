@@ -661,18 +661,32 @@
     box.replaceChildren(...(items.length ? [el('h3', { class: 'panel-note', text: colony.findings.length + ' findings · ' + colony.notes.length + ' notes — what the ontology says is missing' }),
       el('ul', { class: 'findings' }, items.map(i => el('li', { 'data-tone': i.tone || false, text: i.t })))] : []));
   }
+  // the card over the net can be put away (✕) while its neuron stays selected; picking another
+  // neuron, or the card button in the net's tools, brings it back
+  let cardHidden = false;
   function setFocus(id, fromNet) {
+    if (id !== focus) cardHidden = false;
     focus = id;
     if (!fromNet) net.focus(id);
     for (const th of document.querySelectorAll('#matrix th[data-id]')) th.toggleAttribute('data-hot', !!focus && th.dataset.id === focus);
     knowledge(id);
   }
   $('#net-clear').addEventListener('click', () => setFocus(''));
+  $('#net-card').addEventListener('click', () => { cardHidden = false; knowledge(focus); });
+  // a short, stable code for a neuron's ID block: its kind, then four hex of its id's hash
+  const idCode = n => {
+    let h = 2166136261;
+    for (const ch of n.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    const kind = n.throne ? 'ROOT' : isMind(n) ? 'MIND' : (n.rank || 'BODY').replace(/[^a-z]/gi, '').slice(0, 4).toUpperCase();
+    return kind + '-' + ((h >>> 0) & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+  };
   function knowledge(id) {
     const box = $('#kcard');
     box.replaceChildren();
     const slot = box.parentElement && box.parentElement.id === 'net-float' ? box.parentElement : null;
-    if (slot) slot.hidden = !id;
+    if (slot) slot.hidden = !id || cardHidden;
+    const reopen = $('#net-card');
+    if (reopen) reopen.hidden = !(slot && id && cardHidden);
     if (!id || !colony) { if (main.dataset.view === 'overview') return; box.append(el('p', { class: 'net-hint', text: 'Hover a neuron to light its path to the ' + word('rank.rimuru', 'throne') + ' and everything below it; click (or Enter) pins it here. Each tile is four weeks of that ' + word('body', 'body') + "'s work, a cell a day — blank where no instrument saw any." })); return; }
     const n = colony.nodes.find(x => x.id === id);
     if (!n) return;
@@ -711,10 +725,18 @@
       icon.kind === 'portrait' ? el('img', { class: 'kcard-portrait', src: icon.url, alt: word('rank.' + n.rank, n.rank || 'body'), width: 112, height: 112 })
         : svg('svg', { class: 'kcard-glyph', viewBox: '0 0 24 24', 'aria-hidden': 'true' }, svg('use', { href: icon.url })),
       el('figcaption', { text: isMind(n) ? word('mind', 'mind') : word('rank.' + n.rank, n.rank || 'body') + (n.family ? ' · ' + n.family : '') })) : null;
-    box.append(el('article', { class: 'kcard', 'data-float': main.dataset.view === 'overview', 'data-rank': n.throne ? 'rimuru' : (isMind(n) ? false : n.rank || false), 'data-family': n.family || false },
+    const floating = main.dataset.view === 'overview';
+    const idBlock = floating ? el('div', { class: 'kcard-id' },
+      el('span', { class: 'kcard-id-tag', text: 'ID //' }), el('span', { class: 'kcard-id-code', text: idCode(n) }),
+      el('span', { class: 'kcard-id-state', 'data-live': liveNames.has(n.name), text: liveNames.has(n.name) ? 'live' : 'idle' }),
+      el('span', { class: 'kcard-id-bars', 'aria-hidden': 'true' })) : null;
+    const hide = floating ? el('button', { class: 'kcard-x', type: 'button', text: '✕', title: 'hide the card — the neuron stays selected',
+      'aria-label': 'hide the card; the neuron stays selected', onclick: () => { cardHidden = true; knowledge(focus); } }) : null;
+    box.append(el('article', { class: 'kcard', 'data-float': floating, 'data-rank': n.throne ? 'rimuru' : (isMind(n) ? false : n.rank || false), 'data-family': n.family || false },
+      hide, idBlock,
       face,
       el('div', { class: 'kcard-title' }, n.throne ? (n.label || n.name) : n.name, el('span', { class: 'pill', 'data-tone': 'info', text: isMind(n) ? word('mind', 'mind') : word('rank.' + n.rank, n.rank || 'body') }), liveNames.has(n.name) ? pill('running') : null,
-        el('button', { class: 'button kcard-close', 'data-size': 's', 'data-variant': 'quiet', type: 'button', text: 'close', 'aria-label': 'clear the focus', onclick: () => setFocus('') })),
+        floating ? null : el('button', { class: 'button kcard-close', 'data-size': 's', 'data-variant': 'quiet', type: 'button', text: 'close', 'aria-label': 'clear the focus', onclick: () => setFocus('') })),
       el('dl', {}, rows), doc, isMind(n) ? null : plan));
     if (docPath) fetch('api/doc?path=' + encodeURIComponent(docPath)).then(r => r.ok ? r.text() : Promise.reject(new Error(r.status)))
       .then(t => { doc.textContent = t.split('\n').slice(0, 40).join('\n'); }).catch(() => { doc.textContent = docPath + ' — not readable here'; });
