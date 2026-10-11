@@ -65,7 +65,8 @@ func (a *App) boardOptions() board.Options {
 		Ranks: a.rankMetas,
 	}
 	names["bin"] = a.Cfg.Dist.Name
-	return board.Options{WorldRoot: a.Root, WorldDir: a.Cfg.Dist.WorldDir, Layout: a.World.Ranks.Layout(a.Lex), Names: names, Sources: src, Live: a.webBus()}
+	return board.Options{WorldRoot: a.Root, WorldDir: a.Cfg.Dist.WorldDir, Layout: a.World.Ranks.Layout(a.Lex), Names: names, Sources: src, Live: a.webBus(),
+		Theme: a.look, SetTheme: a.setTheme}
 }
 
 // webBus is the session's bus to the dashboard, made on first use.

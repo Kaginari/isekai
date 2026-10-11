@@ -64,6 +64,7 @@ type Options struct {
 type App struct {
 	// the value view the board reads, folded at most once a second (board.go valueView)
 	valueMu   sync.Mutex
+	themeMu   sync.Mutex // one look switch at a time (setTheme)
 	valueAt   time.Time
 	valueMemo *board.ValueView
 
