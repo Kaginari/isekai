@@ -87,6 +87,25 @@ isekai install --claude --global --yes   # or for every world on this machine (s
 | `PostToolUse` | the paths a file tool wrote, for the gate |
 | `Stop` | the gate over everything the turn changed (shell writes too): a territory changed without its doc, or a failing verify line, sends the turn back with the reasons; the verdict lands in `log.md` |
 
+### The world's memory over MCP
+
+`isekai mcp serve` serves the world's memory to any MCP client on stdio — Claude Code, OpenCode,
+or another harness. Three tools, the instrument the binary's own loop uses: **`recall`** (what the
+world remembers about a question — log entries, docs, the law, notes from earlier sessions, ranked
+by meaning, then by relation), **`remember`** (file a note every later session recalls; `machine:
+true` files it for every world on this machine) and **`memory_status`**. The world is the one found
+from the working directory up, or `--root <dir>`; a note filed by one client is recalled at once by
+any other, and by isekai's own sessions.
+
+```sh
+claude mcp add isekai-memory -- isekai mcp serve        # Claude Code
+```
+
+```jsonc
+// .mcp.json (Claude Code) — or opencode.json: "mcp": { "isekai-memory": { "type": "local", "command": ["isekai", "mcp", "serve"] } }
+{ "mcpServers": { "isekai-memory": { "command": "isekai", "args": ["mcp", "serve"] } } }
+```
+
 ## The CLI, seen
 
 A working session: the ask up top, every classified step drawn as it lands:

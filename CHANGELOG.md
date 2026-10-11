@@ -6,6 +6,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The world's memory over MCP.** `isekai mcp serve` is an MCP server on stdio — `recall`,
+  `remember`, `memory_status` — so Claude Code, OpenCode or any MCP client recalls what the world
+  remembers and files notes every later session finds. `claude mcp add isekai-memory -- isekai mcp serve`.
+- **`/board` in the terminal wears the session's frame** and theme: the rounded border, the raised
+  header with the page tabs as chips, the page on the plane, the keys in the status bar.
+- **The pinned neuron's card is an ID block** on the dashboard's net, with ✕ to put it away while
+  the neuron stays selected.
+
 ## [0.3.0] - 2026-10-11
 
 ### Highlights
