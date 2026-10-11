@@ -1,0 +1,309 @@
+{"at":1791672612162,"seq":1,"text":"yo","type":"ask"}
+{"at":1791672612269,"body":"rimuru","seq":2,"state":"thinking","tool":"","type":"state"}
+{"at":1791672612271,"body":"rimuru","seq":3,"state":"thinking","tool":"","type":"state"}
+{"at":1791672612293,"body":"rimuru","seq":4,"state":"done","tool":"","type":"state"}
+{"at":1791672612298,"body":"rimuru","seq":5,"state":"done","tool":"","type":"state"}
+{"at":1791672612301,"hint":"","holes":["provider: openai: HTTP 401: API key expired."],"interrupted":false,"log":"","seq":6,"status":"FAIL","streamed":false,"text":"","type":"turndone","verdict":""}
+{"at":1791672641707,"seq":1,"text":"yo","type":"ask"}
+{"at":1791672641819,"body":"rimuru","seq":2,"state":"thinking","tool":"","type":"state"}
+{"at":1791672641823,"body":"rimuru","seq":3,"state":"thinking","tool":"","type":"state"}
+{"at":1791672641852,"body":"rimuru","seq":4,"state":"done","tool":"","type":"state"}
+{"at":1791672641858,"body":"rimuru","seq":5,"state":"done","tool":"","type":"state"}
+{"at":1791672641860,"hint":"","holes":["provider: openai: HTTP 401: API key expired."],"interrupted":false,"log":"","seq":6,"status":"FAIL","streamed":false,"text":"","type":"turndone","verdict":""}
+{"at":1791672706576,"seq":1,"text":"yo","type":"ask"}
+{"at":1791672706693,"body":"rimuru","seq":2,"state":"thinking","tool":"","type":"state"}
+{"at":1791672706697,"body":"rimuru","seq":3,"state":"thinking","tool":"","type":"state"}
+{"at":1791672707670,"body":"rimuru","kind":"thinking","seq":4,"text":"We","type":"stream"}
+{"at":1791672707674,"body":"rimuru","kind":"thinking","seq":5,"text":" need to respond to","type":"stream"}
+{"at":1791672707682,"body":"rimuru","kind":"thinking","seq":6,"text":" \"","type":"stream"}
+{"at":1791672707692,"body":"rimuru","kind":"thinking","seq":7,"text":"yo\". Lik","type":"stream"}
+{"at":1791672707696,"body":"rimuru","kind":"thinking","seq":8,"text":"ely just a","type":"stream"}
+{"at":1791672707699,"body":"rimuru","kind":"thinking","seq":9,"text":" greeting. The","type":"stream"}
+{"at":1791672707701,"body":"rimuru","kind":"thinking","seq":10,"text":" instruction","type":"stream"}
+{"at":1791672707704,"body":"rimuru","kind":"thinking","seq":11,"text":": speak","type":"stream"}
+{"at":1791672707706,"body":"rimuru","kind":"thinking","seq":12,"text":" in","type":"stream"}
+{"at":1791672707712,"body":"rimuru","kind":"thinking","seq":13,"text":" plain language, full","type":"stream"}
+{"at":1791672707715,"body":"rimuru","kind":"thinking","seq":14,"text":" sentences:","type":"stream"}
+{"at":1791672707830,"body":"rimuru","kind":"thinking","seq":15,"text":" what we did,","type":"stream"}
+{"at":1791672707833,"body":"rimuru","kind":"thinking","seq":16,"text":" what we found,","type":"stream"}
+{"at":1791672707836,"body":"rimuru","kind":"thinking","seq":17,"text":" anything we could not","type":"stream"}
+{"at":1791672707839,"body":"rimuru","kind":"thinking","seq":18,"text":" settle. No","type":"stream"}
+{"at":1791672707843,"body":"rimuru","kind":"thinking","seq":19,"text":" tool","type":"stream"}
+{"at":1791672707846,"body":"rimuru","kind":"thinking","seq":20,"text":" usage","type":"stream"}
+{"at":1791672707848,"body":"rimuru","kind":"thinking","seq":21,"text":" needed. So respond","type":"stream"}
+{"at":1791672707851,"body":"rimuru","kind":"thinking","seq":22,"text":": greeting","type":"stream"}
+{"at":1791672707853,"body":"rimuru","kind":"thinking","seq":23,"text":" back","type":"stream"}
+{"at":1791672707856,"body":"rimuru","kind":"thinking","seq":24,"text":".","type":"stream"}
+{"at":1791672707880,"seq":25,"text":"Hey","type":"delta"}
+{"at":1791672707883,"seq":26,"text":" there","type":"delta"}
+{"at":1791672707887,"seq":27,"text":"! I","type":"delta"}
+{"at":1791672707890,"seq":28,"text":"’m Rim","type":"delta"}
+{"at":1791672707935,"seq":29,"text":"uru, here","type":"delta"}
+{"at":1791672707937,"seq":30,"text":" and","type":"delta"}
+{"at":1791672707940,"seq":31,"text":" ready to help.","type":"delta"}
+{"at":1791672707942,"seq":32,"text":" What can","type":"delta"}
+{"at":1791672707967,"seq":33,"text":" I do for you","type":"delta"}
+{"at":1791672707983,"seq":34,"text":" today?","type":"delta"}
+{"at":1791672707987,"body":"rimuru","seq":35,"state":"done","tool":"","type":"state"}
+{"at":1791672707994,"body":"rimuru","seq":36,"state":"done","tool":"","type":"state"}
+{"at":1791672707997,"hint":"","holes":null,"interrupted":false,"log":"","seq":37,"status":"DONE","streamed":true,"text":"Hey there! I’m Rimuru, here and ready to help. What can I do for you today?","type":"turndone","verdict":""}
+{"at":1791674765298,"seq":1,"text":"yo","type":"ask"}
+{"at":1791674765512,"body":"rimuru","seq":2,"state":"thinking","tool":"","type":"state"}
+{"at":1791674765519,"body":"rimuru","seq":3,"state":"thinking","tool":"","type":"state"}
+{"at":1791674766378,"body":"rimuru","kind":"thinking","seq":4,"text":"We","type":"stream"}
+{"at":1791674766393,"body":"rimuru","kind":"thinking","seq":5,"text":" need to respond to","type":"stream"}
+{"at":1791674766445,"body":"rimuru","kind":"thinking","seq":6,"text":" the","type":"stream"}
+{"at":1791674766456,"body":"rimuru","kind":"thinking","seq":7,"text":" user's","type":"stream"}
+{"at":1791674766486,"body":"rimuru","kind":"thinking","seq":8,"text":" \"","type":"stream"}
+{"at":1791674766527,"body":"rimuru","kind":"thinking","seq":9,"text":"yo\". Lik","type":"stream"}
+{"at":1791674766567,"body":"rimuru","kind":"thinking","seq":10,"text":"ely we just","type":"stream"}
+{"at":1791674766674,"body":"rimuru","kind":"thinking","seq":11,"text":" say","type":"stream"}
+{"at":1791674766697,"body":"rimuru","kind":"thinking","seq":12,"text":" hello,","type":"stream"}
+{"at":1791674766713,"body":"rimuru","kind":"thinking","seq":13,"text":" maybe ask what they","type":"stream"}
+{"at":1791674766753,"body":"rimuru","kind":"thinking","seq":14,"text":" need. Must","type":"stream"}
+{"at":1791674766797,"body":"rimuru","kind":"thinking","seq":15,"text":" follow style","type":"stream"}
+{"at":1791674766829,"body":"rimuru","kind":"thinking","seq":16,"text":": plain","type":"stream"}
+{"at":1791674766836,"body":"rimuru","kind":"thinking","seq":17,"text":" language, full sentences","type":"stream"}
+{"at":1791674766845,"body":"rimuru","kind":"thinking","seq":18,"text":",","type":"stream"}
+{"at":1791674766859,"body":"rimuru","kind":"thinking","seq":19,"text":" answer","type":"stream"}
+{"at":1791674766862,"body":"rimuru","kind":"thinking","seq":20,"text":" in","type":"stream"}
+{"at":1791674766868,"body":"rimuru","kind":"thinking","seq":21,"text":" plain language","type":"stream"}
+{"at":1791674766881,"body":"rimuru","kind":"thinking","seq":22,"text":". We need","type":"stream"}
+{"at":1791674766894,"body":"rimuru","kind":"thinking","seq":23,"text":" to talk","type":"stream"}
+{"at":1791674766904,"body":"rimuru","kind":"thinking","seq":24,"text":" to","type":"stream"}
+{"at":1791674766916,"body":"rimuru","kind":"thinking","seq":25,"text":" Veld","type":"stream"}
+{"at":1791674766936,"body":"rimuru","kind":"thinking","seq":26,"text":"ora (","type":"stream"}
+{"at":1791674766949,"body":"rimuru","kind":"thinking","seq":27,"text":"human","type":"stream"}
+{"at":1791674766953,"body":"rimuru","kind":"thinking","seq":28,"text":" gate","type":"stream"}
+{"at":1791674766969,"body":"rimuru","kind":"thinking","seq":29,"text":") directly","type":"stream"}
+{"at":1791674766969,"body":"rimuru","kind":"thinking","seq":30,"text":"? Actually we speak","type":"stream"}
+{"at":1791674766978,"body":"rimuru","kind":"thinking","seq":31,"text":" to V","type":"stream"}
+{"at":1791674766983,"body":"rimuru","kind":"thinking","seq":32,"text":"eldora","type":"stream"}
+{"at":1791674766988,"body":"rimuru","kind":"thinking","seq":33,"text":" directly:","type":"stream"}
+{"at":1791674766997,"body":"rimuru","kind":"thinking","seq":34,"text":" answer in plain language","type":"stream"}
+{"at":1791674767000,"body":"rimuru","kind":"thinking","seq":35,"text":", full","type":"stream"}
+{"at":1791674767017,"body":"rimuru","kind":"thinking","seq":36,"text":" sentences —","type":"stream"}
+{"at":1791674767018,"body":"rimuru","kind":"thinking","seq":37,"text":" what we did,","type":"stream"}
+{"at":1791674767032,"body":"rimuru","kind":"thinking","seq":38,"text":" what we found,","type":"stream"}
+{"at":1791674767038,"body":"rimuru","kind":"thinking","seq":39,"text":" and anything we could","type":"stream"}
+{"at":1791674767045,"body":"rimuru","kind":"thinking","seq":40,"text":" not settle. The","type":"stream"}
+{"at":1791674767055,"body":"rimuru","kind":"thinking","seq":41,"text":" user just said","type":"stream"}
+{"at":1791674767069,"body":"rimuru","kind":"thinking","seq":42,"text":" \"yo\". So","type":"stream"}
+{"at":1791674767069,"body":"rimuru","kind":"thinking","seq":43,"text":" we can","type":"stream"}
+{"at":1791674767082,"body":"rimuru","kind":"thinking","seq":44,"text":" respond: \"","type":"stream"}
+{"at":1791674767082,"body":"rimuru","kind":"thinking","seq":45,"text":"Hey","type":"stream"}
+{"at":1791674767098,"body":"rimuru","kind":"thinking","seq":46,"text":"! How","type":"stream"}
+{"at":1791674767103,"body":"rimuru","kind":"thinking","seq":47,"text":" can I help you","type":"stream"}
+{"at":1791674767123,"body":"rimuru","kind":"thinking","seq":48,"text":" today?\" No","type":"stream"}
+{"at":1791674767124,"body":"rimuru","kind":"thinking","seq":49,"text":" need to call","type":"stream"}
+{"at":1791674767138,"body":"rimuru","kind":"thinking","seq":50,"text":" any tools","type":"stream"}
+{"at":1791674767146,"body":"rimuru","kind":"thinking","seq":51,"text":". We'll just","type":"stream"}
+{"at":1791674767151,"body":"rimuru","kind":"thinking","seq":52,"text":" respond","type":"stream"}
+{"at":1791674767165,"body":"rimuru","kind":"thinking","seq":53,"text":".","type":"stream"}
+{"at":1791674767171,"seq":54,"text":"Hey","type":"delta"}
+{"at":1791674767179,"seq":55,"text":"! How","type":"delta"}
+{"at":1791674767184,"seq":56,"text":" can I help you","type":"delta"}
+{"at":1791674767195,"seq":57,"text":" today?","type":"delta"}
+{"at":1791674767202,"body":"rimuru","seq":58,"state":"done","tool":"","type":"state"}
+{"at":1791674767211,"body":"rimuru","seq":59,"state":"done","tool":"","type":"state"}
+{"at":1791674767230,"hint":"","holes":null,"interrupted":false,"log":"","seq":60,"status":"DONE","streamed":true,"text":"Hey! How can I help you today?","type":"turndone","verdict":""}
+{"at":1791675926543,"seq":1,"text":"hello","type":"ask"}
+{"at":1791675926803,"body":"rimuru","seq":2,"state":"thinking","tool":"","type":"state"}
+{"at":1791675926811,"body":"rimuru","seq":3,"state":"thinking","tool":"","type":"state"}
+{"at":1791675927465,"body":"rimuru","kind":"thinking","seq":4,"text":"Okay","type":"stream"}
+{"at":1791675927475,"body":"rimuru","kind":"thinking","seq":5,"text":", the user just","type":"stream"}
+{"at":1791675927522,"body":"rimuru","kind":"thinking","seq":6,"text":" said \"hello\".","type":"stream"}
+{"at":1791675927537,"body":"rimuru","kind":"thinking","seq":7,"text":" I need to respond","type":"stream"}
+{"at":1791675927546,"body":"rimuru","kind":"thinking","seq":8,"text":" appropriately. First,","type":"stream"}
+{"at":1791675927565,"body":"rimuru","kind":"thinking","seq":9,"text":" I should check the","type":"stream"}
+{"at":1791675927571,"body":"rimuru","kind":"thinking","seq":10,"text":" current","type":"stream"}
+{"at":1791675927575,"body":"rimuru","kind":"thinking","seq":11,"text":" state by","type":"stream"}
+{"at":1791675927595,"body":"rimuru","kind":"thinking","seq":12,"text":" looking","type":"stream"}
+{"at":1791675927601,"body":"rimuru","kind":"thinking","seq":13,"text":" at the pulse to","type":"stream"}
+{"at":1791675927610,"body":"rimuru","kind":"thinking","seq":14,"text":" understand the","type":"stream"}
+{"at":1791675927635,"body":"rimuru","kind":"thinking","seq":15,"text":" run's status","type":"stream"}
+{"at":1791675927639,"body":"rimuru","kind":"thinking","seq":16,"text":". Let","type":"stream"}
+{"at":1791675927642,"body":"rimuru","kind":"thinking","seq":17,"text":" me do that.","type":"stream"}
+{"at":1791675927701,"body":"rimuru","seq":18,"state":"done","tool":"","type":"state"}
+{"at":1791675927704,"phase":"start","seq":19,"tool":{"body":"","class":"read","id":"s1","ms":0,"name":"pulse","status":"running","summary":"{}","why":"","wrote":null},"type":"tool"}
+{"at":1791675927708,"body":"rimuru","seq":20,"state":"tool","tool":"","type":"state"}
+{"at":1791675927711,"phase":"end","seq":21,"tool":{"body":"","class":"read","id":"s1","ms":0,"name":"pulse","output":"steps 1 · turns 1 · wall 25s · ctx 5k/200k zone OK\nmomentum 0 (window 5) · last spoke never\nwrites 0 · failed acts 0","status":"done","summary":"{}","why":"","wrote":null},"type":"tool"}
+{"at":1791675927905,"body":"rimuru","seq":22,"state":"thinking","tool":"","type":"state"}
+{"at":1791675927913,"body":"rimuru","seq":23,"state":"thinking","tool":"","type":"state"}
+{"at":1791675928351,"body":"rimuru","kind":"thinking","seq":24,"text":"We","type":"stream"}
+{"at":1791675928371,"body":"rimuru","kind":"thinking","seq":25,"text":" need to greet","type":"stream"}
+{"at":1791675928413,"body":"rimuru","kind":"thinking","seq":26,"text":" the user. Probably","type":"stream"}
+{"at":1791675928422,"body":"rimuru","kind":"thinking","seq":27,"text":" respond","type":"stream"}
+{"at":1791675928425,"body":"rimuru","kind":"thinking","seq":28,"text":" with a greeting.","type":"stream"}
+{"at":1791675928467,"body":"rimuru","kind":"thinking","seq":29,"text":" Use","type":"stream"}
+{"at":1791675928471,"body":"rimuru","kind":"thinking","seq":30,"text":" plain","type":"stream"}
+{"at":1791675928474,"body":"rimuru","kind":"thinking","seq":31,"text":" language,","type":"stream"}
+{"at":1791675928511,"body":"rimuru","kind":"thinking","seq":32,"text":" full sentences. Also","type":"stream"}
+{"at":1791675928515,"body":"rimuru","kind":"thinking","seq":33,"text":" maybe","type":"stream"}
+{"at":1791675928520,"body":"rimuru","kind":"thinking","seq":34,"text":" check the","type":"stream"}
+{"at":1791675928614,"body":"rimuru","kind":"thinking","seq":35,"text":" world","type":"stream"}
+{"at":1791675928620,"body":"rimuru","kind":"thinking","seq":36,"text":" root","type":"stream"}
+{"at":1791675928629,"body":"rimuru","kind":"thinking","seq":37,"text":"? But not","type":"stream"}
+{"at":1791675928642,"body":"rimuru","kind":"thinking","seq":38,"text":" needed. Just","type":"stream"}
+{"at":1791675928643,"body":"rimuru","kind":"thinking","seq":39,"text":" say","type":"stream"}
+{"at":1791675928657,"body":"rimuru","kind":"thinking","seq":40,"text":" hello.","type":"stream"}
+{"at":1791675928661,"seq":41,"text":"Hello! I'm","type":"delta"}
+{"at":1791675928677,"seq":42,"text":" Rimuru, here","type":"delta"}
+{"at":1791675928689,"seq":43,"text":" to assist you within","type":"delta"}
+{"at":1791675928698,"seq":44,"text":" the world rooted","type":"delta"}
+{"at":1791675928716,"seq":45,"text":" at /home/m","type":"delta"}
+{"at":1791675928722,"seq":46,"text":"onta/kaginari","type":"delta"}
+{"at":1791675928742,"seq":47,"text":"/isekai.","type":"delta"}
+{"at":1791675928747,"seq":48,"text":" How can I help","type":"delta"}
+{"at":1791675928759,"seq":49,"text":" you today?","type":"delta"}
+{"at":1791675928770,"body":"rimuru","seq":50,"state":"done","tool":"","type":"state"}
+{"at":1791675928796,"body":"rimuru","seq":51,"state":"done","tool":"","type":"state"}
+{"at":1791675928807,"hint":"","holes":null,"interrupted":false,"log":"","seq":52,"status":"DONE","streamed":true,"text":"Hello! I'm Rimuru, here to assist you within the world rooted at /home/monta/kaginari/isekai. How can I help you today?","type":"turndone","verdict":""}
+{"at":1791675961691,"seq":53,"text":"how are you :)","type":"ask"}
+{"at":1791675961923,"body":"rimuru","seq":54,"state":"thinking","tool":"","type":"state"}
+{"at":1791675961923,"body":"rimuru","seq":55,"state":"thinking","tool":"","type":"state"}
+{"at":1791675962579,"body":"rimuru","kind":"thinking","seq":56,"text":"We","type":"stream"}
+{"at":1791675962594,"body":"rimuru","kind":"thinking","seq":57,"text":" are","type":"stream"}
+{"at":1791675962659,"body":"rimuru","kind":"thinking","seq":58,"text":" asked","type":"stream"}
+{"at":1791675962665,"body":"rimuru","kind":"thinking","seq":59,"text":" how","type":"stream"}
+{"at":1791675962671,"body":"rimuru","kind":"thinking","seq":60,"text":" we","type":"stream"}
+{"at":1791675962713,"body":"rimuru","kind":"thinking","seq":61,"text":" are. We","type":"stream"}
+{"at":1791675962739,"body":"rimuru","kind":"thinking","seq":62,"text":" have","type":"stream"}
+{"at":1791675962755,"body":"rimuru","kind":"thinking","seq":63,"text":" just","type":"stream"}
+{"at":1791675962778,"body":"rimuru","kind":"thinking","seq":64,"text":" started","type":"stream"}
+{"at":1791675962787,"body":"rimuru","kind":"thinking","seq":65,"text":",","type":"stream"}
+{"at":1791675962818,"body":"rimuru","kind":"thinking","seq":66,"text":" pulse","type":"stream"}
+{"at":1791675962829,"body":"rimuru","kind":"thinking","seq":67,"text":" shows step","type":"stream"}
+{"at":1791675962845,"body":"rimuru","kind":"thinking","seq":68,"text":" 1, turns","type":"stream"}
+{"at":1791675962857,"body":"rimuru","kind":"thinking","seq":69,"text":" 1","type":"stream"}
+{"at":1791675962871,"body":"rimuru","kind":"thinking","seq":70,"text":", wall 2","type":"stream"}
+{"at":1791675962875,"body":"rimuru","kind":"thinking","seq":71,"text":"5s, context","type":"stream"}
+{"at":1791675962896,"body":"rimuru","kind":"thinking","seq":72,"text":" OK","type":"stream"}
+{"at":1791675962907,"body":"rimuru","kind":"thinking","seq":73,"text":",","type":"stream"}
+{"at":1791675962912,"body":"rimuru","kind":"thinking","seq":74,"text":" momentum 0.","type":"stream"}
+{"at":1791675962927,"body":"rimuru","kind":"thinking","seq":75,"text":" We should","type":"stream"}
+{"at":1791675962939,"body":"rimuru","kind":"thinking","seq":76,"text":" respond in plain","type":"stream"}
+{"at":1791675962957,"body":"rimuru","kind":"thinking","seq":77,"text":" language, full sentences","type":"stream"}
+{"at":1791675962972,"body":"rimuru","kind":"thinking","seq":78,"text":", what","type":"stream"}
+{"at":1791675962973,"body":"rimuru","kind":"thinking","seq":79,"text":" we did,","type":"stream"}
+{"at":1791675962979,"body":"rimuru","kind":"thinking","seq":80,"text":" what we found,","type":"stream"}
+{"at":1791675963009,"body":"rimuru","kind":"thinking","seq":81,"text":" anything we could not","type":"stream"}
+{"at":1791675963022,"body":"rimuru","kind":"thinking","seq":82,"text":" settle. We just","type":"stream"}
+{"at":1791675963029,"body":"rimuru","kind":"thinking","seq":83,"text":" did a pulse check","type":"stream"}
+{"at":1791675963040,"body":"rimuru","kind":"thinking","seq":84,"text":". We can say","type":"stream"}
+{"at":1791675963045,"body":"rimuru","kind":"thinking","seq":85,"text":" we are functioning","type":"stream"}
+{"at":1791675963057,"body":"rimuru","kind":"thinking","seq":86,"text":" normally","type":"stream"}
+{"at":1791675963101,"body":"rimuru","kind":"thinking","seq":87,"text":", ready to help","type":"stream"}
+{"at":1791675963113,"body":"rimuru","kind":"thinking","seq":88,"text":". No","type":"stream"}
+{"at":1791675963127,"body":"rimuru","kind":"thinking","seq":89,"text":" issues","type":"stream"}
+{"at":1791675963155,"body":"rimuru","kind":"thinking","seq":90,"text":". Let's answer","type":"stream"}
+{"at":1791675963162,"body":"rimuru","kind":"thinking","seq":91,"text":".","type":"stream"}
+{"at":1791675963171,"seq":92,"text":"I","type":"delta"}
+{"at":1791675963185,"seq":93,"text":"'m functioning","type":"delta"}
+{"at":1791675963191,"seq":94,"text":" well—","type":"delta"}
+{"at":1791675963218,"seq":95,"text":"my systems","type":"delta"}
+{"at":1791675963226,"seq":96,"text":" are online","type":"delta"}
+{"at":1791675963237,"seq":97,"text":", my","type":"delta"}
+{"at":1791675963254,"seq":98,"text":" context is","type":"delta"}
+{"at":1791675963262,"seq":99,"text":" clear, and I","type":"delta"}
+{"at":1791675963277,"seq":100,"text":"'m ready to assist","type":"delta"}
+{"at":1791675963296,"seq":101,"text":" you with any","type":"delta"}
+{"at":1791675963304,"seq":102,"text":" tasks or","type":"delta"}
+{"at":1791675963310,"seq":103,"text":" questions you","type":"delta"}
+{"at":1791675963313,"seq":104,"text":" have within this","type":"delta"}
+{"at":1791675963356,"seq":105,"text":" world. No","type":"delta"}
+{"at":1791675963362,"seq":106,"text":" issues to","type":"delta"}
+{"at":1791675963387,"seq":107,"text":" report;","type":"delta"}
+{"at":1791675963409,"seq":108,"text":" all","type":"delta"}
+{"at":1791675963424,"seq":109,"text":" instruments","type":"delta"}
+{"at":1791675963439,"seq":110,"text":" are nominal","type":"delta"}
+{"at":1791675963459,"seq":111,"text":". How","type":"delta"}
+{"at":1791675963471,"seq":112,"text":" can I help you","type":"delta"}
+{"at":1791675963484,"seq":113,"text":" today?","type":"delta"}
+{"at":1791675963508,"body":"rimuru","seq":114,"state":"done","tool":"","type":"state"}
+{"at":1791675963528,"body":"rimuru","seq":115,"state":"done","tool":"","type":"state"}
+{"at":1791675963539,"hint":"","holes":null,"interrupted":false,"log":"","seq":116,"status":"DONE","streamed":true,"text":"I'm functioning well—my systems are online, my context is clear, and I'm ready to assist you with any tasks or questions you have within this world. No issues to report; all instruments are nominal. How can I help you today?","type":"turndone","verdict":""}
+{"at":1791676008779,"seq":117,"text":"ok :)","type":"ask"}
+{"at":1791676008903,"body":"rimuru","seq":118,"state":"thinking","tool":"","type":"state"}
+{"at":1791676008910,"body":"rimuru","seq":119,"state":"thinking","tool":"","type":"state"}
+{"at":1791676009512,"body":"rimuru","kind":"thinking","seq":120,"text":"The","type":"stream"}
+{"at":1791676009524,"body":"rimuru","kind":"thinking","seq":121,"text":" user says","type":"stream"}
+{"at":1791676009576,"body":"rimuru","kind":"thinking","seq":122,"text":" \"ok :","type":"stream"}
+{"at":1791676009581,"body":"rimuru","kind":"thinking","seq":123,"text":")\" which","type":"stream"}
+{"at":1791676009584,"body":"rimuru","kind":"thinking","seq":124,"text":" seems","type":"stream"}
+{"at":1791676009625,"body":"rimuru","kind":"thinking","seq":125,"text":" like a casual acknowled","type":"stream"}
+{"at":1791676009629,"body":"rimuru","kind":"thinking","seq":126,"text":"gment. They","type":"stream"}
+{"at":1791676009634,"body":"rimuru","kind":"thinking","seq":127,"text":" might be ending","type":"stream"}
+{"at":1791676009756,"body":"rimuru","kind":"thinking","seq":128,"text":" the conversation or just","type":"stream"}
+{"at":1791676009771,"body":"rimuru","kind":"thinking","seq":129,"text":" testing","type":"stream"}
+{"at":1791676009791,"body":"rimuru","kind":"thinking","seq":130,"text":". Since","type":"stream"}
+{"at":1791676009802,"body":"rimuru","kind":"thinking","seq":131,"text":" they","type":"stream"}
+{"at":1791676009807,"body":"rimuru","kind":"thinking","seq":132,"text":" haven","type":"stream"}
+{"at":1791676009811,"body":"rimuru","kind":"thinking","seq":133,"text":"'t asked for anything","type":"stream"}
+{"at":1791676009821,"body":"rimuru","kind":"thinking","seq":134,"text":" specific, I should","type":"stream"}
+{"at":1791676009825,"body":"rimuru","kind":"thinking","seq":135,"text":" keep","type":"stream"}
+{"at":1791676009829,"body":"rimuru","kind":"thinking","seq":136,"text":" it","type":"stream"}
+{"at":1791676009836,"body":"rimuru","kind":"thinking","seq":137,"text":" open-ended and","type":"stream"}
+{"at":1791676009840,"body":"rimuru","kind":"thinking","seq":138,"text":" friendly. I'll","type":"stream"}
+{"at":1791676009844,"body":"rimuru","kind":"thinking","seq":139,"text":" respond in a way","type":"stream"}
+{"at":1791676009851,"body":"rimuru","kind":"thinking","seq":140,"text":" that invites","type":"stream"}
+{"at":1791676009855,"body":"rimuru","kind":"thinking","seq":141,"text":" them","type":"stream"}
+{"at":1791676009858,"body":"rimuru","kind":"thinking","seq":142,"text":" to ask for","type":"stream"}
+{"at":1791676009863,"body":"rimuru","kind":"thinking","seq":143,"text":" help if they","type":"stream"}
+{"at":1791676009868,"body":"rimuru","kind":"thinking","seq":144,"text":" need it. No","type":"stream"}
+{"at":1791676009880,"body":"rimuru","kind":"thinking","seq":145,"text":" tools","type":"stream"}
+{"at":1791676009889,"body":"rimuru","kind":"thinking","seq":146,"text":" needed for this","type":"stream"}
+{"at":1791676009892,"body":"rimuru","kind":"thinking","seq":147,"text":".","type":"stream"}
+{"at":1791676009932,"body":"rimuru","kind":"thinking","seq":148,"text":" Just a simple reply","type":"stream"}
+{"at":1791676009935,"body":"rimuru","kind":"thinking","seq":149,"text":".","type":"stream"}
+{"at":1791676009940,"seq":150,"text":"You","type":"delta"}
+{"at":1791676009944,"seq":151,"text":"'re welcome! If","type":"delta"}
+{"at":1791676009961,"seq":152,"text":" anything","type":"delta"}
+{"at":1791676009968,"seq":153,"text":" comes up,","type":"delta"}
+{"at":1791676009972,"seq":154,"text":" just let me know","type":"delta"}
+{"at":1791676009977,"seq":155,"text":"—I","type":"delta"}
+{"at":1791676010012,"seq":156,"text":"'m here to help","type":"delta"}
+{"at":1791676010021,"seq":157,"text":". Have","type":"delta"}
+{"at":1791676010026,"seq":158,"text":" a great day!","type":"delta"}
+{"at":1791676010029,"seq":159,"text":" 😊","type":"delta"}
+{"at":1791676010033,"body":"rimuru","seq":160,"state":"done","tool":"","type":"state"}
+{"at":1791676010039,"body":"rimuru","seq":161,"state":"done","tool":"","type":"state"}
+{"at":1791676010044,"hint":"","holes":null,"interrupted":false,"log":"","seq":162,"status":"DONE","streamed":true,"text":"You're welcome! If anything comes up, just let me know—I'm here to help. Have a great day! 😊","type":"turndone","verdict":""}
+{"at":1791676046076,"seq":163,"text":"okey you too","type":"ask"}
+{"at":1791676046197,"body":"rimuru","seq":164,"state":"thinking","tool":"","type":"state"}
+{"at":1791676046201,"body":"rimuru","seq":165,"state":"thinking","tool":"","type":"state"}
+{"at":1791676046850,"body":"rimuru","kind":"thinking","seq":166,"text":"The","type":"stream"}
+{"at":1791676046869,"body":"rimuru","kind":"thinking","seq":167,"text":" user just","type":"stream"}
+{"at":1791676046903,"body":"rimuru","kind":"thinking","seq":168,"text":" said \"okey","type":"stream"}
+{"at":1791676046924,"body":"rimuru","kind":"thinking","seq":169,"text":" you too\" which","type":"stream"}
+{"at":1791676046953,"body":"rimuru","kind":"thinking","seq":170,"text":" seems","type":"stream"}
+{"at":1791676046979,"body":"rimuru","kind":"thinking","seq":171,"text":" like a friendly","type":"stream"}
+{"at":1791676046990,"body":"rimuru","kind":"thinking","seq":172,"text":" closing","type":"stream"}
+{"at":1791676047003,"body":"rimuru","kind":"thinking","seq":173,"text":". I should","type":"stream"}
+{"at":1791676047096,"body":"rimuru","kind":"thinking","seq":174,"text":" respond in kind","type":"stream"}
+{"at":1791676047102,"body":"rimuru","kind":"thinking","seq":175,"text":",","type":"stream"}
+{"at":1791676047107,"body":"rimuru","kind":"thinking","seq":176,"text":" keeping it","type":"stream"}
+{"at":1791676047124,"body":"rimuru","kind":"thinking","seq":177,"text":" brief and positive.","type":"stream"}
+{"at":1791676047128,"body":"rimuru","kind":"thinking","seq":178,"text":" No need","type":"stream"}
+{"at":1791676047134,"body":"rimuru","kind":"thinking","seq":179,"text":" for any tool","type":"stream"}
+{"at":1791676047139,"body":"rimuru","kind":"thinking","seq":180,"text":" use","type":"stream"}
+{"at":1791676047144,"body":"rimuru","kind":"thinking","seq":181,"text":" here","type":"stream"}
+{"at":1791676047155,"body":"rimuru","kind":"thinking","seq":182,"text":"—just a simple","type":"stream"}
+{"at":1791676047162,"body":"rimuru","kind":"thinking","seq":183,"text":" acknowledgment.\n\nI","type":"stream"}
+{"at":1791676047170,"body":"rimuru","kind":"thinking","seq":184,"text":"'ll say","type":"stream"}
+{"at":1791676047180,"body":"rimuru","kind":"thinking","seq":185,"text":" something like: \"","type":"stream"}
+{"at":1791676047186,"body":"rimuru","kind":"thinking","seq":186,"text":"Take","type":"stream"}
+{"at":1791676047192,"body":"rimuru","kind":"thinking","seq":187,"text":" care!\"","type":"stream"}
+{"at":1791676047200,"body":"rimuru","kind":"thinking","seq":188,"text":" or","type":"stream"}
+{"at":1791676047307,"body":"rimuru","kind":"thinking","seq":189,"text":" similar. Let","type":"stream"}
+{"at":1791676047312,"body":"rimuru","kind":"thinking","seq":190,"text":"'s keep it warm","type":"stream"}
+{"at":1791676047319,"body":"rimuru","kind":"thinking","seq":191,"text":" and","type":"stream"}
+{"at":1791676047346,"body":"rimuru","kind":"thinking","seq":192,"text":" end","type":"stream"}
+{"at":1791676047352,"body":"rimuru","kind":"thinking","seq":193,"text":" the exchange","type":"stream"}
+{"at":1791676047357,"body":"rimuru","kind":"thinking","seq":194,"text":".","type":"stream"}
+{"at":1791676047363,"seq":195,"text":"Take","type":"delta"}
+{"at":1791676047375,"seq":196,"text":" care!","type":"delta"}
+{"at":1791676047390,"seq":197,"text":" 😊","type":"delta"}
+{"at":1791676047396,"body":"rimuru","seq":198,"state":"done","tool":"","type":"state"}
+{"at":1791676047404,"body":"rimuru","seq":199,"state":"done","tool":"","type":"state"}
+{"at":1791676047411,"hint":"","holes":null,"interrupted":false,"log":"","seq":200,"status":"DONE","streamed":true,"text":"Take care! 😊","type":"turndone","verdict":""}
