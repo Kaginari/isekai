@@ -6,6 +6,27 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+### Highlights
+
+**The world measures, answers and heals itself — and looks the part.** Every race is valued by its
+own job (`law.value`, families, meters); a creature whose runs never land draws the council, then
+relief, then evolution (`law.evolution`, auto by default). The forge mints the skills a run proved.
+The terminal is one framed, themed cockpit with a theme picker, the dashboard one page with the neural
+net, the 3D brain and a config tab that says what every key does — eight palettes shared by both. The
+sandbox hides the host's processes and your credentials (and runs under Seatbelt on macOS),
+`--docker-agent` replaces `--containered`, the board guards every read, and private package registries
+log in — or, with `policy: private-only`, are the only place packages may come from.
+
+**The world versions and defends its own seat.** A world root bearing `.isekai/dimension.yaml`
+outside any work-tree is versioned `git init -b main` once at open — a world is born under git, by
+the harness itself. And the gate now attributes the throne's own seat files (the dimension manifest
+and the law doc) to Rimuru: before, a gate-holder whose territory reached `.isekai/` silently owned
+them through Owner's fallback, so Rimuru's lawful relocation of the manifest failed right-author and
+Vitality — demanding an orc's README for the throne's own file. The exemption mirrors the creature
+doc rule and polices non-throne bodies exactly as before.
+
 ### Added
 
 - **Private package registries log in, and can be the only source.** `registry.packages.auth` (and
@@ -344,6 +365,28 @@ All notable changes to Isekai are recorded here. The format follows
   reads only the returned string can never show a collapsed "done" over a FAILed journal. The
   lifecycle word moves to the ask-line tooltip. (`nil` derailed the 2026-09-28 session: Law 9.)
 
+- **Web UIs from one token system.** A built-in `ui` Mind (method + design craft, offline), and
+  `isekai ui init|scan|check`: a foundation (tokens in three tiers, 13 OKLCH palettes checked for
+  WCAG AA, layout primitives, cascade layers, two example components), a derived legend under
+  `.isekai/ui-assets/` (manifest, legend.md, a live catalogue), lints (tokens only, declared
+  classes, defined tokens, true headers) and screenshots at 360/768/1280 in both themes with
+  sideways-scroll detection. The gate runs the lints on a turn that touched the ui dir
+  (`law.gate.ui`, on by default). The container image ships Chromium.
+- **The dashboard** at `/dash` on the board, and `isekai dash` to run a session in the browser: a
+  console like the CLI (streamed answers, thinking, tool and Court cards with diffs, approvals),
+  the world as a live neural net with knowledge cards, metrics, and the relations matrix with its
+  dimensions — built on the ui system and held to `ui check`. Acts carry a per-run token and a
+  loopback/same-origin check.
+
+- **Three ways to found a world**: `init --level light|medium|complex` (a terminal asks). Medium
+  sketches a colony from the tree with no model; complex runs a founding session that reads all the
+  code and hires the team — elves, orcs, slimes, a kijin, minds and bodies, relations, verify lines
+  that pass — until `onto check` is clean.
+- **Dimension self-init.** `isekai/world/dimension.go`: `LoadDimension` parses
+  `.isekai/dimension.yaml`, and `GitSelfInit` versions a manifest-bearing root outside any
+  work-tree (`git init -b main`, once, at open) — malformed manifests are a note, never a failed
+  open; the harness never commits nor pushes.
+
 ### Security
 
 - **The sandbox hides the host's processes and your credentials.** bwrap now gives every command its
@@ -525,6 +568,11 @@ All notable changes to Isekai are recorded here. The format follows
   slices are independent; the orc's text codes the verify-first: the slice's checks are written
   before its slime is ordered.
 
+- **Throne-seat attribution at the gate.** The gate's right-author and Vitality checks exempt the
+  throne's seat files (`.isekai/dimension.yaml`, `.isekai/isekai.md`) when the throne authors them —
+  Owner's gate-holder fallback no longer lets an orc whose territory is `.isekai/` claim the throne's
+  own files. A non-throne body writing them still fails right-author.
+
 ### Removed
 
 - **The board pages and Bootstrap.** The server-rendered pages (Overview, Court, Usage, Colony,
@@ -532,51 +580,6 @@ All notable changes to Isekai are recorded here. The format follows
   and with them the dashboard's "board pages" link. `/dash` redirects to `/` (301); `/court`,
   `/memory`, `/toolbox`, `/config`, `/usage` and `/colony` redirect to their tab; `/log` is gone
   (the log stays in `log.md` and the memory's episodic tier).
-
-## [0.3.0] - 2026-09-28
-
-### Highlights
-
-**The world versions and defends its own seat.** A world root bearing `.isekai/dimension.yaml`
-outside any work-tree is versioned `git init -b main` once at open — a world is born under git, by
-the harness itself. And the gate now attributes the throne's own seat files (the dimension manifest
-and the law doc) to Rimuru: before, a gate-holder whose territory reached `.isekai/` silently owned
-them through Owner's fallback, so Rimuru's lawful relocation of the manifest failed right-author and
-Vitality — demanding an orc's README for the throne's own file. The exemption mirrors the creature
-doc rule and polices non-throne bodies exactly as before.
-
-### Added
-
-- **Web UIs from one token system.** A built-in `ui` Mind (method + design craft, offline), and
-  `isekai ui init|scan|check`: a foundation (tokens in three tiers, 13 OKLCH palettes checked for
-  WCAG AA, layout primitives, cascade layers, two example components), a derived legend under
-  `.isekai/ui-assets/` (manifest, legend.md, a live catalogue), lints (tokens only, declared
-  classes, defined tokens, true headers) and screenshots at 360/768/1280 in both themes with
-  sideways-scroll detection. The gate runs the lints on a turn that touched the ui dir
-  (`law.gate.ui`, on by default). The container image ships Chromium.
-- **The dashboard** at `/dash` on the board, and `isekai dash` to run a session in the browser: a
-  console like the CLI (streamed answers, thinking, tool and Court cards with diffs, approvals),
-  the world as a live neural net with knowledge cards, metrics, and the relations matrix with its
-  dimensions — built on the ui system and held to `ui check`. Acts carry a per-run token and a
-  loopback/same-origin check.
-
-- **Three ways to found a world**: `init --level light|medium|complex` (a terminal asks). Medium
-  sketches a colony from the tree with no model; complex runs a founding session that reads all the
-  code and hires the team — elves, orcs, slimes, a kijin, minds and bodies, relations, verify lines
-  that pass — until `onto check` is clean.
-- **Dimension self-init.** `isekai/world/dimension.go`: `LoadDimension` parses
-  `.isekai/dimension.yaml`, and `GitSelfInit` versions a manifest-bearing root outside any
-  work-tree (`git init -b main`, once, at open) — malformed manifests are a note, never a failed
-  open; the harness never commits nor pushes.
-
-### Fixed
-
-- **Throne-seat attribution at the gate.** The gate's right-author and Vitality checks exempt the
-  throne's seat files (`.isekai/dimension.yaml`, `.isekai/isekai.md`) when the throne authors them —
-  Owner's gate-holder fallback no longer lets an orc whose territory is `.isekai/` claim the throne's
-  own files. A non-throne body writing them still fails right-author.
-
-### Removed
 
 - The SSH board (`board --ssh`): the board is local only — 127.0.0.1, or the host's loopback from
   `--containered`.
