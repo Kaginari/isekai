@@ -8,6 +8,23 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Private package registries log in, and can be the only source.** `registry.packages.auth` (and
+  `npmAuth`, `pipAuth`, `goAuth` over it) is the login each manager presents, written at every start
+  under the world's `tmp/registry/`, owner-only: npm an npmrc whose bearer token stays a `${VAR}`
+  reference, pip and uv the login inside their index URL, go a netrc for its proxy host — checked
+  against a live server for all three. Env-first; a literal token is refused from the tracked config.
+  `registry.packages.policy: private-only` keeps every manager on those URLs: GOPROXY loses `direct`,
+  a manager with no private URL is switched off, and the guard (and the Claude Code hook) refuses a
+  command that points a manager elsewhere, installs from a URL or a repository, or fetches a public
+  registry host.
+- **Every config key says what it does.** `config.Describe` holds a line per key (a switch says
+  on/off first); `/api/config` sends them and the dashboard's config tree shows each under its key
+  (a section's beside its name). A test fails a key of the defaults that has none.
+- **The theme picker.** `/theme` alone (and the palette's `theme`) opens a picker: every palette with
+  its swatches, the one in use marked, the mode under them; moving previews live, enter keeps it
+  (the dashboard following), esc goes back. `/settings` lists every palette too.
+- **The dashboard in the README**: the neural net with a creature's card, the 3D brain, the config tab.
+
 - **Themes for both faces.** One package of named palettes (`theme/`) dresses the terminal and
   the dashboard, the same roles in a dark and a light variant: omoro.io's Cyberpunk (unchanged,
   the default) and six more of its cyberpunk family — Neon Dystopia, Corporate Rebellion, Rain
@@ -403,6 +420,17 @@ All notable changes to Isekai are recorded here. The format follows
   names the missing key and the rerun, and does not start a founding session it cannot finish.
 
 ### Fixed
+
+- **A theme pick is kept.** A world whose `config.local.yaml` is the scaffold's comments over `{}` refused
+  every write (a block key after a flow document); the YAML editor now re-renders a flow-map document
+  as a block, comments kept. A save that fails stays in the conversation instead of a passing status line.
+- **`/settings`, `/sidebar` and the terminal's own commands are in the slash menu**, not only the palette.
+- **The pinned creature's card floats over the net's corner** instead of the timeline's band; the
+  timeline keeps more of the height.
+- **The conversation follows its bottom across a resize.** A pane that shrank decided it had been
+  scrolled up and stopped following (so `/status` and every later block landed out of sight); the
+  welcome card heads the conversation even when a fast first turn lands before it.
+- **The dashboard's stream journal and section-local config stay untracked** in a new world.
 
 - The terminal's conversation pane kept following the bottom only while its height held: a
   smaller window or a draft growing the ask box read as the human scrolling up, and new blocks —

@@ -300,6 +300,27 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | `/settings` · `/offices` | theme, mode, mouse and sidebar in one form · every office and its model |
 | `/theme [name] [dark\|light\|system]` | wear another palette — the dashboard follows; alone, the picker: every theme with its swatches, previewed live, the mode under them |
 
+### The dashboard
+
+`isekai dash` (or `/dash` in the terminal) opens the board beside the session: one page on 127.0.0.1,
+the session mirrored live, read-only unless you ask from its console. The **neural net** draws the
+colony as it stands — Rimuru, the elves, the orcs, the slimes and the minds they wear, each tile four
+weeks of its work, a bond as thick as the orders it carried; a click pins a creature's card over the
+net's corner (who it answers to, who is below, its territory, its minds, its work):
+
+![the neural net with a creature's card](docs/screens/isekai-dash-net.png)
+
+In 3D the same tree is a brain — Rimuru at the centre, each rank a shell further out, each lane a
+tinted region (lane · heat · health), the minds a crown above:
+
+![the 3D brain](docs/screens/isekai-dash-brain.png)
+
+The tabs read the rest of the world: the court, memory, the toolbox, the metrics and value, and the
+**config** — every resolved value, the file and line that set it, and a line saying what each key
+does (a switch says on/off first):
+
+![the config tab](docs/screens/isekai-dash-config.png)
+
 ### Themes
 
 One palette dresses both faces — the terminal and the dashboard — from one package of named
