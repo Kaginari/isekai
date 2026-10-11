@@ -133,7 +133,8 @@ light variant, read by one constructor (`NewThemeFrom`) — nothing else names a
 scheme. Config picks it (`ui.theme`: cyberpunk, neon-dystopia, corporate-rebellion, rain-city,
 synthwave, glitch, chromecore, realm) and its variant (`ui.mode`: dark, light, or system — the
 terminal's answer to the background query; `<PREFIX>_THEME=dark|light` in the environment still
-wins). `/theme <name> [dark|light|system]` wears another at once (alone it flips dark and light;
+wins). `/theme <name> [dark|light|system]` wears another at once (alone it opens the picker —
+every palette with its swatches, worn as the cursor moves, ←→ the mode, enter keeps, esc goes back;
 an unknown name lists them), `/settings` picks both; the host writes the choice to the world's
 `config.local.yaml` and the dashboard follows, and a switch made on the dashboard reaches the
 terminal as `EvTheme` and is worn the same way. The default is omoro.io's **Cyberpunk** (Void `#0D1117`, Smog Purple `#1A0A2E`, Danger
@@ -258,8 +259,7 @@ overdrawn):
   offices, help, clear, quit) and
   the host's, fuzzy-matched as you type: a subsequence, word starts and runs scoring higher, the
   matched letters lit. Enter runs a command that takes nothing at once; one that takes arguments
-  lands in the input to be finished. `theme` flips dark and light in the palette worn and
-  reprints the transcript.
+  lands in the input to be finished. `theme` opens the theme picker.
 - **Toasts.** A Court landing (✓ done / ✗ failed) and the gate's verdict raise a one-line pill at
   the live area's top right (under the depth a floating card, the highest elevation); it slides in
   on a spring and leaves after four seconds, three at most.

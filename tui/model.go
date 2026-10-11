@@ -133,6 +133,7 @@ type Model struct {
 	railTick  int         // the sidebar's animation counter: the slime blinks on it (closed one tick in twelve)
 	blinkOn   bool
 	palette   *paletteState
+	pick      *themePick // the theme picker, open over the frame
 	// the cast (cast.go): the session's thinking as it arrives, every body's log, the body view
 	think      strings.Builder
 	thinkStart time.Time
@@ -1523,6 +1524,9 @@ func (m *Model) Render() string {
 	}
 	if m.settings != nil {
 		parts = append(parts, m.settingsView())
+	}
+	if m.pick != nil {
+		parts = append(parts, m.pickView())
 	}
 	parts = append(parts, m.theme.InputBox(m.input.View(), m.width, m.choice != nil))
 	switch {

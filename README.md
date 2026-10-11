@@ -298,7 +298,7 @@ usage — and `ctrl+k` opens a fuzzy command palette:
 | drag · `ctrl+y` · `/mouse` | select and copy · copy the last answer · the mouse to the terminal |
 | `alt+s` · `alt+c` / `alt+p` / `alt+f` | hide the sidebar · fold its courts / plan / files |
 | `/settings` · `/offices` | theme, mode, mouse and sidebar in one form · every office and its model |
-| `/theme [name] [dark\|light\|system]` | wear another palette — the dashboard follows; alone, flip dark and light |
+| `/theme [name] [dark\|light\|system]` | wear another palette — the dashboard follows; alone, the picker: every theme with its swatches, previewed live, the mode under them |
 
 ### Themes
 
