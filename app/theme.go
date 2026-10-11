@@ -17,8 +17,15 @@ import (
 // live switch), the config reloaded, and every surface told (EvTheme: the terminal follows,
 // the dashboard swaps its stylesheet).
 
-// look is the look in force.
+// look is the look in force: the session's own switch when a higher layer (the environment, a
+// --set flag) pins config's, else config's.
 func (a *App) look() (name, mode string) {
+	a.themeMu.Lock()
+	o := a.lookOverride
+	a.themeMu.Unlock()
+	if o[0] != "" {
+		return o[0], o[1]
+	}
 	cfg := a.liveConfig()
 	return cfg.UI.Theme, cfg.UI.Mode
 }
@@ -38,6 +45,7 @@ func (a *App) setTheme(name, mode string) error {
 	}
 	a.themeMu.Lock()
 	defer a.themeMu.Unlock()
+	a.lookOverride = [2]string{}
 	if name != cur || mode != curMode {
 		cfg := a.liveConfig()
 		file := filepath.Join(a.Root, cfg.Dist.WorldDir, "config.local.yaml")
@@ -55,6 +63,11 @@ func (a *App) setTheme(name, mode string) error {
 		}
 		// the switch is its own notice on every surface: the reload's change lines stay quiet
 		a.reload(next, nil)
+		// a layer above the local file (the environment, a --set flag) still names another look:
+		// the file keeps the choice for the next start, the session wears it now
+		if next.UI.Theme != name || next.UI.Mode != mode {
+			a.lookOverride = [2]string{name, mode}
+		}
 	}
 	a.announceTheme(name, mode)
 	return nil

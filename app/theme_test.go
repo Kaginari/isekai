@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Kaginari/isekai/config"
 )
 
 // A look switched anywhere is kept in the world's config.local.yaml, the config reloaded, the
@@ -46,5 +48,32 @@ func TestThemeKeptAndAnnounced(t *testing.T) {
 	a.themeSlash("", &out, &errw)
 	if !strings.Contains(out.String(), "▸ glitch") {
 		t.Fatalf("/theme alone lists: %q", out.String())
+	}
+}
+
+// A --set flag pins ui.theme above the local file: a switch is still worn for the session (and
+// kept in config.local.yaml for a start without the flag), and a mode alone keeps the switched
+// palette.
+func TestThemeSwitchOverAPinnedFlag(t *testing.T) {
+	w := newTestWorld(t, "isekai", isekaiCreatures())
+	w.write(".isekai/config.yaml", "models: {default: mock/m}\nproviders: {mock: {enabled: true}}\nui: {board: {autostart: false}}\n")
+	a, err := New(Options{Dist: w.dist, Root: w.root, Cwd: w.root, Home: w.home, Env: func(string) string { return "" },
+		In: strings.NewReader(""), Out: &strings.Builder{}, Err: &strings.Builder{}, Quiet: true, IsTTY: func() bool { return false }, NoBoard: true,
+		Flags: []config.Override{{Path: "ui.theme", Value: "cyberpunk", Flag: "--set"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.Close)
+	if err := a.setTheme("rain-city", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.setTheme("", "light"); err != nil {
+		t.Fatal(err)
+	}
+	if n, m := a.look(); n != "rain-city" || m != "light" {
+		t.Fatalf("the session wears %s %s", n, m)
+	}
+	if b := w.read(".isekai/config.local.yaml"); !strings.Contains(b, "theme: rain-city") || !strings.Contains(b, "mode: light") {
+		t.Fatalf("config.local.yaml:\n%s", b)
 	}
 }
