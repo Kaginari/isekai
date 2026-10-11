@@ -108,7 +108,7 @@
     }
   },
   "budgets": {"session": {"tokens": 2000000, "usd": 20}, "court": {"tokens": 400000, "usd": 4}},
-  "ui": {"statusLine": true, "announceCourts": true},
+  "ui": {"statusLine": true, "announceCourts": true, "theme": "synthwave", "mode": "system"},
   "ranks": {
     // rank model pins are dead: the ladder routes creature → office → task → default
     "scribe": {

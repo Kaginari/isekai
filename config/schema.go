@@ -153,6 +153,13 @@ type UI struct {
 	StatusLine     bool    `json:"statusLine"`
 	AnnounceCourts bool    `json:"announceCourts"`
 	Board          BoardUI `json:"board"`
+	// Theme is the palette both faces wear — the terminal and the dashboard (package theme:
+	// cyberpunk, neon-dystopia, corporate-rebellion, rain-city, synthwave, glitch, chromecore,
+	// realm); Mode its variant: dark, light, or system (the terminal's background, the browser's
+	// prefers-color-scheme). Switched live by /theme, /settings and the dashboard's menu, which
+	// write the choice to the world's config.local.yaml.
+	Theme string `json:"theme"`
+	Mode  string `json:"mode"`
 	// Meters are the session's own meters (ctx, plan); ctx unset derives its bands from
 	// law.budget (value.CtxMeter), plan unset is value.PlanMeter.
 	Meters map[string]*value.MeterDef `json:"meters"`

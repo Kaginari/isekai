@@ -124,6 +124,6 @@ const defaultsJSON = `{
   "undo":   { "enabled": true, "dir": "~/.local/share/[dist]/undo", "keepDays": 7 },
   "output": { "format": "text", "stream": true, "thinking": false, "color": "auto" },
   "budgets": { "session": { "tokens": 0, "usd": 0 }, "court": { "tokens": 0, "usd": 0 } },
-  "ui": { "statusLine": true, "announceCourts": true, "board": { "autostart": true, "port": 7411 }, "meters": {} },
+  "ui": { "statusLine": true, "announceCourts": true, "theme": "cyberpunk", "mode": "dark", "board": { "autostart": true, "port": 7411 }, "meters": {} },
   "logLevel": "WARN"
 }`
