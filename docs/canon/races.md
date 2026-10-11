@@ -311,9 +311,9 @@ Court's orders go to the order book (`app/court.go` `Finish`), and at the throne
 each becomes a `dispatch <body>: <ask>` line for rimuru's next turn (`app/repl.go`), where the
 dispatcher's rank and strict-flow checks apply again.
 
-## Stress — the council, the doom checkpoint, relief
+## Stress — the council, the doom checkpoint, relief, evolution
 
-All three are coded; none asks the body.
+All four are coded; none asks the body.
 
 - **Council warrant** (`world/court.go` `councilLedger`). A Court whose run's word is a fail
   under `law.value` (§Value: the loop's status when it did not close `DONE`, else its own `@S`;
@@ -334,10 +334,71 @@ All three are coded; none asks the body.
 - **Doom checkpoint** (`loop/loop.go`): the in-run counterpart — the guts spoke
   `law.doomLoop.threshold` windows running, the run checkpoints, and the parent receives the
   same arms (retire, split, genome-shift).
+- **Evolution** (`world/evolve.go`, `law.evolution`), weighed after every Court's report folds
+  and once at run start: a creature that is **stressed** — strain at `stressAt` (0 reads
+  `law.stress.escalateAt`), its last `failStreak` (3) gate verdicts failed, or its last run a doom
+  checkpoint — **and** whose desks hold more than `thoughtsMax` (7) Thoughts (its own doc's plus
+  every worn Mind's under the root, the creed's split) heals itself in the same wave. Relief does
+  not also fire on a body that just evolved. See §Evolution.
 
 Escalation is always one hop: a slime's `@?` reaches its orc in the report; the orc settles it or
 carries it up in its own; `ESCALATE` from a failed-act streak or an exhausted council ends the
 turn and the dispatcher decides.
+
+## Evolution
+
+A stressed creature whose desk overflowed is a genome that no longer fits its work (Natures 3–5,
+the adaptation loop). `law.evolution` (`enabled: true`, `mode: auto | propose`, `thoughtsMax: 7`,
+`stressAt`, `failStreak: 3`, `cooldownRuns: 10`, `arms: [split, mutate, rebirth]`, `splitLines`,
+`splitFiles`) picks one arm from evidence, in this order, and writes the reason in `log.md`:
+
+1. **split** — the rank may split (an author: slime; a gate that commands: orc), its territory
+   reads large (`splitLines` source lines or `splitFiles` files in the founding sketch's survey),
+   and its own Thoughts and its failed runs' paths fall in two or more of its sub-directories (its
+   prefixes, else the entries under its one prefix). The two busiest entries seed two halves, the
+   rest go to the lighter half. Two young stand in the rank dir — named for their halves
+   (`slime-pay-api`, `slime-pay-core`) when each half is one entry, else `-a`/`-b` — each with the
+   parent's identity fields, its half, the survey's traits and verify for it (else the parent's
+   verify), the parent's traits that name only its soil, and the Thoughts that name its soil (the
+   rest to the half carrying fewer). A worn Mind's desk stays in the Mind both wear. An orc's
+   slimes are divided with it: each reports to the young whose half holds its soil. The parent
+   retires (`- **Retired:** true — evolved …`).
+2. **rebirth** — its genome is stale: its gate failed on its own verify lines at its last verdict,
+   or its doc names soil that is gone (a territory prefix, or a path in its traits under a tree
+   that exists). A fresh doc is written from the code as it is now (the survey's traits and verify)
+   plus every distilled lesson, keeping name, rank, territory, parent and Minds, with a
+   `- **Reborn:**` line; the old doc rests in the attic, and a `rebirth` row starts the body's value
+   record again (its own runs, verdicts and strain before it are not read; a dispatcher's counts of
+   it are).
+3. **mutate** — its Thoughts repeat a lesson: the term (a path before a word) three or more share.
+   Every family of two or more becomes a trait (`<term> — <latest wording> (distilled <date> from
+   N thoughts, first…last)`); a verify line is added where tests cover the paths a lesson names;
+   a family most of whose Thoughts say how (a backticked command, run / use / always / before …)
+   is minted as a crafted skill `<body>-<term>` at `law.forge.evolvedStatus` (trial) and added to
+   the body's Minds. Same name, same territory. When no arm's evidence holds the desk is still
+   distilled (Nature 5) as a mutate. Thoughts with no family go to the log's wrap-up.
+
+Every arm empties the desks it distilled into the genome, each keeping one dated `distilled into …`
+line. **Safety:** the arm is a plan of writes, staged under `<world>/tmp/evolution/<id>/`, proven
+before the swap — the new verify lines run green (the gate's sandbox and clock), and the ontology
+read over an overlay of the planned docs carries no finding the world did not already carry and
+gives every planned body exactly the soil the plan meant. A plan that fails its proof, or meets a
+doc changed since it was drawn, swaps nothing: the old docs stand and a hole is logged. The old
+doc always rests in the attic (`<world>/attic/<name>@<date>.md`). A retired seat keeps its graph
+memory but claims no soil, so the young never overlap it.
+
+Every evolution is logged through the append-only writer (the trigger evidence, the arm, the
+reason, the files, the wrap-up), noted as an `evolution` row in the value ledger (`status`
+applied | proposed | hole; the cooldown counts the body's runs after its latest row, so a world
+reopened remembers it), clears the body's strain, rides the dispatcher's report as
+`[evolution] …`, and reaches the surfaces: an `evolution` event on the session stream, the
+terminal's toast and sidebar line, the dashboard's timeline row and a ring in the arm's hue on the
+brain net (split, mutate, rebirth each their own), `isekai status`, `/api/value` (each body's desk,
+stress, cooldown and last evolution). The harness's writes are the body's: the dispatcher's gate
+leaves them alone. `mode: propose` writes the plan and its diff to `<world>/evolution/<id>.json`
+instead; `isekai evolve list | show <id> | apply <id> | reject <id> <why>` is the desk, and apply
+runs the same proof. Evolution never moves a body's model lane (the genome-shift arm stays
+advisory). `isekai config explain evolution` prints the law with its origins.
 
 ## Value
 
@@ -363,6 +424,8 @@ measured — and replayed at `Open`. Kinds:
 | `overturn` | a fail lands on paths a standing pass covered | the holder whose pass it undid |
 | `ascend` | an ascension is minted | the base and the risen body |
 | `seed` | the ledger was first written from the old `instruments/ascension.jsonl` | the shelf it read (the old report rows become run rows, their holes harness holes) |
+| `evolution` | a stressed body evolved, proposed to, or failed its proof (§Evolution) | the arm, the reason, the young, the status, the paths |
+| `rebirth` | a body was reborn | nothing more: the body's record starts again from it |
 
 **Holes by kind.** The harness raises holes of two kinds (`loop.HoleKind`): *harness* — it caught
 the body's discipline (an answer off the wire, a missing `@U`, a gate sent back, a plan left open,

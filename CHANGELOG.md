@@ -8,6 +8,28 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Stress-driven evolution.** A creature that is stressed — council strain at
+  `law.evolution.stressAt` (the council's `escalateAt` by default), its last `failStreak` gate
+  verdicts failed, or a doom checkpoint — while its Thoughts desk (its doc's plus its worn
+  Minds') holds more than `thoughtsMax` (7) entries evolves in the same wave, weighed after every
+  Court's report and at run start. One arm is chosen from evidence and its reason logged:
+  **split** (a large zone whose failures and Thoughts cluster in two sub-directories becomes two
+  young named for their halves, each with its Thoughts and the survey's traits and verify; an
+  orc's slimes are divided with it; the parent retires), **rebirth** (a genome its own verify or
+  the tree contradicts is written again from the code, the old doc rests in
+  `<world>/attic/<name>@<date>.md`, a `rebirth` row starts its value record again) or **mutate**
+  (each repeated lesson becomes a trait, a verify line lands where tests cover it, a recurring how
+  is minted as a crafted skill the body wears, at `law.forge.evolvedStatus`). Every plan is
+  staged and proven before it lands — its verify green, the ontology over an overlay of the new
+  docs no worse, every body on the soil meant — else the old docs stand and a hole is logged. An
+  `evolution` row in the value ledger carries the cooldown (`cooldownRuns`, 10) across restarts.
+  `mode: propose` queues the diff for `isekai evolve list | show | apply | reject`. The session
+  stream carries an `evolution` event: the terminal toasts it and keeps it in the sidebar, the
+  dashboard adds a timeline row, rings the neuron in the arm's colour and reloads the colony;
+  `isekai status` lists recent evolutions and `/api/value` each body's desk, stress and
+  cooldown. `config explain evolution` prints the law with its origins; switched off, it is an
+  honesty finding.
+
 - **Each race is valued by its own job.** One definition of success (`law.value`: pass, fail and
   neutral words; a run's word is the loop's when it did not close `DONE`, else the body's `@S`) is
   read by the ascension fold, the council, the dashboard's leaderboard and activity, and the loop
@@ -315,6 +337,10 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **A retired seat claims no soil.** The ontology keeps a retired creature's name, bonds and Minds
+  but derives no territory from its doc, so the young of a split (or an ascension, or a council
+  relief) never overlap it and `onto check` stays clean. The council's relief no longer fires on a
+  body that just evolved, and relief now runs after the report's fold.
 - **A rank has one spelling.** `rank.Canon` (lower case, hyphenated) is used by config, the
   world, the ontology's colony, the board, the portraits' file names and the TUI's keys;
   `dark_elf`, `darkelf` and `DarkElf` are read as `dark-elf`.

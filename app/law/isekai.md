@@ -363,6 +363,13 @@ never fused. Then the loop, because the two halves carry different halves of lif
 - **Repetition is the verdict:** the same stress in the same mind twice means the adaptation
   failed — escalate the form (split the mind's know-how, promote the body's rank), per
   Evolution's own measure (Nature 3: the same mistake never repeats).
+- **The isekai binary codes this loop** (`law.evolution`, `canon/races.md` §Evolution): a
+  creature stressed by an instrument (council strain, a failing gate streak, a doom checkpoint)
+  whose desks hold more than `thoughtsMax` (7) Thoughts evolves in the same wave by one arm chosen
+  from evidence — split its zone in two, mutate (distil the desk into traits; a recurring how
+  becomes a crafted skill it wears), or rebirth (a fresh genome from the code, the old one in the
+  attic) — proven before it lands, logged, then on cooldown; `propose` mode queues it for Veldora
+  instead.
 
 **Minds — knowledge, worn as hats.**
 - A Mind is a skill: reusable know-how, loaded on donning. It does no work by itself —
@@ -377,13 +384,15 @@ never fused. Then the loop, because the two halves carry different halves of lif
 - **The forge — a Mind crafted from proof.** A run that walked a path worth repeating names its
   draft on the wire (`@FORGE skill:<name> | <when> | <how>`). The harness files it from the
   report it holds: one ledger note naming the drafting body, its run and a content hash; a line
-  relayed up the ranks is filed once, as its drafter's. Nothing mints itself — the human mints
+  relayed up the ranks is filed once, as its drafter's. No draft mints itself — the human mints
   at the desk (`/forge`, `isekai forge`), and a mint writes `{{WORLD}}/crafted-skills/<name>/SKILL.md`
   in the host's skill format (name, description) with the world's fields (version, status, the
   drafting body, its run, who minted it and when). A mint never overwrites: a newer draft of a
   crafted name lands as the next version only when asked, the old one kept beside it. A tool
   draft mints as a declared tool at the class the classifier reads, and one that reaches
-  outward or destroys waits on the human's yes.
+  outward or destroys waits on the human's yes. The one mint without a draft is evolution's
+  mutate arm (the adaptation loop above): a stressed body's recurring how lands as a skill it
+  wears, at `trial` status until the human promotes it.
 - **Loading is already two-tiered — this is not a lever the convention needs to pull.** A
   Mind's `description` is the only part that sits in context by default, on every turn; its
   full body loads only when the Mind is actually donned. Write descriptions the way a context

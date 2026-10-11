@@ -213,6 +213,18 @@ never ranked), each race shows its own meter, every neuron wears a band ring, an
 can read `score` and every signal. `isekai config explain value` prints each race's resolved law
 and where each part came from; the full law is [`docs/canon/races.md`](docs/canon/races.md) §Value.
 
+**Evolution.** A creature that reads stressed (council strain, a streak of failed gates, a doom
+checkpoint) while its `## Thoughts` desk holds more than seven entries heals itself in the same
+wave (`law.evolution`, on by default). The harness picks one arm from evidence and logs why:
+**split** a large zone whose failures cluster in two sub-directories into two young, each with its
+half and its Thoughts; **rebirth** a genome its own verify or the tree contradicts, from the code as
+it is now (the old doc goes to the attic, the value record starts again); or **mutate**, distilling
+the repeated lesson into traits and minting a recurring how as a crafted skill it wears. Each arm
+is staged and proven (verify green, the ontology no worse) before it lands, then on cooldown for
+ten of the body's runs. `mode: propose` queues it instead: `isekai evolve list|show|apply|reject`.
+The terminal toasts it, the dashboard rings the neuron in the arm's colour, `isekai status` and
+`/api/value` show each body's desk and cooldown; `isekai config explain evolution` prints the law.
+
 ## The forge
 
 A run that walked a path worth repeating can leave it behind as a skill or a tool.
@@ -455,6 +467,7 @@ rules:
 | `budgets` | spend ceilings for the session and each Court | `session: { tokens: 400000, usd: 5 }` |
 | `law.value` | the one definition of success, the value ledger's window, each family's score and meter | `value: { window: 7d, minRecord: 8 }` · `families: { gate: { score: "0.6*gateRight + 0.4*slimeHealth" } }` |
 | `ranks.<r>.value` · `.family` · `.portrait` | a race's own score, meter and record; its family; its picture | `slime: { value: { score: "0.5*landRate + 0.5*gateRate", meter: { signal: gateRate, bands: { ok: 85, warn: 60 } } } }` |
+| `law.evolution` | when a stressed creature with an overflowing desk evolves (split, mutate, rebirth), auto or proposed | `evolution: { mode: propose, thoughtsMax: 9, cooldownRuns: 20 }` |
 | `law.guts` | the per-step gut: benches (go, pytest, js, cargo, make), lexemes, weights, clamp | `benches: [{ name: mix, match: ["mix test"], red: [failure], green: ["0 failures"] }]` |
 | `ui` · `output` | the dashboard, the status line, the session's meters (ctx bands follow `law.budget`), output format | `board: { autostart: false }` · `meters: { score: { signal: score, bands: { ok: 75, warn: 45 } } }` |
 | `sessions` · `undo` | where sessions and undo snapshots live, how long | `sessions: { keepDays: 30 }` |

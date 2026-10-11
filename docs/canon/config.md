@@ -141,7 +141,8 @@ A feature the binary itself ships off (origin `default`, such as `law.doomLoop`)
 finding: the finding is a switch someone threw. Numeric and string switches count the same way:
 `law.stress.escalateAt` or `.relieveAt` at 0 or below, `law.doomLoop.threshold` at 0,
 `law.guts.benchThrashVisits` below 0, `law.guts.digestEvery` at 0 or below,
-`law.budget.salvageTokens` below 0 and an ascended rank's `ascendsWhen: ""` are listed with their
+`law.budget.salvageTokens` below 0, `law.evolution.thoughtsMax` at 0 or below, an empty
+`law.evolution.arms` and an ascended rank's `ascendsWhen: ""` are listed with their
 origins. Every `law.humanGate.approve` entry and
 `instruments.status.showOff: false` are listed the same way. `status` also
 lists every **loosening**: each `allow` rule on `bash`, `git`, `webfetch` or `websearch`, each
@@ -263,9 +264,18 @@ document is JSON here; the same keys in YAML are the same config.
                    "neutral": ["DENIED", "INTERRUPTED", "DRY", "SUSPENDED"], "reopenTurns": 3, "minRecord": 5,
                    "families": {} },                  // the one definition of success and each family's {score, meter,
                                                       // minRecord} (races.md §Value); the ledger is instruments/value.jsonl
-    "forge":     { "demandAtSteps": 12 }              // a turn this long is asked once, at its close, for its @FORGE draft
+    "forge":     { "demandAtSteps": 12,               // a turn this long is asked once, at its close, for its @FORGE draft
                                                       // (or why the path is one-off) — every body, closingCheck or not;
                                                       // 0 = off, and `status` lists it as switched off
+                   "evolvedStatus": "trial" },        // the status a skill evolution's mutate arm mints lands at: trial | active
+    "evolution": { "enabled": true, "mode": "auto",   // a stressed creature whose desk overflows heals itself (races.md §Evolution):
+                   "thoughtsMax": 7,                  // the desk (its doc's + its worn minds') past which it evolves; 0 = off
+                   "stressAt": 0,                     // the strain that reads stressed; 0 = law.stress.escalateAt
+                   "failStreak": 3,                   // or this many gate verdicts failed in a row (or a doom checkpoint)
+                   "cooldownRuns": 10,                // runs of its own between two evolutions of one body (the value ledger counts)
+                   "arms": ["split", "mutate", "rebirth"],
+                   "splitLines": 1500, "splitFiles": 24 }  // what "large" means for split (0 = that measure never reads large);
+                                                      // mode propose queues the plan: `isekai evolve list|show|apply|reject`
   },
 
   // ---------------------------------------------------------------- memory tiers
