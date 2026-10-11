@@ -331,6 +331,7 @@ func (h *tuiHost) Footer() tui.FooterView {
 	for r := range ranks {
 		mk(r)
 	}
+	a.footerValue(&fv)
 	return fv
 }
 
