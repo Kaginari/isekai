@@ -39,6 +39,13 @@ func (a *App) TUI(ctx context.Context) int {
 	h.attach(fanout{ui, a.webBus()})
 	a.webBus().attach(h)
 	defer a.webBus().close()
+	// evolutions reach the terminal and the dashboard through the host; the run-start sweep
+	// runs once both are up, so its toasts are seen
+	a.mu.Lock()
+	a.evoSink = func(ev tui.EvEvolution) { h.send(ev) }
+	a.mu.Unlock()
+	defer func() { a.mu.Lock(); a.evoSink = nil; a.mu.Unlock() }()
+	go a.evolveSweep()
 	code := h.run(ui.Run)
 	// veil-exit: the human's stop is its own chronicle row — an end with no cause could read
 	// earned DONE either way; this one names the hand (Veldora 2026-10-03)

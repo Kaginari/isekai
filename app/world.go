@@ -85,6 +85,7 @@ func openWorld(cfg *config.Config, root string, lex world.Lexicon) (*world.World
 		Ontology:     cfg.Ontology.Enabled,
 		Ranks:        ranksFor(cfg, lex),
 		Value:        valueOptions(cfg),
+		Evolution:    evolutionOptions(cfg),
 	})
 }
 

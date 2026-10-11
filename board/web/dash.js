@@ -468,6 +468,7 @@
         break;
       }
       case 'notice': note(e.text); break;
+      case 'evolution': evolution(e); break;
       case 'error': note(e.text, 'danger'); break;
       case 'lines': add(el('pre', { class: 'console-lines', text: (e.lines || []).join('\n') })); break;
       case 'choice': choiceCard(e); break;
@@ -755,6 +756,20 @@
     }
   }
 
+  // ---------- evolution (law.evolution): a stressed creature healed itself ----------
+  // a timeline row ("slime-x evolved: split → slime-x-a, slime-x-b"), a ring in the arm's hue on
+  // its neuron, and the colony reloaded — the young (or the new hat) appear, and ring too
+  const ARM_TONE = { split: 's1', mutate: 's2', rebirth: 's6' };
+  function evolution(e) {
+    const hole = e.status === 'hole';
+    note('✦ ' + (e.line || e.body + ' evolved') + (e.reason && !hole ? ' — ' + e.reason : ''), hole ? 'danger' : e.status === 'proposed' ? 'warn' : false);
+    timelineAdd({ as: e.body, ask: e.line || '', at: new Date().toISOString(), status: hole ? 'HOLE' : e.status === 'proposed' ? 'PROPOSED' : e.status === 'rejected' ? 'REJECTED' : 'EVOLVED' });
+    const tone = hole ? 'danger' : ARM_TONE[e.arm] || 's6';
+    net.act(e.body, 'evolve', tone);
+    if (e.status !== 'applied') return;
+    loadColony().then(() => { for (const n of e.into || []) if (n !== e.body) net.act(n, 'evolve', tone); }).catch(() => {});
+  }
+
   // ---------- the timeline: courts and verdicts, newest first ----------
   // journaled runs (/api/activity's recent) beside what this page saw live (court starts and
   // reports, the session's turns), merged by time; a journal row is dropped only when it is the
@@ -763,7 +778,7 @@
   // says only what is new — the list itself is not a live region.
   const liveRows = [];
   const SAME_RUN_MS = 8000;
-  const tone = st => { const x = String(st || '').toUpperCase(); return !x ? 'info' : /^(DONE|PASS)/.test(x) ? 'ok' : /FAIL|DENIED/.test(x) ? 'danger' : /RUNNING/.test(x) ? 'info' : 'warn'; };
+  const tone = st => { const x = String(st || '').toUpperCase(); return !x ? 'info' : /^(DONE|PASS|EVOLVED)/.test(x) ? 'ok' : /FAIL|DENIED|HOLE/.test(x) ? 'danger' : /RUNNING/.test(x) ? 'info' : 'warn'; };
   const rankOfName = name => { const n = colony && colony.nodes.find(x => x.name === name && x.kind !== 'mind'); return n ? n.rank : ''; };
   function timelineAdd(row) {
     row.ask = String(row.ask || '').split('\n').filter(l => l.trim() && !/^\s*@/.test(l)).join(' ');

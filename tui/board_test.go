@@ -318,3 +318,24 @@ func TestGateWearsTheOrc(t *testing.T) {
 		t.Fatalf("the gate shows the orc:\n%s", s)
 	}
 }
+
+// An evolution (law.evolution) is a toast, a notice in the scrollback and the sidebar's line.
+func TestEvolutionToastAndSidebar(t *testing.T) {
+	m := New(&fakeHost{}, NewTheme(true), DefaultWords())
+	m.Update(tea.WindowSizeMsg{Width: 140, Height: 40})
+	m.Update(EvEvolution{Body: "slime-x", Arm: "mutate", Status: "applied", Reason: "its Thoughts repeat a lesson", Line: "slime-x mutated its genome"})
+	if len(m.toasts) != 1 || !strings.Contains(m.toasts[0].text, "✦ slime-x mutated its genome") {
+		t.Fatalf("a toast: %+v", m.toasts)
+	}
+	if m.evolved != "slime-x mutated its genome" {
+		t.Fatalf("the sidebar keeps the last evolution: %q", m.evolved)
+	}
+	rows := m.theme.railRows(m.railView(40), 40)
+	found := false
+	for _, r := range rows {
+		found = found || strings.Contains(ansi.Strip(r.text), "✦ slime-x")
+	}
+	if !found {
+		t.Fatal("the sidebar draws it")
+	}
+}
