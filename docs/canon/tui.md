@@ -16,7 +16,10 @@ one place the binary takes third-party code; versions pinned in go.sum.
   cached, so a frame, a new block or a reprint never runs Glamour over the transcript again; once a drag settles (~120 ms) the screen and the
   scrollback are cleared and the transcript is printed again at the new width — Claude Code's
   answer too. A height-only change reprints nothing; `ctrl+l` reprints on demand; `/clear` empties
-  the transcript. The welcome waits for the first size, so it is never drawn at a guessed width.
+  the transcript. The welcome waits for the first size, so it is never drawn at a guessed width;
+  no block prints before that size either (it waits for the first frame), and a first ask that
+  lands its blocks inside the welcome's background wait still finds the welcome heading the
+  conversation.
 - **The intro** — on a real terminal the mascot (isekai's slime, agent-one's agent: half-block
   sprites, `tui/mascot.go`) drops in on a Harmonica spring, squashes as it lands, blinks, and the
   welcome box then prints around the very place it landed. About a second; `<PREFIX>NO_INTRO=1`
@@ -65,6 +68,9 @@ row — the headroom VS Code's sticky scroll paints the launching command over:
   Items yield right to left as the window narrows.
 - **Conversation** — the main column, titled in its top edge: the transcript in a viewport
   (pgup/pgdn, shift+↑/↓, the wheel), the live rows under it. Scrolled up, the edge says `↓ N more`.
+  It follows the bottom until the human scrolls up — a pane that shrinks under a smaller window or a
+  taller draft is no climb — and every block lands in it, slash-command output too: nothing is
+  printed above the frame while the panes hold the window.
   While the transcript overflows the pane a slim scrollbar rides its right padding column: a quiet
   `▕` track, a thumb in the primary sized to the visible fraction and placed by the offset at
   half-row precision (`▐`, its ends `▗`/`▝`); a click on it jumps there, a drag walks it. It is
@@ -337,7 +343,10 @@ pure functions from a view to styled text, golden tests at 80 and 120 columns wi
 stripped, `-goldens` rewrites them). Rung 2 is the Bubble Tea program under teatest with a fake
 host. Rungs 3–4 are the junction with the real engine (`app/tui.go` under teatest: the mock
 provider scripted, real tools, the real classifier behind the gate — the three approval paths,
-streaming, diffs, Courts foreground and background, interrupt, queueing). Rung 5 runs the built
+streaming, diffs, Courts foreground and background, interrupt, queueing); a junction test reads
+the byte stream and, asked of the program on its own goroutine, `Model.Transcript` — the renderer
+writes only the cells that changed, so a partly changed line never reaches the stream whole, and the
+frame alone shows only the pane's window. Rung 5 runs the built
 binary in a pseudo-terminal against a scripted world (`.isekai/tmp/tui-shots/shoot.py`), feeds
 keystrokes, and renders the ANSI stream through `pyte` at 80×24 and 120×40 into plain-text
 screens — welcome, a streamed markdown answer with a code block, a bash tool block, an edit with

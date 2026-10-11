@@ -342,7 +342,14 @@ func (m *Model) welcome() tea.Cmd {
 		wel.Dash = m.footer.Dash
 	}
 	m.wel = wel
-	return m.print(func(w int) string { return m.theme.Welcome(wel, w) })
+	b := &block{render: func(w int) string { return m.theme.Welcome(wel, w) }}
+	if len(m.blocks) == 0 || m.board != nil || m.bview != nil {
+		return m.push(b)
+	}
+	// a first ask that ran inside the background wait (a fast turn, a queued line) landed its
+	// blocks before the welcome: the welcome still heads the conversation, never lands under it
+	m.blocks = append([]*block{b}, m.blocks...)
+	return m.reflow()
 }
 
 // setTheme switches the palette, the textarea's and the spinner's styles with it.
@@ -1191,6 +1198,12 @@ func (m *Model) firstPiece() bool {
 
 func (m *Model) push(b *block) tea.Cmd {
 	m.syncDepth()
+	if !m.ready {
+		// no window size yet, so no layout: a print now would land above a frame that may
+		// become the panes; the block waits, and the first frame (panes or catchUp) draws it
+		m.blocks = append(m.blocks, b)
+		return nil
+	}
 	if m.paneMode() {
 		// the pane draws it at the chat's width: render there once, never at the full width too
 		if m.rendered(b, m.chatW()) == "" {
@@ -1622,6 +1635,23 @@ func chosen(v ChoiceView, a ChoiceAnswer) ChoiceView {
 	out.Cursor = 0
 	out.Answered = true
 	return out
+}
+
+// Transcript is the conversation as plain text: every landed block at the width it is drawn at,
+// then the frame as it stands (the live rows, an open card). A host or a test reads it on the
+// program's goroutine (an Update): the renderer writes only the cells that changed, so the byte
+// stream never carries a partly changed line whole, and the frame shows only the pane's window.
+func (m *Model) Transcript() string {
+	frame := m.Render()
+	w := m.chatW()
+	parts := make([]string, 0, len(m.blocks)+1)
+	for _, b := range m.blocks {
+		if t := m.rendered(b, w); t != "" {
+			parts = append(parts, t)
+		}
+	}
+	parts = append(parts, frame)
+	return ansi.Strip(strings.Join(parts, "\n\n"))
 }
 
 // Abort answers a pending choice when the program goes away.

@@ -404,6 +404,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- The terminal's conversation pane kept following the bottom only while its height held: a
+  smaller window or a draft growing the ask box read as the human scrolling up, and new blocks —
+  a slash command's output among them — landed out of sight, the pane sometimes pinned to its top.
+  The welcome now heads the conversation even when a first ask lands inside its background wait,
+  and no block prints before the window's size is known.
 - The dashboard's topbar no longer sets the page's width: its vitals row contains its inline
   size, so the shell stopped overflowing sideways (by 176px at 1024px wide).
 - A background Court's report that arrived while the session's turn was closing was lost; it now
