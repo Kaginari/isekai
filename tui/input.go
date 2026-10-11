@@ -380,10 +380,7 @@ func (m *Model) slash(line string) tea.Cmd {
 	case "settings":
 		return m.openSettings()
 	case "theme":
-		t := NewTheme(!m.theme.Dark)
-		t.Forced = true
-		m.setTheme(t)
-		return m.reflow()
+		return m.themeSlash(rest)
 	case "offices":
 		return m.print(func(w int) string { return m.theme.Offices(m.wel.Offices, w) })
 	case "clear":

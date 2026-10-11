@@ -18,10 +18,3 @@ var Cyberpunk = theme.Cyberpunk
 
 // ThemeNamed builds the theme from the palette config names (the default when unknown).
 func ThemeNamed(name string, dark bool) Theme { return NewThemeFrom(theme.Must(name), dark) }
-
-// Flip is the same palette for the other background (or the same one: dark says which).
-func (t Theme) Flip(dark bool) Theme {
-	n := ThemeNamed(t.Name, dark)
-	n.Forced = true
-	return n
-}

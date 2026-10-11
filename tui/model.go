@@ -55,6 +55,9 @@ type Model struct {
 
 	evolved string // the session's last evolution (law.evolution), the sidebar's line
 
+	// the terminal's own answer about its background: what ui.mode system wears
+	sysDark, sysKnown bool
+
 	// the turn
 	busy          bool
 	turnStart     time.Time
@@ -450,8 +453,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.reflow()
 	case tea.BackgroundColorMsg:
+		m.sysDark, m.sysKnown = msg.IsDark(), true
 		if !m.theme.Forced && msg.IsDark() != m.theme.Dark {
-			m.setTheme(NewTheme(msg.IsDark()))
+			t := ThemeNamed(m.theme.Name, msg.IsDark())
+			t.Mode, t.Color, t.TrueColor = m.theme.Mode, m.theme.Color, m.theme.TrueColor
+			m.setTheme(t)
 		}
 		// the depth steps its surfaces from the terminal's own background
 		m.ground = msg.Color
@@ -716,6 +722,18 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.finish(msg)
 	case EvNotice:
 		return m, m.print(func(w int) string { return m.theme.Notice(msg.Text, w) })
+	case EvTheme:
+		if msg.Name == m.theme.Name && msg.Mode == m.theme.lookMode() {
+			return m, nil
+		}
+		return m, m.applyLook(msg.Name, msg.Mode)
+	case evLookSaved:
+		if msg.err != nil {
+			m.say("theme " + msg.name + " · " + msg.mode + " — worn, not saved: " + msg.err.Error())
+		} else {
+			m.say("theme " + msg.name + " · " + msg.mode + " — saved to " + m.words.ConfigRel)
+		}
+		return m, nil
 	case EvEvolution:
 		m.evolved = msg.Line
 		pill := m.theme.pill("")
