@@ -513,7 +513,7 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 			return tool.DispatchReport{}, err
 		}
 		if ps := w.SessionOf(parent); ps != nil {
-			ps.Spend = ps.Spend.Add(r.Usage)
+			ps.AddSpend(r.Usage)
 		}
 		// the court's drafts are filed here, from the report the harness holds — before @CAP cuts
 		// it and before the courier envelope folds it to a digest. A relayed line hashes the same
