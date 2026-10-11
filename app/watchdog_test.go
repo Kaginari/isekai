@@ -64,8 +64,8 @@ func TestWatchdogLeavesAnAnsweredTurnAlone(t *testing.T) {
 	sc.wait(t, "1 · Yes")
 	enter(tm) // the human answers Yes well inside the notice rung
 	sc.wait(t, "pushed")
-	if s := sc.text(); strings.Contains(s, "watchdog:") || strings.Contains(s, "■ interrupted") {
-		t.Fatalf("the watchdog fired on a steered world:\n%s", s)
+	if sc.shows("watchdog:") || sc.shows("■ interrupted") {
+		t.Fatalf("the watchdog fired on a steered world:\n%s", sc.transcript())
 	}
 	j := w.journalText(".isekai")
 	if strings.Contains(j, `"t":"watchdog"`) {
