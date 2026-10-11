@@ -23,6 +23,8 @@ import (
 // a dark and a light variant, and nothing at all when the terminal has no colour (NO_COLOR,
 // a pipe): lipgloss drops every escape on an ASCII profile, so a plain run is the same text.
 type Theme struct {
+	// Name is the palette the theme was built from (theme.Names)
+	Name  string
 	Dark  bool
 	Color bool
 	// Forced is true when the environment chose dark or light: the terminal's own answer
@@ -70,7 +72,7 @@ func DefaultWords() Words {
 	return Words{Court: "court", Courts: "courts", World: "world", Human: "the human", Gate: "gate", Dist: "isekai", ConfigRel: ".isekai/config.local.yaml", SessionName: "rimuru"}
 }
 
-// NewTheme builds the theme for a dark or light background from the default palette.
+// NewTheme builds the theme for a dark or light background from the default palette (theme.Default).
 func NewTheme(dark bool) Theme { return NewThemeFrom(Cyberpunk, dark) }
 
 // laneAlias maps the names that ride another race's lane onto it: agent-one's ranks, the
@@ -87,8 +89,9 @@ var laneAlias = map[string]string{
 func NewThemeFrom(p Palette, dark bool) Theme {
 	pr := colorprofile.Detect(os.Stdout, os.Environ())
 	t := Theme{Dark: dark, Color: pr != colorprofile.Ascii && pr != colorprofile.NoTTY, TrueColor: pr == colorprofile.TrueColor}
-	r := p.roles(dark)
+	r := p.Variant(dark)
 	t.pal = r
+	t.Name = p.Name
 	t.dep = newDepthScale(dark, r)
 	fg := func(hex string) lipgloss.Style { return lipgloss.NewStyle().Foreground(lipgloss.Color(hex)) }
 	// the roles: borders sit quieter than any text; text, then label, then dim carry the
