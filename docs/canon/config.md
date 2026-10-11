@@ -459,7 +459,9 @@ packages:                     # a private Artifactory for the package managers
   npm: https://artifactory.corp/api/npm/npm-remote/
   pip: https://artifactory.corp/api/pypi/pypi-remote/simple
   go:  https://artifactory.corp/api/go/go-remote
-  tokenEnv: ARTIFACTORY_TOKEN # let through to the shell by name (the agent can read it: use a read-only token)
+  auth: { usernameEnv: ARTIFACTORY_USER, tokenEnv: ARTIFACTORY_TOKEN }   # the login the managers present
+  # npmAuth, pipAuth, goAuth: one manager's own login; tokenEnv alone (the older form) is auth's token
+  policy: private-only        # all (default) | private-only
   env: { GONOSUMDB: corp.example, PIP_TRUSTED_HOST: artifactory.corp }
 containers:                   # --docker-agent
   image: ""                   # a prebuilt runtime to pull instead of building one
@@ -472,7 +474,21 @@ containers:                   # --docker-agent
 - **tools** are indexed by the toolbox like `extra.jsonl` lines, so the agent can find and load them.
 - **packages** set `NPM_CONFIG_REGISTRY`, `PIP_INDEX_URL` and `UV_INDEX_URL`, `GOPROXY`, and `env`'s
   names in every bash command's environment — after secrets are scrubbed, over the process's own
-  values — and in the container. `tokenEnv` names the one secret let through.
+  values — and in the container. The variables a login names are let through by name.
+- **auth** (and `npmAuth`, `pipAuth`, `goAuth` over it) is the login each manager presents, written at
+  every start under `<dist-dir>/tmp/registry/` (owner-only): npm an npmrc (`NPM_CONFIG_USERCONFIG`) whose
+  bearer token stays a `${VAR}` reference — a `username` makes it basic auth, the token then written
+  base64'd; pip and uv the login inside `PIP_INDEX_URL` / `UV_INDEX_URL`; go a netrc (`NETRC`) line per
+  GOPROXY host, sent over https only. No username: netrc logs in as `token`. Env-first
+  (`usernameEnv`, `tokenEnv`); a literal `token` is refused from the tracked project layer. A login naming
+  a variable that is not set is a `@?`, and that manager gets none. No login: the directory is removed.
+- **policy** `private-only` keeps every manager on these URLs: GOPROXY drops `direct` and `off`, a
+  manager with no URL is switched off (`GOPROXY=off`, `PIP_NO_INDEX=1`), and a bash command is refused
+  before any approval when it names another registry or index (`--registry`, `--index-url`, `-i`,
+  `--extra-index-url`, `--find-links`, a `GOPROXY`/`GONOPROXY`/`GOPRIVATE`/`GOINSECURE` override,
+  `GOFLAGS` with `-insecure`, `<manager> config set registry`), installs from a URL or a repository,
+  fetches a public registry host with curl or wget, or installs with a manager that has no URL. The
+  Claude Code hook refuses the same.
 - **containers**: `image` is pulled (docker's own login answers for the private registry); otherwise
   the runtime is built from the embedded Dockerfile with `base` and `apt` as build arguments, its tag
   following them so a changed mirror rebuilds.
