@@ -333,6 +333,7 @@ func (a *App) Build() world.Build {
 				a.hole(h)
 			}
 		}
+		a.settleHeld(body, report)
 		a.Court.Finish(body, report)
 	}
 	b := world.Build{
@@ -405,6 +406,14 @@ func (a *App) Build() world.Build {
 					if orders := wire.EnqueuesOf(in.Ask); len(orders) > 0 {
 						a.Court.ExpectRelay(in.Body, orders)
 					}
+				}
+			}
+			// a foreground report settles the queue item its body holds (a background ack is
+			// no report: its Court settles through noted when it lands)
+			if phase == "end" && st.Tool == "dispatch" && st.Status == "done" {
+				var in struct{ Body string }
+				if json.Unmarshal(st.Input, &in) == nil && in.Body != "" {
+					a.settleHeld(in.Body, st.Result.Output)
 				}
 			}
 			if a.OnStep != nil {

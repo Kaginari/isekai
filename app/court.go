@@ -139,10 +139,13 @@ func (c *Court) observe(s *loop.Session, state string) {
 	c.mu.Unlock()
 }
 
-// Finish marks a body done with its report. Before the report goes out the Court lifts its
-// @$ lines into the body's order book — drained as dispatches at the turn boundary, where
-// the chain gate re-checks each one (fail-closed; a refused order surfaces as a hole).
+// Finish marks a body done with its report. Before the report goes out the Court holds its
+// @$ lines on the world's shared queue (app/wake_held.go; the body's order book when there is
+// no world) — claimed as dispatches by the wake at the turn boundary, where the chain gate
+// re-checks each one (fail-closed; a refused order surfaces as a hole).
 func (c *Court) Finish(name, report string) {
+	var held []wire.Enqueue
+	hold := c.app != nil && c.app.World != nil
 	c.mu.Lock()
 	b := c.bodies[name]
 	if b == nil {
@@ -151,7 +154,11 @@ func (c *Court) Finish(name, report string) {
 		c.order = append(c.order, name)
 	}
 	if rep, ok := wire.ParseReport(report); ok {
-		b.orders = append(b.orders, rep.Enqueues...)
+		if hold {
+			held = rep.Enqueues
+		} else {
+			b.orders = append(b.orders, rep.Enqueues...)
+		}
 		// court-card-exit-verdict law (leg 2a): the exit word is the first @S token — the loop
 		// stamps a non-DONE exit as "FAIL — …", so token one is the journal's verdict.
 		if rep.Status != "" {
@@ -198,9 +205,22 @@ func (c *Court) Finish(name, report string) {
 	}
 	f := c.onFinish
 	c.mu.Unlock()
+	if len(held) > 0 {
+		c.app.holdOrders(name, held)
+	}
 	if f != nil && report != "" {
 		f(name, report)
 	}
+}
+
+// reportOf is a finished body's last report, "" while it runs or before it ever reported.
+func (c *Court) reportOf(name string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if b := c.bodies[name]; b != nil && b.State == "done" {
+		return b.report
+	}
+	return ""
 }
 
 // Orders drains a body's @$ order book — the dispatches it asked for at the boundary.

@@ -85,6 +85,10 @@ type EvEvolution struct {
 }
 
 // EvQuit ends the program.
+// EvHeld is how many rows the world's shared queue holds for the next wake (the relay hold):
+// the footer wears it until the wake claims them.
+type EvHeld struct{ N int }
+
 type EvQuit struct{}
 
 // evSlashDone carries a slash command's output back into the model.
