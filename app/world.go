@@ -299,5 +299,5 @@ func (a *App) drainHooks() loop.Hooks {
 
 // deskPath is where a session's desk (working memory) lives.
 func (a *App) deskPath(run string) string {
-	return filepath.Join(a.Root, a.Cfg.Dist.WorldDir, "instruments", "desk", run+".md")
+	return filepath.Join(a.Root, a.liveConfig().Dist.WorldDir, "instruments", "desk", run+".md")
 }
