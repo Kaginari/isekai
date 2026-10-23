@@ -232,7 +232,9 @@ document is JSON here; the same keys in YAML are the same config.
                                                       // byte, from <world>/tmp/fold/<digest>.txt (by digest or kept-at path)
     "custom":    {},                                  // tools.custom.<name>, below
     "output":    { "maxLines": 2000, "maxBytes": 51200, "dumpDir": "[dist-dir]/tmp/tool-out", "keepDays": 7 },
-    "missing":   { "doomLoopRepeats": 2, "proposeOnSecondNaming": true, "liveReload": true }
+    "missing":   { "doomLoopRepeats": 2, "proposeOnSecondNaming": true, "liveReload": true },
+    "preferFileTools": "hint"                         // a bash `cat f`, `head`, `tail`, `sed -n 'A,Bp' f` gets one line
+                                                      // naming the read call that serves it (numbered, cached); off = silent
   },
   // every builtin takes { enabled, description (override), class (tighten-only), timeout };
   // `timeout` is a duration ("30s", "2m") or a number of seconds; `timeoutMs` (milliseconds)
