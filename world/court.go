@@ -163,7 +163,7 @@ func (w *World) Engine(as string, b Build) *loop.Engine {
 	e := &loop.Engine{
 		Provider: b.providerFor(Route{Office: office, Rank: rank.Name, Creature: as, Task: task}), Gate: b.Gate, Root: w.Root, As: as, Budget: b.Budget, Journal: b.Journal, Trace: b.Trace,
 		Lexicon: w.Lex.Loop(), Policy: w.Policy(as, b.Territory), Cap: b.Court.Cap,
-		Guts: b.Guts, Doom: b.Doom, ForgeDemandAt: b.ForgeDemandAt, Receipts: w.receipts,
+		Guts: b.Guts, Doom: b.Doom, ForgeDemandAt: b.ForgeDemandAt, Receipts: w.receipts, Seals: w.CheckShelf,
 		// every write/edit/delete answers naming its zone's keeper — the territory truth
 		// quoted at the moment of the landing, out of the same w.Owner the gate reads
 		ZoneOwner: func(rel string) string {
