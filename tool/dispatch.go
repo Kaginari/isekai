@@ -117,6 +117,10 @@ type DispatchOptions struct {
 	SessionBackground bool
 	// Wake receives a background Court's report when it lands; nil: background is refused.
 	Wake func(body, report string, failed bool)
+	// Preflight refuses a commission before anything runs or spawns — a body off the roster,
+	// an order the dispatch law forbids — so a background dispatch is never acked as started
+	// for a Court that cannot be minted. nil: the runner alone decides.
+	Preflight func(c Commission) error
 }
 
 // DispatchTool is `dispatch`: mint a named body for one commission and return its report. A
@@ -176,6 +180,11 @@ func DispatchTool(opt DispatchOptions, run Dispatcher) *Tool {
 			if a.Unsaid != nil {
 				c.Unsaid = *a.Unsaid
 				c.UnsaidExplicit = true // the caller named +unsaid in words — not the ambient law
+			}
+			if opt.Preflight != nil {
+				if err := opt.Preflight(c); err != nil {
+					return fail("dispatch %s: %v", c.Body, err)
+				}
 			}
 			background := opt.Background && opt.SessionBackground && opt.Depth == 0
 			if a.Background != nil {
