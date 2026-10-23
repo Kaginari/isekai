@@ -273,14 +273,14 @@ func (w *World) Recall(as, ask string, opt RecallOptions) loop.Recall {
 					rc.Rebuilt = true
 				}
 			}
-			res, err := m.Recall(ask, memory.RecallOpts{As: as, K: opt.K})
+			res, err := m.Recall(ask, memory.RecallOpts{As: as, K: opt.K, Window: true})
 			if err == nil && opt.RebuildOnStale && staleIndex(res.Holes) {
 				// a stale index is rebuilt, never routed around — unless the world declined
 				// rebuilds (memory.long.rebuildOnStale: false); then recall rides the last
 				// good index and the drift shows as holes
 				if _, ierr := m.Index(); ierr == nil {
 					rc.Rebuilt = true
-					res, err = m.Recall(ask, memory.RecallOpts{As: as, K: opt.K, NoCache: true})
+					res, err = m.Recall(ask, memory.RecallOpts{As: as, K: opt.K, NoCache: true, Window: true})
 				}
 			}
 			if err != nil {
