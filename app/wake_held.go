@@ -15,7 +15,10 @@ import (
 // report's wake into an idle session) claims them, each in the name of the body it is ordered
 // to, and opens the next turn with their dispatch prompts; a row another session claimed first
 // is that session's. The body's report settles the claim: DONE closes it, anything else leaves
-// it claimed with the exit noted, for the throne or the human to requeue or close.
+// it claimed with the exit noted, for the throne or the human to requeue or close. An order the
+// throne may not dispatch itself (strict flow, lineage) is never claimed in a body's name no
+// court will come for: the throne claims it with the refusal noted and gets the ask to route
+// down the chain, then closes or requeues it.
 
 // queue is the world's shared queue; nil with no world (the order book stays in memory).
 func (a *App) queue() *queue.Store {
@@ -48,13 +51,27 @@ func (a *App) heldWakeLines() []string {
 		a.hole("queue: " + err.Error())
 		return out
 	}
+	cfg := a.liveConfig() // the wake can race a reload
+	law := world.CourtOptions{StrictFlow: cfg.Tools.Dispatch.StrictFlow, OpenLineage: !cfg.Tools.Dispatch.Lineage}
 	for _, it := range held {
 		owner := it.For
 		if owner == "" {
 			owner = world.Rimuru
 		}
+		var refused error
+		if it.For != "" {
+			if refused = a.World.MayOrder(world.Rimuru, it.For, law); refused != nil {
+				owner = world.Rimuru
+			}
+		}
 		if _, err := q.Claim(it.ID, owner); err != nil {
 			continue // another session's wake took it, or its body is not the claimant's
+		}
+		if refused != nil {
+			why := "the throne may not dispatch " + it.For + ": " + refused.Error()
+			_, _ = q.Touch(it.ID, world.Rimuru, why)
+			out = append(out, fmt.Sprintf("queued work %s for %s (from %s): %s\n(claimed for the throne — %s. Route it down the chain, then close or requeue %s with the queue tool)", it.ID, it.For, orStr(it.From, "the queue"), it.Ask, why, it.ID))
+			continue
 		}
 		if it.For == "" {
 			out = append(out, fmt.Sprintf("queued work %s (from %s): %s", it.ID, orStr(it.From, "the queue"), it.Ask))

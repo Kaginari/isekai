@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Kaginari/isekai/queue"
+	"github.com/Kaginari/isekai/world"
 )
 
 // TestRelayHoldWaitsForTheWake: a background report's @$ orders are held on the shared queue —
@@ -13,6 +14,7 @@ import (
 func TestRelayHoldWaitsForTheWake(t *testing.T) {
 	_, a := forgeWorld(t)
 	defer a.Close()
+	a.Cfg.Tools.Dispatch.StrictFlow = false // the throne may order a slime directly here
 	a.Court.Finish("orc-security", "@S DONE\n@$ slime-auth: tighten the ttl\n@$ slime-api: page the routes\n@E 0")
 	q := a.World.Queue()
 	held, _ := q.Held()
@@ -51,5 +53,26 @@ func TestRelayHoldWithoutAWorld(t *testing.T) {
 	a.Court.Finish("orc-x", "@S DONE\n@$ slime-y: count the retries\n@E 0")
 	if lines := a.heldWakeLines(); len(lines) != 1 || lines[0] != "dispatch slime-y: count the retries" {
 		t.Fatalf("%q", lines)
+	}
+}
+
+// TestRelayHoldRefusedOrderIsTheThrones: an order the throne may not dispatch itself (strict
+// flow: a slime is two rungs down) is never claimed in the body's name with no court coming —
+// the wake claims it for the throne, notes the refusal on it, and hands the throne the ask to
+// route down the chain.
+func TestRelayHoldRefusedOrderIsTheThrones(t *testing.T) {
+	_, a := forgeWorld(t)
+	defer a.Close()
+	a.Court.Finish("orc-security", "@S DONE\n@$ slime-auth: tighten the ttl\n@E 0")
+	lines := a.heldWakeLines()
+	it, _, _ := a.World.Queue().Get("q1")
+	if it.State != queue.Claimed || it.Owner != world.Rimuru || !strings.Contains(it.Note, "may not dispatch slime-auth") {
+		t.Fatalf("the refused order is the throne's, the refusal noted: %+v", it)
+	}
+	if len(lines) != 1 || strings.HasPrefix(lines[0], "dispatch slime-auth") || !strings.Contains(lines[0], "tighten the ttl") || !strings.Contains(lines[0], "may not dispatch slime-auth") {
+		t.Fatalf("the wake hands the throne the ask with the refusal: %q", lines)
+	}
+	if again := a.heldWakeLines(); len(again) != 0 {
+		t.Fatalf("taken twice: %q", again)
 	}
 }

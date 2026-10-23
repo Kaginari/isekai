@@ -379,6 +379,14 @@ func (w *World) preflight(parent *loop.Engine, b Build, name string) (*Creature,
 	return cr, nil
 }
 
+// MayOrder is the dispatch law `from` would meet ordering body — the same preflight its
+// dispatch tool asks — read before the order is taken: nil when the dispatch may go. The wake
+// asks it before it claims a held order in a body's name.
+func (w *World) MayOrder(from, body string, opt CourtOptions) error {
+	_, err := w.preflight(&loop.Engine{As: from}, Build{Court: opt}, body)
+	return err
+}
+
 // nearMiss is the roster name a ghost most likely meant: the one name within two edits (a
 // typo, a rank prefix a letter off); "" when nothing is that close or two are equally close.
 // The zone alone (`auth` for slime-auth) is no ghost: Creature already resolves it.
