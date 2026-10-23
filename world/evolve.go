@@ -818,7 +818,7 @@ func overlay(root, dst, worldDir string, paths []string) error {
 }
 
 // skipMirror are the world dir's children that are read as a whole or never by the ontology.
-var skipMirror = map[string]bool{"instruments": true, "tmp": true, "memory": true, "attic": true, "evolution": true}
+var skipMirror = map[string]bool{"instruments": true, "shared": true, "tmp": true, "memory": true, "attic": true, "evolution": true}
 
 // mirror makes dst a real dir holding src's entries: dirs real down to depth, everything else a
 // symlink.

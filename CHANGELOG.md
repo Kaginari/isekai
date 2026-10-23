@@ -27,7 +27,9 @@ All notable changes to Isekai are recorded here. The format follows
   session, every body and the human can read: a plain file of snapshots, one line per move, never
   rewritten. An item is held, then claimed by the body it was ordered to, then closed as done or
   dropped. Two hands moving the same item at once cannot both win: the second is told it lost
-  and to read again.
+  and to read again. `isekai q` reads and moves it — `list`, `show`, `add`, `claim`, `touch`,
+  `requeue`, `close` — with `--json` for scripts; it lives on the world's shared shelf
+  (`.isekai/shared/queue.jsonl`), which no body may write by hand.
 
 ### Changed
 

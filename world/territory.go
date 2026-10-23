@@ -41,12 +41,17 @@ func (w *World) Policy(body string, opt TerritoryOptions) tool.Policy {
 		// engine soil: journals, reports, ledgers under instruments/loop and instruments/usage
 		// land from the harness only. Every body's write there is refused — Law 2 grows a
 		// sub-case: a body's report speaks through the wire, the engine files it, nobody edits.
+		// The shared shelf is the same soil: the queue moves through the queue tool, never a write.
 		eng1 := normRel(w.Lex.WorldDir + "/instruments/loop")
 		eng2 := normRel(w.Lex.WorldDir + "/instruments/usage")
+		shelf := normRel(w.Lex.WorldDir + "/" + sharedShelf)
 		for _, p := range a.Paths {
 			rel := normRel(w.Rel(p))
 			if under(rel, eng1) || under(rel, eng2) {
 				return fmt.Errorf("territory: %s is engine soil (journals and reports land there from the harness only) — a body never writes under %s; speak on the wire and the engine files it", rel, eng1)
+			}
+			if under(rel, shelf) {
+				return fmt.Errorf("territory: %s is the shared shelf (the harness keeps it) — a body never writes under %s; its work moves through the harness (the q command), never a write", rel, shelf)
 			}
 		}
 		// the throne, bound (pure hard law): a rimuru write inside another creature's soil is

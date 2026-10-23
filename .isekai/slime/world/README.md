@@ -18,12 +18,13 @@
 - log.go: Entry renders `### [RFC3339] author — title` then Task, Files, Gate, Result, Learned; Log.Append refuses when the bytes it last saw shrank or changed (Law 4).
 - One body, one live court: Dispatcher seats the court (World.seat, body → engine) and Close gives the seat up; a second dispatch onto a live seat is refused naming the run there. A report is filed as <run>.report.md beside <run>.jsonl. A court that dies by its clock is named by courtDeathShape from its own Result: no act = provider hang, acts but no write = recon loop, else burn (turns · acts · writes).
 - A cancelled gate judges nothing (gate.go): run spawns no reading once the context has ended, and Gate then answers `cancelled` (never `fail`) with the hole "the turn's writes stand unjudged"; EndGate logs `gate cancelled` with result "interrupted — the gate did not judge", the breaker streak and the value ledger's gate note do not move, and the hook returns an error so the turn does not close done.
+- The shared shelf (shared.go): `<worldDir>/shared/` (SharedDir) holds the world's shared bookkeeping, the work queue first (QueuePath `shared/queue.jsonl`). Queue opens it under the rank law — Outranks: rimuru over everything (work held by no one is the throne's), else any creature up the holder's lineOf chain; a sibling or a child is not. It is harness soil: Policy refuses every body's write under it (naming the shared shelf), the loop never stamps it, evolve's mirror skips it.
 - One write book per world: Open makes a loop.Receipts and Engine hands the same one to every engine it builds, so the tree watch of a dispatcher leaves a background court's tool-reported writes to that court's gate (loop/snapshot.go).
 
 ## Verify
 - `go test -count=1 -run 'TestEvolve|TestThoughtsOf' ./world/`
 - `go test -count=1 -run 'TestGate|TestLogAppendOnly|TestTerritory|TestPolicyThrone|TestSlimeLawPairing' ./world/`
-- `go test -count=1 -run 'TestDispatch|TestEnginesShareReceipts|TestCourt|TestCouncil|TestLedgers|TestLaneUp|TestStratTargets|TestStrictFlow|TestBackgroundWake|TestEmptyCompleteStalls|TestBindCourtRefusesDuplicate|TestCourtDeathShape|TestReportNamedForItsRun' ./world/`
+- `go test -count=1 -run 'TestDispatch|TestEnginesShareReceipts|TestCourt|TestCouncil|TestLedgers|TestLaneUp|TestStratTargets|TestStrictFlow|TestBackgroundWake|TestEmptyCompleteStalls|TestBindCourtRefusesDuplicate|TestCourtDeathShape|TestReportNamedForItsRun|TestQueueOutranks' ./world/`
 - `go test -count=1 -run 'TestASL|TestParseASL|TestAscension|TestRank|TestRelate|TestIntelligence|TestDimension|TestLoadDimension|TestNoManifest|TestSystemPrompt|TestLexicon|TestRaceLaw' ./world/`
 
 ## Thoughts
