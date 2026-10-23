@@ -403,7 +403,7 @@ advisory). `isekai config explain evolution` prints the law with its origins.
 ## Value
 
 Every race is measured by its own job, by one law (`law.value`), from one ledger
-(`<world>/instruments/value.jsonl`). Nothing here asks a model: every number is a fold over rows
+(`<world>/shared/value.jsonl`). Nothing here asks a model: every number is a fold over rows
 the harness wrote (`value/`, `world/value.go`).
 
 **One definition of success.** A run's word is the loop's status when the loop did not close

@@ -149,8 +149,9 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 	}
 	w.ascend = newAscendState(w.Ranks)
 	w.SetEvolution(opt.Evolution)
-	w.loadLedgers() // the scars come home before the first body runs (freeze law 2026-10-07)
-	w.openValue()   // and the value ledger: a body's runs count across sessions
+	w.migrateShelf() // ledgers and value move onto the shared shelf once (world/shared.go)
+	w.loadLedgers()  // the scars come home before the first body runs (freeze law 2026-10-07)
+	w.openValue()    // and the value ledger: a body's runs count across sessions
 	lawPath := filepath.Join(abs, lex.WorldDir, lex.Law)
 	if w.Law, err = LoadLaw(lawPath, lex.WorldDir+"/"+lex.Law, lex.Crest); err != nil {
 		w.Notes = append(w.Notes, err.Error())

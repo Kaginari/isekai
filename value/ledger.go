@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// Shelf is the value ledger's path under the world dir: one append-only JSON line per row,
-// always kept — a world with no ascension still measures its bodies.
-const Shelf = "instruments/value.jsonl"
+// Shelf is the value ledger's path under the world dir, on the shared shelf: one append-only
+// JSON line per row, always kept — a world with no ascension still measures its bodies.
+const Shelf = "shared/value.jsonl"
 
 // LegacyShelf is the ascension tally the ledger replaced; Seed reads it once.
 const LegacyShelf = "instruments/ascension.jsonl"

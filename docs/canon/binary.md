@@ -36,7 +36,7 @@ line of `go.mod` (Go ≥ 1.26).
 | `toolbox` | port of `toolbox.js`: registry build, `brief` (level-1 `@T` manifest under a budget), `load` (level 2, journaled) | §Minds & Bodies — the toolbox |
 | `wire` | parse and emit the envelope (`@S @F @V @? @U @FORGE @E`, `@ROOT @SCOPE @ASK @CAP @DUMP`); `@CAP` enforced | Absolute Rule II, Nature 8 |
 | `queue` | the shared work queue: items held → claimed → done or dropped, one snapshot line per move, the queue a fold over the lines; the `q` command | Law 4 — history is appended, never rewritten |
-| `rank` · `value` | a rank's one spelling (`Canon`) and its family from its flags; the value law — the one definition of success, the ledger (`instruments/value.jsonl`), the signals' fold, the score's arithmetic, the meters | races.md §Value |
+| `rank` · `value` | a rank's one spelling (`Canon`) and its family from its flags; the value law — the one definition of success, the ledger (`shared/value.jsonl`), the signals' fold, the score's arithmetic, the meters | races.md §Value |
 | `world` | world discovery, the law loader (crest always; code sections on demand), ranks and bodies from `.isekai/{elf,orc,slime}/`, `log.md` append-only writer, the Orc gate and the Vitality check, Court dispatch | Natures 1–4, the gate, Laws 2–4 |
 | `onto` | the ontology: schema, graph, reasoning, validation, projection | §The ontology below |
 | `config` | the switchboard (`canon/config.md`): layers, origins, refusals, permission rules, models per office/rank/task, ranks as data | the honesty rule; a disabled law is a finding |

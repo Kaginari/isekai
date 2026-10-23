@@ -80,7 +80,7 @@ func TestCouncilReliefSplit(t *testing.T) {
 	if own := w.Owner("src/b/x.go"); own == nil || own.Name != "slime-two-b" {
 		t.Fatalf("src/b rides with slime-two-b: %+v", own)
 	}
-	b, _ := os.ReadFile(filepath.Join(dir, ".isekai/instruments/ledgers.jsonl"))
+	b, _ := os.ReadFile(filepath.Join(dir, ".isekai/shared/ledgers.jsonl"))
 	if !strings.Contains(string(b), `"kind":"relief"`) || !strings.Contains(string(b), "split") || !strings.Contains(string(b), "slime-two-a") || !strings.Contains(string(b), "slime-two-b") {
 		t.Fatalf("the act must write the birth + the cut to the shelf:\n%s", b)
 	}
@@ -194,7 +194,7 @@ func TestCouncilReliefTreeSplit(t *testing.T) {
 			t.Fatalf("%s must ride with a young one: %+v", p, own)
 		}
 	}
-	b, _ := os.ReadFile(filepath.Join(dir, ".isekai/instruments/ledgers.jsonl"))
+	b, _ := os.ReadFile(filepath.Join(dir, ".isekai/shared/ledgers.jsonl"))
 	if !strings.Contains(string(b), `"lane":"split-tree"`) {
 		t.Fatalf("the act must write the tree-split to the shelf:\n%s", b)
 	}

@@ -210,7 +210,7 @@ everything the world enforces without asking a body to believe anything.
 
 ## Value and meters
 
-Each race is measured by its own job, from one ledger (`.isekai/instruments/value.jsonl`, one row
+Each race is measured by its own job, from one ledger (`.isekai/shared/value.jsonl`, one row
 per run per body, always kept) under one definition of success (`law.value`: `DONE`/`PASS`
 pass, `FAIL`/`ESCALATE`/`CHECKPOINT` fail, the human's `DENIED`, `INTERRUPTED`, `DRY` and
 `SUSPENDED` neutral). A rank's flags give it a family and the family a score: a slime is scored

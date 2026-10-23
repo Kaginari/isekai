@@ -23,7 +23,7 @@ import (
 // soil and territories stay disjoint. The retired seat keeps its graph memory; creatures that
 // reported to it now report to its ascendant (the roster resolves the succession).
 //
-// Each report folds into the value ledger (`<worldDir>/instruments/value.jsonl`, world/value.go)
+// Each report folds into the value ledger (`<worldDir>/shared/value.jsonl`, world/value.go)
 // replayed at Open, so a record earned over many sessions counts. Each ascension is appended
 // to log.md with the reading that earned it; each failure is a hole, logged and surfaced to
 // the dispatcher as `@?`.

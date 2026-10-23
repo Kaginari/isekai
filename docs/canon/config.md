@@ -267,7 +267,7 @@ document is JSON here; the same keys in YAML are the same config.
     "value":     { "enabled": true, "window": "28d", "pass": ["DONE", "PASS"], "fail": ["FAIL", "ESCALATE", "CHECKPOINT"],
                    "neutral": ["DENIED", "INTERRUPTED", "DRY", "SUSPENDED"], "reopenTurns": 3, "minRecord": 5,
                    "families": {} },                  // the one definition of success and each family's {score, meter,
-                                                      // minRecord} (races.md §Value); the ledger is instruments/value.jsonl
+                                                      // minRecord} (races.md §Value); the ledger is shared/value.jsonl
     "forge":     { "demandAtSteps": 12,               // a turn this long is asked once, at its close, for its @FORGE draft
                                                       // (or why the path is one-off) — every body, closingCheck or not;
                                                       // 0 = off, and `status` lists it as switched off
@@ -603,7 +603,7 @@ ranks:
 ```
 
 and `ascendsWhen: ""` turns ascension off. The record behind it is the value ledger
-`<world>/instruments/value.jsonl`, append-only and replayed at open (seeded once from an older
+`<world>/shared/value.jsonl`, append-only and replayed at open (seeded once from an older
 `instruments/ascension.jsonl`); an ascension carries the base's doc into the ascended rank's dir,
 retires the base's seat and is appended to `log.md`.
 
