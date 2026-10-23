@@ -2,6 +2,7 @@ package loop
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,5 +149,58 @@ func TestWatchReceiptExplainsOnlyItsOwnWrite(t *testing.T) {
 	}
 	if len(gated) != 1 || strings.Join(gated[0], ",") != "court.txt" {
 		t.Fatalf("the throne's own write after the court's receipt must be gated: %v (wrote %v)", gated, r.Wrote)
+	}
+}
+
+// TestReceiptsBookIsBounded: a receipt no watching turn could still need (noted before the
+// oldest live baseline) leaves the book, so the book does not grow for the life of the world; a
+// receipt a live turn still needs stays, however many other turns open, write and close beside
+// it.
+func TestReceiptsBookIsBounded(t *testing.T) {
+	book := NewReceipts()
+	throne := engine(t, nil)
+	throne.Receipts = book
+	court := func(path string) {
+		e := &Engine{Provider: mock.New(mock.Call("1", "write", map[string]string{"path": path, "content": "the court's\n"}), mock.Text("@S DONE\n@U colony c\n@E 0")),
+			Tools: tool.Builtins(), Gate: throne.Gate, Root: throne.Root, As: "slime-court", Unsaid: true, Receipts: book}
+		if r, err := e.Run(context.Background(), "write "+path); err != nil || r.Status != Done {
+			t.Fatalf("court: %v %+v", err, r)
+		}
+	}
+	size := func() int {
+		book.mu.Lock()
+		defer book.mu.Unlock()
+		return len(book.by)
+	}
+	for i := 0; i < 20; i++ {
+		court(fmt.Sprintf("old%d.txt", i))
+	}
+	if n := size(); n != 0 {
+		t.Fatalf("no turn is watching: %d receipts kept", n)
+	}
+	var gated [][]string
+	throne.Hooks.EndGate = func(ctx context.Context, s *Session, r *Result) (string, []string, error) {
+		gated = append(gated, append([]string(nil), s.Wrote...))
+		return "pass", nil, nil
+	}
+	throne.Provider = &steps{
+		func() provider.Response {
+			court("court.txt") // noted while the throne's turn is open
+			for i := 0; i < 5; i++ {
+				court(fmt.Sprintf("other%d.txt", i)) // other turns open, note and close beside it
+			}
+			return mock.Call("1", "bash", map[string]string{"command": "echo mine > mine.txt"})
+		},
+		func() provider.Response { return mock.Text("@S DONE\n@U colony c\n@E 0") },
+	}
+	if r, err := throne.Run(context.Background(), "work beside the courts"); err != nil || r.Status != Done {
+		t.Fatalf("%v %+v", err, r)
+	}
+	if len(gated) != 1 || strings.Join(gated[0], ",") != "mine.txt" {
+		t.Fatalf("a receipt the live turn needed was dropped: %v", gated)
+	}
+	court("after.txt")
+	if n := size(); n != 0 {
+		t.Fatalf("the turn closed: %d receipts kept", n)
 	}
 }
