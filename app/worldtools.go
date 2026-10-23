@@ -48,6 +48,9 @@ func (a *App) worldTools(body string) []*tool.Tool {
 	if on("plan") {
 		out = append(out, a.planTool(body))
 	}
+	if on("queue") && a.World != nil {
+		out = append(out, tool.QueueTool(a.World.Queue(), body))
+	}
 	if a.Drainer != nil && a.Cfg.Compaction.Enabled {
 		out = append(out, a.Drainer.RecallTool())
 	}

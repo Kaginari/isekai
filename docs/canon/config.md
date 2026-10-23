@@ -225,6 +225,9 @@ document is JSON here; the same keys in YAML are the same config.
     "onto":      { "enabled": true },
     "skill":     { "enabled": true },                 // level-2 load of a Mind
     "desk":      { "enabled": true, "limit": 5 },     // working memory; the todo list's seat
+    "queue":     { "enabled": true },                 // the shared work queue (<world>/shared/queue.jsonl): list and show
+                                                      // are reads; touch, requeue, close only on work the body holds
+                                                      // or its rank stands over; claims are the wake's
     "custom":    {},                                  // tools.custom.<name>, below
     "output":    { "maxLines": 2000, "maxBytes": 51200, "dumpDir": "[dist-dir]/tmp/tool-out", "keepDays": 7 },
     "missing":   { "doomLoopRepeats": 2, "proposeOnSecondNaming": true, "liveReload": true }

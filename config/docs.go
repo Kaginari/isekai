@@ -97,6 +97,8 @@ var keyDocs = map[string]string{
 	"tools.dispatch.lineage":              "on/off — a body orders only the creatures that report to it",
 	"tools.desk":                          "the working-memory desk (the todo list's seat)",
 	"tools.desk.limit":                    "how many thoughts the desk holds",
+	"tools.queue":                         "the shared work queue's door: a body reads it, and moves the work it holds",
+	"tools.queue.enabled":                 "on/off — the queue tool (list and show free; touch, requeue, close on held work)",
 	"tools.custom":                        "your own tools: a command with parameters and a class",
 	"tools.custom.*":                      "one custom tool",
 	"tools.output":                        "how big tool results are handled",

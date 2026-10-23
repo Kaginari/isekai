@@ -29,7 +29,9 @@ All notable changes to Isekai are recorded here. The format follows
   dropped. Two hands moving the same item at once cannot both win: the second is told it lost
   and to read again. `isekai q` reads and moves it — `list`, `show`, `add`, `claim`, `touch`,
   `requeue`, `close` — with `--json` for scripts; it lives on the world's shared shelf
-  (`.isekai/shared/queue.jsonl`), which no body may write by hand.
+  (`.isekai/shared/queue.jsonl`), which no body may write by hand. Bodies get a `queue` tool to read it and to note progress on,
+  hand back or close the work they hold; reading is free, and only the holder (or a rank above
+  it) may move an item (`tools.queue.enabled`, on by default).
 
 ### Changed
 

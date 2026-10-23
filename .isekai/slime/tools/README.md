@@ -4,7 +4,7 @@
 - **Territory:** `tool/`
 - **Reports to:** orc-safety
 - **Minds:** slime-go-proving, slime-class-contract, gate-safety
-- **Purpose:** the ground truth of the tools a body may run — their shapes, the registry, the built-ins and the file kit, the editor, patch, git, web, dispatch, ask, pulse, skim, delete, custom tools — and of the per-command classifier that decides what reaches the human.
+- **Purpose:** the ground truth of the tools a body may run — their shapes, the registry, the built-ins and the file kit, the editor, patch, git, web, dispatch, ask, pulse, queue, skim, delete, custom tools — and of the per-command classifier that decides what reaches the human.
 
 ## Traits
 - Tool{Name, Description, Schema, Class, Classify, Run}; Settle(env, input) returns the effective Classification and holes, and a Classify may only tighten the declared floor (tool.Max). Def.DeclareFor(provider) hands anthropic the schema-less trained-tool JSON (AnthropicBash, AnthropicEditor) and everyone else the custom schema. Registry keeps order; Only(names…) cuts a rank's shelf; Builtins() is read, write, edit, delete, bash, glob, grep, skim.
@@ -18,10 +18,11 @@
 - guard_corpus_test.go reads guard/corpus.txt — a `block` line there that this classifier rates below outward fails this package's tests.
 - pathWords: OutsideWorld splits words at spaces and = only — braces expand as the shell does (prefix + each alternative + suffix, nested), a colon splits only a VAR= list value, a leading < is a redirection, and only a quote-led token is skipped; `sed -n 1,/^x/p` and `git show HEAD:p` name no root path. gofmt/goimports read unless -w; go fmt is a formatter write. read sets Result.Unchanged when every window it served was withheld as already served.
 - dispatch.go: DispatchOptions.Preflight (the world's roster and dispatch law) answers after the commission is built and before the background branch, so a refused body fails the act itself (`dispatch <body>: <why>`) — never a "started in the background" ack, a spawnWatch FAIL or a wake for a Court that cannot be minted; nil leaves the runner alone to decide.
+- queue.go: QueueTool(store, as) is a body's door to the shared queue — op list (all: closed too; the body's own claims marked) and show settle read; touch, requeue, close settle write with no Paths (the shared shelf is harness soil: nothing for the territory gate to bill) and move only what `as` holds or the store's May lets it over; it never claims (claims are the wake's). Results carry no Wrote.
 
 ## Verify
 - `go test -count=1 -run 'TestClassifyCommand|TestClassifyGit|TestGuardCorpusNeedsTheHuman|TestCommandForms|TestSymlinkEscapeIsOutward|TestClassifyFormattersAndSeparators' ./tool/`
-- `go test -count=1 -run 'TestDeleteArchives|TestPulseTool|TestSkim|TestSettleOnlyTightens|TestRegistry|TestReadAutoLimit|TestDispatchPreflightBeforeSpawn' ./tool/`
+- `go test -count=1 -run 'TestDeleteArchives|TestPulseTool|TestSkim|TestSettleOnlyTightens|TestRegistry|TestReadAutoLimit|TestDispatchPreflightBeforeSpawn|TestQueueTool' ./tool/`
 - `go test -count=1 -run 'TestSplitArgvShellQuoting|TestInterpreterEvalShapes' ./tool/`
 
 ## Thoughts
