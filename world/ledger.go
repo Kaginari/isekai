@@ -53,53 +53,63 @@ func (w *World) ledgerNote(r ledgerRow) {
 // the same per-creature bound as runtime writes; the clear row empties both strain ledgers,
 // exactly like the run-time clean-landing law.
 func (w *World) loadLedgers() {
+	var homes [][]ledgerRow
 	for _, p := range w.shelfReadPaths(ledgerShelf) {
-		w.replayLedger(p)
+		homes = append(homes, readLedger(p))
+	}
+	for _, r := range mergeHomes(homes, func(r ledgerRow) time.Time { return r.At }, nil) {
+		w.replayLedger(r)
 	}
 }
 
-func (w *World) replayLedger(path string) {
+// readLedger is one ledger file's rows, in file order; an unreadable file has none.
+func readLedger(path string) []ledgerRow {
 	f, err := os.Open(path)
 	if err != nil {
-		return
+		return nil
 	}
 	defer f.Close()
+	var out []ledgerRow
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 1<<20), 16<<20)
 	for sc.Scan() {
 		var r ledgerRow
-		if json.Unmarshal(sc.Bytes(), &r) != nil || r.Body == "" {
-			continue
+		if json.Unmarshal(sc.Bytes(), &r) == nil && r.Body != "" {
+			out = append(out, r)
 		}
-		switch r.Kind {
-		case "stress":
-			w.stress[r.Body] = r.Value
-		case "consults":
-			w.consults[r.Body] = r.Value
-		case "stressClear":
-			delete(w.stress, r.Body)
-			delete(w.consults, r.Body)
-		case "death":
-			w.stressDeaths[r.Body] = stressEnd{Lane: r.Lane, At: r.At}
-		case "courtWrite":
-			if r.Path == "" {
-				continue
-			}
-			bm := w.courtWrites[r.Body]
-			if bm == nil {
-				bm = map[string]courtWrite{}
-				w.courtWrites[r.Body] = bm
-			}
-			bm[normRel(r.Path)] = courtWrite{Writer: or(r.Writer, r.Body), At: r.At}
-			for len(bm) > courtWritesBound {
-				oldest := ""
-				for k, cw := range bm {
-					if oldest == "" || cw.At.Before(bm[oldest].At) {
-						oldest = k
-					}
+	}
+	return out
+}
+
+func (w *World) replayLedger(r ledgerRow) {
+	switch r.Kind {
+	case "stress":
+		w.stress[r.Body] = r.Value
+	case "consults":
+		w.consults[r.Body] = r.Value
+	case "stressClear":
+		delete(w.stress, r.Body)
+		delete(w.consults, r.Body)
+	case "death":
+		w.stressDeaths[r.Body] = stressEnd{Lane: r.Lane, At: r.At}
+	case "courtWrite":
+		if r.Path == "" {
+			return
+		}
+		bm := w.courtWrites[r.Body]
+		if bm == nil {
+			bm = map[string]courtWrite{}
+			w.courtWrites[r.Body] = bm
+		}
+		bm[normRel(r.Path)] = courtWrite{Writer: or(r.Writer, r.Body), At: r.At}
+		for len(bm) > courtWritesBound {
+			oldest := ""
+			for k, cw := range bm {
+				if oldest == "" || cw.At.Before(bm[oldest].At) {
+					oldest = k
 				}
-				delete(bm, oldest)
 			}
+			delete(bm, oldest)
 		}
 	}
 }
