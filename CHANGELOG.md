@@ -74,7 +74,8 @@ All notable changes to Isekai are recorded here. The format follows
 - **A cancelled gate is not a failed one.** When a run is stopped while its end-of-turn gate is
   still reading, the gate stops spawning checks and says "cancelled" instead of recording every
   check it skipped as a red failure against the body, and the turn is no longer sent back to the
-  model to fix a failure that never happened.
+  model to fix a failure that never happened. The writes it never judged are not forgotten: the
+  next turn's gate judges them along with its own.
 - **Each court keeps its own desk.** Every body's `desk` wrote the throne's file; a court now
   writes its run's, the one compaction and `isekai resume` read.
 - **One body, one live court.** A second dispatch to a body whose court is still running is
