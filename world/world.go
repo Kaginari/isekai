@@ -105,6 +105,9 @@ type World struct {
 	// same gate failing on the same files for the same body hardens into a spec directive).
 	pairMarks   map[string]time.Time
 	gateStreaks map[string]*gateStreak
+	// receipts is the write book every engine of this world shares: a change the tree watch sees
+	// that another run's tool reported writing is that run's (loop.Receipts)
+	receipts *loop.Receipts
 	// evo is law.evolution: the armed options, this session's evolutions (world/evolve.go)
 	evo evoState
 }
@@ -137,7 +140,7 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 	if st, err := os.Stat(filepath.Join(abs, lex.WorldDir)); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("no %s/ under %s", lex.WorldDir, abs)
 	}
-	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, valOpt: opt.Value, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]courtWrite{}, courtWrites: map[string]map[string]courtWrite{}, stress: map[string]int{}, consults: map[string]int{}, stressDeaths: map[string]stressEnd{}, pairMarks: map[string]time.Time{}, gateStreaks: map[string]*gateStreak{}}
+	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, valOpt: opt.Value, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]courtWrite{}, courtWrites: map[string]map[string]courtWrite{}, stress: map[string]int{}, consults: map[string]int{}, stressDeaths: map[string]stressEnd{}, pairMarks: map[string]time.Time{}, gateStreaks: map[string]*gateStreak{}, receipts: loop.NewReceipts()}
 	if w.Ranks == nil {
 		w.Ranks = DefaultRanks(lex)
 	}
