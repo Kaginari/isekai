@@ -82,6 +82,7 @@ type Env struct {
 	IsRecord  func(rel string) bool   // defaults to IsRecord; nil-safe
 	ZoneOwner func(rel string) string // optional: which creature authors this zone ("" = none)
 	Self      func() string           // optional: the acting session's own state digest (the pulse tool); nil-safe
+	RunID     string                  // the acting run's id: a court's own desk and scratch key on it ("" outside a run)
 	Timeout   int                     // seconds, for bash; 0 means the tool's default
 }
 

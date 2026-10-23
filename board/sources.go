@@ -1029,7 +1029,7 @@ func containsStr(ss []string, s string) bool {
 func (f *fileSources) colony() *Colony {
 	now := f.now()
 	src := f.rel(onto.OntologyDirIn(f.root, f.layout)) + " + " + f.worldDir + "/{ranks}/*/"
-	w, err := onto.LoadLayout(f.root, f.layout)
+	w, err := onto.Cached(f.root, f.layout)
 	if err != nil {
 		return &Colony{Reading: silent(src, "ontology failed to load: "+err.Error(), time.Time{}, now)}
 	}

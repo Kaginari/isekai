@@ -71,6 +71,7 @@ func TestValueLawRefusals(t *testing.T) {
 		"words":   "law:\n  value:\n    pass: [DONE, FAIL]\n",
 		"asl":     "ranks:\n  high-orc:\n    ascendsWhen: \"ascend orc when luck >= 1\"\n",
 		"floor":   "law:\n  guts:\n    floor: 2\n",
+		"repin":   "law:\n  guts:\n    repin: 1\n",
 	} {
 		w := newWorld(t, map[string]string{".isekai/config.yaml": cfg})
 		if err := w.loadErr(); err == nil {
@@ -81,6 +82,14 @@ func TestValueLawRefusals(t *testing.T) {
 	w := newWorld(t, map[string]string{".isekai/config.yaml": "law:\n  guts:\n    floor: 0\n"})
 	if c := w.load(); c.Law.Guts.Floor != 0 {
 		t.Fatal("floor 0 is honoured")
+	}
+	// the stall guards ship armed: the loop reads 3 and 40, and a world tunes or turns them off
+	if g := newWorld(t, nil).load().Law.Guts; g.Repin != 3 || g.ActBudget != 40 {
+		t.Fatalf("stall guards default: repin %d, actBudget %d", g.Repin, g.ActBudget)
+	}
+	w = newWorld(t, map[string]string{".isekai/config.yaml": "law:\n  guts:\n    repin: -1\n    actBudget: 120\n"})
+	if g := w.load().Law.Guts; g.Repin != -1 || g.ActBudget != 120 {
+		t.Fatalf("stall guards tuned: %+v", g)
 	}
 }
 

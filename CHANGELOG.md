@@ -6,6 +6,41 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Stall guards.** A run that asks the same read again with nothing written since gets a note the
+  second time and checkpoints the third (`law.guts.repin`, 3). A turn that runs 40 model calls
+  with no write or dispatch checkpoints too, warned at three quarters (`law.guts.actBudget`).
+  Both stops are resumable, reset at every new ask and every landing, and a negative value turns
+  them off.
+- **A silent stream is cut.** A streamed answer that sends no byte for two minutes ends with
+  "stream stalled" instead of waiting out the client's ten-minute timeout, and a cancelled call
+  returns the cancellation at once, whatever the transport.
+
+### Changed
+
+- **A court's timeout names how it died:** a provider that never answered, a body that only read
+  (a recon loop), or one that worked and ran long, with its turns, acts and writes.
+- **The boards poll the ontology from a cache** keyed on the files it is read from: a poll with
+  nothing changed costs about half a millisecond instead of a full load, and the terminal board
+  keeps its Graph page.
+
+### Fixed
+
+- **Each court keeps its own desk.** Every body's `desk` wrote the throne's file; a court now
+  writes its run's, the one compaction and `isekai resume` read.
+- **One body, one live court.** A second dispatch to a body whose court is still running is
+  refused, naming the run, instead of two courts sharing one desk and scratch.
+- **Court reports no longer overwrite each other.** They were stamped on a 12-hour clock (3 a.m.
+  and 3 p.m. shared a name); each is now named for its run, beside its journal.
+- **Recall sends each anchor once** when two sources return the same one.
+- **Patterns are not paths.** The scratch redirect leaves `sed -n /^func/p`, `awk /x/` and
+  `grep -E '/a|/b'` alone (globs are still redirected), and the classifier no longer reads
+  `sed -n 1,/^x/p` or `git show HEAD:path` as leaving the world, while a brace expansion such as
+  `{a,/etc/x}` still does.
+- **`gofmt -l` and `goimports -d` are reads; `go fmt` and `-w` are writes.** `go fmt` was read
+  as read-only.
+
 ## [1.0.0] - 2026-10-11
 
 The first stable release. From here the configuration keys, the `isekai` commands and flags, and

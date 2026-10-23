@@ -690,7 +690,13 @@ func (a *App) deskTool(body string) *tool.Tool {
 				Add      string
 			}
 			_ = json.Unmarshal(in, &q)
-			p := a.deskPath(a.SessionID)
+			// the throne keeps the session's one desk; a court's is its own run's, the file the
+			// drainer and a resume read — never the throne's working memory written over
+			run := env.RunID
+			if body == world.Rimuru || run == "" {
+				run = a.SessionID
+			}
+			p := a.deskPath(run)
 			cur := readDesk(p)
 			switch {
 			case len(q.Thoughts) > 0:

@@ -561,7 +561,7 @@ rules:
 | `law.value` | the one definition of success, the value ledger's window, each family's score and meter | `value: { window: 7d, minRecord: 8 }` · `families: { gate: { score: "0.6*gateRight + 0.4*slimeHealth" } }` |
 | `ranks.<r>.value` · `.family` · `.portrait` | a race's own score, meter and record; its family; its picture | `slime: { value: { score: "0.5*landRate + 0.5*gateRate", meter: { signal: gateRate, bands: { ok: 85, warn: 60 } } } }` |
 | `law.evolution` | when a stressed creature with an overflowing desk evolves (split, mutate, rebirth), auto or proposed | `evolution: { mode: propose, thoughtsMax: 9, cooldownRuns: 20 }` |
-| `law.guts` | the per-step gut: benches (go, pytest, js, cargo, make), lexemes, weights, clamp | `benches: [{ name: mix, match: ["mix test"], red: [failure], green: ["0 failures"] }]` |
+| `law.guts` | the per-step gut: benches (go, pytest, js, cargo, make), lexemes, weights, clamp; the stall guards `repin` (3) and `actBudget` (40) checkpoint a run that re-reads or lands nothing | `benches: [{ name: mix, match: ["mix test"], red: [failure], green: ["0 failures"] }]` |
 | `ui` · `output` | the dashboard, the status line, the session's meters (ctx bands follow `law.budget`), output format | `board: { autostart: false }` · `meters: { score: { signal: score, bands: { ok: 75, warn: 45 } } }` |
 | `ui.theme` · `ui.mode` | the palette both faces wear and its variant (§Themes) | `theme: synthwave` · `mode: system` |
 | `sessions` · `undo` | where sessions and undo snapshots live, how long | `sessions: { keepDays: 30 }` |

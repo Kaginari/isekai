@@ -66,6 +66,7 @@ type World struct {
 
 	mu       sync.Mutex
 	sessions map[*loop.Engine]*loop.Session
+	seats    map[string]*loop.Engine // body → the one court sitting it (seat, Close)
 	closers  map[*loop.Engine]func()
 	// courtWrote is the court-write ledger's SAME-ENGINE LANE: what the Courts of a
 	// dispatcher's engine wrote and gated on their own account, kept as path → {writer, at};

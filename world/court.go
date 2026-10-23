@@ -27,12 +27,14 @@ const reportEnvelopeFloor = 600
 // fileReport lands a Court's report text beside its journal on the instruments shelf
 // (engine soil — territory law refuses creature writes under .isekai/instruments/, so the
 // file lands from the harness, never through the body's hands) and answers the envelope fields.
-func (w *World) fileReport(body, text string) (rel string, bytes int, hash string) {
+// It is named for its run — <run>.report.md beside <run>.jsonl — so two reports of one body never
+// share a name, whatever the clock says.
+func (w *World) fileReport(run, text string) (rel string, bytes int, hash string) {
 	dir := filepath.Join(w.Root, w.Lex.WorldDir) + "/instruments/loop"
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", 0, ""
 	}
-	name := fmt.Sprintf("%s-%s.report.md", body, time.Now().UTC().Format("20060102030405"))
+	name := run + ".report.md"
 	path := filepath.Join(dir, name)
 	h := fnv.New64a()
 	h.Write([]byte(text))
@@ -231,6 +233,9 @@ func (w *World) Close(e *loop.Engine) {
 	w.mu.Lock()
 	c := w.closers[e]
 	delete(w.closers, e)
+	if w.seats[e.As] == e {
+		delete(w.seats, e.As)
+	}
 	delete(w.sessions, e)
 	// courtWrites is arm 2's cross-session memory — Close must not clear it:
 	// gate.go courtPairedDoc (OUT-2) consults lane B past the engine's Close.
@@ -398,7 +403,10 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 			}
 		}
 		e := w.Engine(cr.Name, child)
-		defer w.Close(e) // the Court's context dies with the task
+		defer w.Close(e) // the Court's context dies with the task — and gives up its seat
+		if held := w.seat(cr.Name, e); held != "" {
+			return tool.DispatchReport{}, fmt.Errorf("%s already sits a live court (%s) — one body, one court: wait for its report, or dispatch another body", cr.Name, held)
+		}
 		e.Unsaid = c.Unsaid
 		e.UnsaidExplicit = c.UnsaidExplicit
 		e.Wire = true
@@ -471,7 +479,7 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 				lane = e.Provider.Name() // "openai/<model>"
 			}
 			provider, _, _ := strings.Cut(lane, "/")
-			timeoutWhy := fmt.Sprintf("model %s on provider %q did not answer within the %g-minute court budget", lane, provider, courtMinutes)
+			timeoutWhy := courtDeathShape(r, lane, provider, courtMinutes)
 			if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				err = fmt.Errorf("%s: court ran out of its %g-minute budget — %s (escalate with @? or re-dispatch): %w", cr.Name, courtMinutes, timeoutWhy, err)
 			} else if err == nil {
@@ -526,7 +534,7 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 		// parent that needs the flesh buys it with one read; relaying prose up five rungs is
 		// the relay tax this closes.
 		if strings.TrimSpace(rep.Text) != "" && len(rep.Text) > reportEnvelopeFloor {
-			rep.ReportPath, rep.ReportBytes, rep.ReportHash = w.fileReport(body, rep.Text)
+			rep.ReportPath, rep.ReportBytes, rep.ReportHash = w.fileReport(r.RunID, rep.Text)
 		}
 		warrant := false
 		if stamp, escalate := w.councilLedger(body, verdictOf(r), r, b.Court); stamp != "" {
@@ -794,4 +802,46 @@ func wroteOf(r *loop.Result) []string {
 		out = append(out, st.Wrote...)
 	}
 	return out
+}
+
+// seat sits body's one live court on e; when a court already sits it, the seat is not taken and
+// the answer names the run there. Close gives the seat up. Two courts on one seat would share a
+// desk, a scratch and a stress ledger — the second's writes land on the first's ground.
+func (w *World) seat(body string, e *loop.Engine) (held string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if cur := w.seats[body]; cur != nil && cur != e {
+		held = "a run on the same seat"
+		if s := w.sessions[cur]; s != nil {
+			held = fmt.Sprintf("run %s, %s in", s.RunID, time.Since(s.Started).Round(time.Second))
+		}
+		return held
+	}
+	if w.seats == nil {
+		w.seats = map[string]*loop.Engine{}
+	}
+	w.seats[body] = e
+	return ""
+}
+
+// courtDeathShape reads why a court ran out of its clock from its own ledger, so the line on the
+// wire names the death it died: a provider that never answered, a body that read and landed
+// nothing, or one that worked and ran long.
+func courtDeathShape(r *loop.Result, lane, provider string, minutes float64) string {
+	acts, writes := 0, 0
+	if r != nil {
+		for _, st := range r.Steps {
+			if st.Status == "done" || st.Status == "failed" {
+				acts++
+			}
+		}
+		writes = len(r.Wrote)
+	}
+	switch {
+	case acts == 0:
+		return fmt.Sprintf("model %s on provider %q did not answer within the %g-minute court budget (no act landed: a provider hang)", lane, provider, minutes)
+	case writes == 0:
+		return fmt.Sprintf("%s spent the %g-minute court budget reading — %d turns, %d acts, no write (a recon loop): narrow the ask, or split it", lane, minutes, r.Turns, acts)
+	}
+	return fmt.Sprintf("%s burned the %g-minute court budget working — %d turns, %d acts, %d writes: split the ask, or raise law.budget.minutes", lane, minutes, r.Turns, acts, writes)
 }

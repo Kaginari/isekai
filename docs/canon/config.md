@@ -140,7 +140,8 @@ refused at load, whatever layer they come from, each naming `file:line` and the 
 A feature the binary itself ships off (origin `default`, such as `law.doomLoop`) is not a
 finding: the finding is a switch someone threw. Numeric and string switches count the same way:
 `law.stress.escalateAt` or `.relieveAt` at 0 or below, `law.doomLoop.threshold` at 0,
-`law.guts.benchThrashVisits` below 0, `law.guts.digestEvery` at 0 or below,
+`law.guts.benchThrashVisits` below 0, `law.guts.digestEvery` at 0 or below, `law.guts.repin` or
+`.actBudget` below 0,
 `law.budget.salvageTokens` below 0, `law.evolution.thoughtsMax` at 0 or below, an empty
 `law.evolution.arms` and an ascended rank's `ascendsWhen: ""` are listed with their
 origins. Every `law.humanGate.approve` entry and
@@ -252,7 +253,7 @@ document is JSON here; the same keys in YAML are the same config.
                                                       // @SPLIT / @ESCALATE, sideways counsel allowed); past maxConsults the
                                                       // run hardens @S ESCALATE and rises to the human; escalateAt 0/-1 = off
                                                       // (strain = the run's sent-backs + 1 per unlanded run, per body, clear on clean)
-    "guts":      { "enabled": true, "window": 5, "floor": -2, "benchThrashVisits": 6, "digestEvery": 10, "ring": 12,
+    "guts":      { "enabled": true, "window": 5, "floor": -2, "benchThrashVisits": 6, "digestEvery": 10, "ring": 12, "repin": 3, "actBudget": 40,
                    "benches": [],                     // [] = the loop's: go (go test/vet), pytest, js (npm/yarn/pnpm test, jest,
                                                       // vitest), cargo test, make test/check — {name, match, red, green}; a
                                                       // command carrying a match word is a bench, a red lexeme pins it red
