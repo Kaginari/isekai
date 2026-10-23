@@ -45,6 +45,10 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **A folded tool output says what it was.** Old tool output that the model no longer sees in full
+  now leaves a line naming the tool, what it ran on (the file, the pattern, the command) and its
+  size — "read pkg/x.go: 412 lines, 9.8kB" — instead of only the tool's name, so a body can tell
+  which of its forty reads it would have to repeat.
 - **One shared shelf for the world's bookkeeping.** The council's ledgers and the value ledger now
   live beside the work queue in `.isekai/shared/` instead of `.isekai/instruments/`. An older world's
   files are moved over, whole, the first time it opens, and if an older binary writes the old file
