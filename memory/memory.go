@@ -1234,6 +1234,10 @@ func (w *World) Forget(as string) (*ForgetResult, error) {
 	return &ForgetResult{"FORGOT", as, n, w.Rel(p)}, nil
 }
 
+// IndexCommand is the hand-run door that rebuilds the long index: the binary's own
+// subcommand, which every world has (memory.js only when the world ships it).
+func (w *World) IndexCommand() string { return strings.TrimPrefix(w.dir(), ".") + " memory index" }
+
 // mouth names the memory command in holes: memory.js when the world ships it (so the JS
 // instrument and this port speak byte-identical lines), else the binary's own subcommand.
 func (w *World) mouth() string {
