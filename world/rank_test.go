@@ -36,7 +36,7 @@ func TestRankTable(t *testing.T) {
 	if !rs.GateAbove("slime") || rs.GateAbove("elf") || !rs.GateAbove("kijin") {
 		t.Error("GateAbove")
 	}
-	if strings.Join(rs.Tools("slime"), ",") != "read,write,edit,bash,glob,grep,law,queue" || strings.Join(rs.Tools("high-orc"), ",") != strings.Join(AllTools, ",") || strings.Join(rs.Tools("nobody"), ",") != strings.Join(AllTools, ",") {
+	if strings.Join(rs.Tools("slime"), ",") != "read,write,edit,bash,glob,grep,law,queue,fold" || strings.Join(rs.Tools("high-orc"), ",") != strings.Join(AllTools, ",") || strings.Join(rs.Tools("nobody"), ",") != strings.Join(AllTools, ",") {
 		t.Error("Tools")
 	}
 	az := Ranks(DefaultRanks(AgentOne()))

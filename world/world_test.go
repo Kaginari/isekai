@@ -252,7 +252,7 @@ func TestTerritoryRefusal(t *testing.T) {
 	w := open(t, dir)
 	m := mock.New(writeCall("1", "src/api/x.go", "x"), mock.Text("@S DONE\n@? src/api/x.go needed\n@U colony c\n@E 0"))
 	e := w.Engine("slime-auth", build(m))
-	if names := strings.Join(e.Tools.Names(), ","); names != "read,write,edit,bash,glob,grep,law" {
+	if names := strings.Join(e.Tools.Names(), ","); names != "read,write,edit,bash,glob,grep,law,fold" {
 		t.Fatalf("a slime's shelf: %s", names)
 	}
 	r, err := e.Run(context.Background(), "x")

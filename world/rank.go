@@ -86,9 +86,9 @@ func (rs Ranks) relate(a, b string) Relation {
 const Rimuru = "rimuru"
 
 // AllTools is the shelf a rank with no Tools listed gets (rimuru's).
-var AllTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", "dispatch", "plan", "queue"}
+var AllTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", "dispatch", "plan", "queue", "fold"}
 
-var baseTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", "queue"}
+var baseTools = []string{"read", "write", "edit", "bash", "glob", "grep", "law", "queue", "fold"}
 
 // DefaultRanks is the law's table (isekai.md §The world), dirs and prefixes from the lexicon. The
 // ascended ranks carry no ascendsWhen here: config is the one source of the default conditions

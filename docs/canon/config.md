@@ -228,6 +228,8 @@ document is JSON here; the same keys in YAML are the same config.
     "queue":     { "enabled": true },                 // the shared work queue (<world>/shared/queue.jsonl): list and show
                                                       // are reads; touch, requeue, close only on work the body holds
                                                       // or its rank stands over; claims are the wake's
+    "fold":      { "enabled": true },                 // restore a tool output the replay folded off the wire, byte for
+                                                      // byte, from <world>/tmp/fold/<digest>.txt (by digest or kept-at path)
     "custom":    {},                                  // tools.custom.<name>, below
     "output":    { "maxLines": 2000, "maxBytes": 51200, "dumpDir": "[dist-dir]/tmp/tool-out", "keepDays": 7 },
     "missing":   { "doomLoopRepeats": 2, "proposeOnSecondNaming": true, "liveReload": true }

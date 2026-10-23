@@ -127,6 +127,7 @@ config disables, never has to discover:
 | `write` · `edit` · `multiedit` · `patch` | write | create, `str_replace`, several replaces atomically, apply a unified diff |
 | `git` | classified per subcommand | `status`/`diff`/`log`/`show` read; `commit` write; `push` outward; `reset --hard` destructive |
 | `webfetch` · `websearch` | outward | fetch a URL as text; search via a configured backend |
+| `fold` | read | restore a tool output the replay folded off the wire, byte for byte, by digest or kept-at path |
 | `ask` | read | ask the human a question with options, answer returned to the model |
 | `dispatch` | per rank | a Court Body (§Ranks and bodies) |
 | `recall` · `remember` | read · write | the memory tiers; `remember` refuses the forge's tags (`forge`, `forge-minted`, `forge-rejected`, `skill`) — only the harness files drafts |
