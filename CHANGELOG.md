@@ -68,8 +68,9 @@ All notable changes to Isekai are recorded here. The format follows
 - **A court's writes are its own.** A court working in the background changes the same files its
   dispatcher's turn is watching; the dispatcher's gate used to see those changes on disk and
   judge them as the dispatcher's own (a false "belongs to …, written by rimuru"). A file a
-  court's tool reported writing is now left to that court's gate, while anything the dispatcher
-  changes itself afterwards is still its own.
+  court's tool reported writing is now left to that court's gate, as long as the file still
+  stands as the court left it; anything the dispatcher changes itself afterwards, even in the
+  same turn, is still its own and is judged.
 - **A cancelled gate is not a failed one.** When a run is stopped while its end-of-turn gate is
   still reading, the gate stops spawning checks and says "cancelled" instead of recording every
   check it skipped as a red failure against the body, and the turn is no longer sent back to the
