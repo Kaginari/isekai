@@ -151,6 +151,10 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 		// 1. right slime authored
 		if opt.RightAuthor && orcs {
 			switch {
+			case w.genesisExempt(as, rel, zone, before):
+				// genesis (gate_genesis.go): the zone-parent mints its own child's README — new
+				// since the last commit, reporting to the writer, claiming only live soil the
+				// writer holds or nobody does
 			case throneSeat && throneAuthored:
 				// the throne's own work, on its own seat — no body's authorship to check
 			case creatureDoc && as == owner.Name:
