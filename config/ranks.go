@@ -67,6 +67,48 @@ const (
 	DefaultAscendOrc = "ascend orc when reports >= 20 && passRate >= 90% && holeRate <= 10%"
 )
 
+// RenderAscend is the shipped ascension sentence for a base rank with law.ascend's green-floor
+// knobs folded in: a landRate floor and a tenure, each clause only when its knob is set — zero
+// knobs render the shipped sentence itself.
+func RenderAscend(base string, k AscendLaw) string {
+	s := "ascend " + base + " when reports >= 20 && passRate >= 90% && holeRate <= 10%"
+	if k.GreenFloor > 0 {
+		s += fmt.Sprintf(" && landRate >= %d%%", k.GreenFloor)
+	}
+	if k.Tenure > 0 {
+		s += fmt.Sprintf(" && tenure >= %d", k.Tenure)
+	}
+	return s
+}
+
+// applyAscendKnobs folds law.ascend into every ascended rank still carrying the shipped
+// sentence (a world that wrote its own ascendsWhen keeps it whole).
+func (c *Config) applyAscendKnobs(byName map[string]*Rank, order []string) error {
+	k := c.Law.Ascend
+	if k.GreenFloor < 0 || k.GreenFloor > 100 {
+		return fmt.Errorf("%s: law.ascend.greenFloor %d is a percent, 0..100", c.Where("law.ascend.greenFloor"), k.GreenFloor)
+	}
+	if k.Tenure < 0 {
+		return fmt.Errorf("%s: law.ascend.tenure %d is a count of days, 0 or more", c.Where("law.ascend.tenure"), k.Tenure)
+	}
+	if k == (AscendLaw{}) {
+		return nil
+	}
+	where := c.Where("law.ascend.greenFloor")
+	if k.GreenFloor == 0 {
+		where = c.Where("law.ascend.tenure")
+	}
+	for _, name := range order {
+		r := byName[name]
+		if r.AscendsFrom == "" || r.Origins["ascendsWhen"] != "law" || r.AscendsWhen != RenderAscend(r.AscendsFrom, AscendLaw{}) {
+			continue
+		}
+		r.AscendsWhen = RenderAscend(r.AscendsFrom, k)
+		r.Origins["ascendsWhen"] = where
+	}
+	return nil
+}
+
 // builtinRanks is isekai.md §The world as data.
 var builtinRanks = []Rank{
 	{Name: "elf", ReportsTo: "rimuru", Job: "the shared mind and voice: thinks across domains, routes work to orcs, speaks back up", Office: "ciel", Tools: []string{"*"}, Dir: "elf", Prefix: "elf-"},
@@ -190,6 +232,9 @@ func (c *Config) buildRanks() error {
 		// (a base does not carry its overload's rules or its evolution condition). So are dir and
 		// prefix: the ascended body lives in its own dir (default: the rank's name), or its minted
 		// name would be its base's.
+	}
+	if err := c.applyAscendKnobs(byName, order); err != nil {
+		return err
 	}
 	// Validations that need every name resolved (ascendsWhen parses and must name its base).
 	for _, name := range order {

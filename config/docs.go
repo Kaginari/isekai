@@ -228,6 +228,9 @@ var keyDocs = map[string]string{
 	"law.evolution.arms":               "the ways it may evolve: split, mutate, rebirth",
 	"law.evolution.splitLines":         "a territory this many lines reads as large enough to split; 0 = never",
 	"law.evolution.splitFiles":         "a territory this many files reads as large enough to split; 0 = never",
+	"law.ascend":                       "green-floor knobs folded into the shipped ascension rules",
+	"law.ascend.greenFloor":            "the landRate (%) an ascension also asks for; 0 = not asked",
+	"law.ascend.tenure":                "the days since its first birth an ascension also asks for; 0 = not asked",
 
 	// memory
 	"memory":                        "what the world remembers",

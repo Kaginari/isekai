@@ -282,8 +282,11 @@ document is JSON here; the same keys in YAML are the same config.
                    "failStreak": 3,                   // or this many gate verdicts failed in a row (or a doom checkpoint)
                    "cooldownRuns": 10,                // runs of its own between two evolutions of one body (the value ledger counts)
                    "arms": ["split", "mutate", "rebirth"],
-                   "splitLines": 1500, "splitFiles": 24 }  // what "large" means for split (0 = that measure never reads large);
+                   "splitLines": 1500, "splitFiles": 24 },  // what "large" means for split (0 = that measure never reads large);
                                                       // mode propose queues the plan: `isekai evolve list|show|apply|reject`
+    "ascend":    { "greenFloor": 0,                   // folded into the shipped high-elf / high-orc ascendsWhen: `&& landRate >= N%`
+                   "tenure": 0 }                      // and `&& tenure >= N` (days since first birth); 0 leaves the clause out,
+                                                      // a rank whose ascendsWhen config wrote keeps it whole
   },
 
   // ---------------------------------------------------------------- memory tiers

@@ -8,6 +8,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Two knobs for the shipped ascension rule.** `law.ascend.greenFloor` adds a minimum share of
+  runs that landed cleanly (`landRate`, in percent), and `law.ascend.tenure` a minimum number of
+  days since the creature was born, to the built-in rule for rising to high-elf or high-orc. Both
+  are 0 by default, which leaves the rule exactly as it was; a world that wrote its own rule keeps
+  it untouched.
 - **Every creature has a birth record.** Each time a creature is born — written by its parent,
   split off by the council, risen by ascension or remade by evolution — one line is added to
   `.isekai/attic/births/<creature>.jsonl` saying when, how and from whom. A new `tenure` value

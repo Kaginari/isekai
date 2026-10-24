@@ -334,6 +334,17 @@ type Law struct {
 	// Evolution: a stressed creature whose Thoughts desk overflows heals itself — split, mutate
 	// or rebirth (races.md §Evolution).
 	Evolution EvolutionLaw `json:"evolution"`
+	// Ascend: the green-floor knobs folded into the shipped ascension sentences (high-elf,
+	// high-orc) a world did not rewrite. Zero knobs render the shipped sentence unchanged.
+	Ascend AscendLaw `json:"ascend"`
+}
+
+// AscendLaw is law.ascend: GreenFloor is the landRate (reports that landed: DONE, no fail word,
+// no failed gate) an ascension asks for on top of the shipped record, in percent; Tenure the
+// days since the body's first birth (the tenure signal). 0 leaves that clause out.
+type AscendLaw struct {
+	GreenFloor int `json:"greenFloor"`
+	Tenure     int `json:"tenure"`
 }
 
 // EvolutionLaw is law.evolution (races.md §Evolution): a creature that is stressed (strain at

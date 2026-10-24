@@ -175,3 +175,25 @@ func TestEvolutionLaw(t *testing.T) {
 		}
 	}
 }
+
+// law.ascend's green-floor knobs fold into the shipped ascension sentences: zero knobs render the
+// shipped sentence itself, set knobs add their clauses, a world's own ascendsWhen is kept whole,
+// and an out-of-range knob is refused.
+func TestAscendKnobs(t *testing.T) {
+	c := newWorld(t, nil).load()
+	if r, _ := c.Rank("high-orc"); r.AscendsWhen != DefaultAscendOrc || RenderAscend("orc", AscendLaw{}) != DefaultAscendOrc {
+		t.Errorf("zero knobs: %q", r.AscendsWhen)
+	}
+	c = newWorld(t, map[string]string{".isekai/config.yaml": "law:\n  ascend: {greenFloor: 80, tenure: 14}\nranks:\n  high-elf: {ascendsWhen: \"ascend elf when reports >= 3\"}\n"}).load()
+	if r, _ := c.Rank("high-orc"); r.AscendsWhen != DefaultAscendOrc+" && landRate >= 80% && tenure >= 14" || !strings.Contains(r.Origins["ascendsWhen"], "config.yaml") {
+		t.Errorf("knobs: %q (%s)", r.AscendsWhen, r.Origins["ascendsWhen"])
+	}
+	if r, _ := c.Rank("high-elf"); r.AscendsWhen != "ascend elf when reports >= 3" {
+		t.Errorf("a world's own sentence was rewritten: %q", r.AscendsWhen)
+	}
+	for _, bad := range []string{"law:\n  ascend: {greenFloor: 101}\n", "law:\n  ascend: {tenure: -1}\n"} {
+		if err := newWorld(t, map[string]string{".isekai/config.yaml": bad}).loadErr(); err == nil {
+			t.Errorf("%q was taken", bad)
+		}
+	}
+}
