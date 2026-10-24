@@ -466,7 +466,8 @@ form a creature checks before it acts, and none adds to it or outranks the crest
 - **Rimuru** never pushes a guess down the ranks: an ask it cannot shape goes back to Veldora.
 - **An Elf** never does a domain's work itself: it routes the work to the Orc that rules it.
 - **An Orc** never passes a change its Slime did not author, or whose doc did not change with it.
-- **A Slime** never writes outside its zone and never speaks sideways: its questions go to its Orc.
+- **A Slime** never writes outside its zone (its own seat and the world's scratch,
+  `.isekai/tmp/`, aside) and never speaks sideways: its questions go to its Orc.
 - **A Kijin** never tags, publishes or reaches outward for its subsystem without Veldora's word.
 - **A Dark Elf** never authors a change: it audits.
 - **No creature** acts outward without Veldora's agreement, edits a past entry of `log.md`, or
@@ -516,6 +517,8 @@ law doc), which are Rimuru's own work product, not any body's territory. When Ri
 Rimuru-rank mount writes a throne seat file, neither *right slime authored* nor *doc truthful*
 fires; a non-throne body on the same file still fails right-author. A creature's seat stays its
 own inside any broader territory claim: an edit there owes no other creature's doc.
+The world's scratch (`.isekai/tmp/`, Law 5) is every body's own nest: no creature's territory,
+never a doc debt — but a plan deck there speaks for its own body only.
 
 The verdict (pass / fail + reason) is recorded in `log.md`.
 

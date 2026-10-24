@@ -322,7 +322,10 @@ document is JSON here; the same keys in YAML are the same config.
     "otlp":    { "enabled": false,
                  "endpoint": "",                      // the traces URL, as-is: https://collector.example/v1/traces
                  "headersEnv": {},                    // { "api_key": "TRACE_API_KEY" } — the NAME, never the value
-                 "service": "" }                      // service.name; "" = the distribution's name
+                 "service": "",                       // service.name; "" = the distribution's name
+                 "content": "redacted" }              // what a span carries of tool input/output and a turn's
+                                                      // answer: redacted (secret-looking values masked — keys,
+                                                      // bearer tokens, password=…), full (as is) or none (left off)
   },
 
   // ---------------------------------------------------------------- permissions
