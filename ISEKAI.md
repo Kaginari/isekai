@@ -510,11 +510,12 @@ No change lands without its Orc's pass. The Orc checks:
 4. **Doc truthful** — the owning doc changed in the same change (Vitality).
 
 Two seats sit outside authorship policing, unchecked differently: a creature's own doc
-(`<dir>/README.md`) — the throne authors the skel at founding, the creature edits it after —
-and the throne's own seat files (the dimension manifest `<worldDir>/dimension.yaml` and the
+(`<dir>/README.md`) — the throne or the founding parent authors the skel, the creature edits it
+after — and the throne's own seat files (the dimension manifest `<worldDir>/dimension.yaml` and the
 law doc), which are Rimuru's own work product, not any body's territory. When Rimuru or a
 Rimuru-rank mount writes a throne seat file, neither *right slime authored* nor *doc truthful*
-fires; a non-throne body on the same file still fails right-author.
+fires; a non-throne body on the same file still fails right-author. A creature's seat stays its
+own inside any broader territory claim: an edit there owes no other creature's doc.
 
 The verdict (pass / fail + reason) is recorded in `log.md`.
 

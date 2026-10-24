@@ -107,6 +107,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **The law says whose a creature's seat is.** `ISEKAI.md`'s gate now states what the harness
+  already does: a creature's own directory stays its own under a broader territory claim, an edit
+  there owes no other creature's doc, and the parent that founds a creature may write its first
+  README.
+
 - **The law gains its negative half.** `ISEKAI.md` now says, one line per race, what each never
   does — each line a restatement of a rule already there, in the form a creature checks before it
   acts.
