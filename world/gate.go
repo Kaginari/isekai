@@ -587,13 +587,14 @@ func (w *World) VerifyLines() map[string][]string {
 	return w.verifyLines()
 }
 
-// verifyLines is each creature's verify commands as the roster holds them now.
+// verifyLines is each creature's verify commands as the gate trusts them: as the last Reload
+// read them (a self-heal never moves a known body's lines — world/selfheal.go).
 func (w *World) verifyLines() map[string][]string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	out := map[string][]string{}
-	for _, c := range w.Creatures {
-		out[c.Name] = append([]string(nil), c.Verify...)
+	for n, v := range w.verifyBase {
+		out[n] = append([]string(nil), v...)
 	}
 	return out
 }

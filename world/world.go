@@ -110,6 +110,10 @@ type World struct {
 	receipts *loop.Receipts
 	// evo is law.evolution: the armed options, this session's evolutions (world/evolve.go)
 	evo evoState
+	// stamp is the fingerprint of the docs the roster was derived from; verifyBase is each
+	// body's verify lines as the gate trusts them (world/selfheal.go)
+	stamp      uint64
+	verifyBase map[string][]string
 }
 
 // Discover walks up from dir for the first lexicon whose world dir exists. Both `.isekai` and
@@ -189,22 +193,20 @@ func (w *World) Rel(abs string) string {
 	return abs
 }
 
-// Reload re-derives the roster from the docs (they change during a session).
+// Reload re-derives the roster from the docs (they change during a session) and takes their
+// verify lines as the gate's base (selfheal.go).
 func (w *World) Reload() error {
+	st := w.docStamp() // before the read: a doc moved during it re-heals on the next ask
 	ow, err := onto.LoadLayout(w.Root, w.Ranks.Layout(w.Lex))
 	if err != nil {
 		return err
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.Onto = ow
 	w.Notes = append(w.Notes, ow.Notes...)
-	w.Creatures = creaturesOf(w.Root, ow, w.Ranks)
-	for _, f := range w.Foreign {
-		if w.creatureLocked(f.Name) == nil {
-			w.Creatures = append(w.Creatures, f)
-		}
-	}
+	w.verifyBase = nil
+	w.mergeFreshLocked(ow)
+	w.stamp = st
 	return nil
 }
 
@@ -216,6 +218,10 @@ func (w *World) AddForeign(c Creature) {
 	exists := w.creatureLocked(c.Name) != nil
 	if !exists {
 		w.Creatures = append(w.Creatures, c)
+		if w.verifyBase == nil {
+			w.verifyBase = map[string][]string{}
+		}
+		w.verifyBase[c.Name] = append([]string(nil), c.Verify...)
 	}
 	w.mu.Unlock()
 }
@@ -367,8 +373,8 @@ func VerifyOf(doc string) []string {
 }
 
 // Creature finds a body by id (or by its unprefixed name when unambiguous). A seat minted
-// mid-session is not on the in-memory roster: on a miss, the roster is re-derived from the
-// docs once before giving up, so a dispatch for a body born after Open still lands.
+// mid-session is not on the in-memory roster: on a miss, the roster self-heals from the docs
+// (SelfHeal) before giving up, so a dispatch for a body born after Open still lands.
 func (w *World) Creature(name string) *Creature {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -382,16 +388,8 @@ func (w *World) creature(name string) *Creature {
 	if c := w.creatureByName(name); c != nil {
 		return c
 	}
-	ow, err := onto.LoadLayout(w.Root, w.Ranks.Layout(w.Lex))
-	if err != nil {
+	if !w.selfHealLocked() {
 		return nil
-	}
-	fresh := creaturesOf(w.Root, ow, w.Ranks)
-	w.Onto = ow
-	for _, c := range fresh {
-		if w.creatureLocked(c.Name) == nil {
-			w.Creatures = append(w.Creatures, c)
-		}
 	}
 	return w.creatureByName(name)
 }

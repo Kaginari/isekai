@@ -89,6 +89,7 @@ func (w *World) Policy(body string, opt TerritoryOptions) tool.Policy {
 			}
 			return nil
 		}
+		w.SelfHeal() // a claim granted since the roster was read counts (world/selfheal.go)
 		c := w.Creature(body)
 		if c == nil || !opt.held(w, c) || (len(c.Territory) == 0 && c.Dir == "") {
 			return nil

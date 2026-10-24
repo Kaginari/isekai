@@ -90,6 +90,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **The world notices docs that changed under it.** When another session, a checkout or a person
+  edited a creature's README, the running session kept its old picture until the next gate: it
+  could still send work to a creature that had been retired, or refuse a write the creature had
+  just been granted. Sending work, building a body and checking a write now re-read the docs
+  when they changed. What a body's own verify lines are trusted to be still changes only at the
+  gate, so a body cannot pass by rewriting its own check.
 - **One answer to "whose file is this?"** The gate, the write rules and `isekai onto owner` now
   read ownership the same way. A creature's own folder is always its own, even when another
   creature's claim covers the whole `.isekai/` tree, so editing your own README no longer owes

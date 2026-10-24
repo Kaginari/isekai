@@ -135,6 +135,7 @@ func (b Build) providerFor(r Route) provider.Provider {
 // Engine builds a full engine for a body: tools cut to its rank and territory (plus dispatch
 // when its rank and depth allow), the territory policy, the world's hooks, the lexicon.
 func (w *World) Engine(as string, b Build) *loop.Engine {
+	w.SelfHeal() // a body is built from its docs as they stand, never from a stale roster
 	base := b.Tools
 	var closer func()
 	if b.Shelf != nil {
@@ -355,6 +356,7 @@ func (w *World) verifyCodedNow(cr *Creature) bool {
 // names who may lawfully be ordered from here. The dispatch tool asks it before a background
 // Court is acked; the Dispatcher asks it again, so a direct call is held to the same law.
 func (w *World) preflight(parent *loop.Engine, b Build, name string) (*Creature, error) {
+	w.SelfHeal() // the order is judged on the docs as they stand (world/selfheal.go)
 	body := strings.ToLower(strings.TrimSpace(name))
 	cr := w.Creature(body)
 	if cr == nil {
