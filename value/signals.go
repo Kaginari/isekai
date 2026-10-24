@@ -50,6 +50,7 @@ var signals = []Signal{
 	{"strain", "count", NeedNone, "the council's strain on the body now (0 after a clean landing)"},
 	{"strainPct", "percent", NeedNone, "strain as a percent of law.stress.escalateAt"},
 	{"tokens", "count", NeedNone, "tokens spent in the window"},
+	{"tenure", "count", NeedNone, "whole days since the body's first birth (attic/births/<body>.jsonl); a body born before the ledger is grandparented — the first commit of its doc stands in"},
 	{"score", "percent", NeedNone, "the race's value score (ranks.<r>.value.score), 0..100"},
 }
 

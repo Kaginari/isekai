@@ -59,6 +59,9 @@ type Verdict struct {
 	// VerifyRun and VerifyRed count the verify lines the gate ran and those that came back red —
 	// the value ledger's verifyGreenRate reads them.
 	VerifyRun, VerifyRed int
+	// Born are the creatures a genesis write minted this turn (gate_genesis.go): a pass logs
+	// their birth.
+	Born []*Creature
 }
 
 func (v Verdict) String() string {
@@ -155,6 +158,7 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 				// genesis (gate_genesis.go): the zone-parent mints its own child's README — new
 				// since the last commit, reporting to the writer, claiming only live soil the
 				// writer holds or nobody does
+				v.Born = append(v.Born, owner)
 			case throneSeat && throneAuthored:
 				// the throne's own work, on its own seat — no body's authorship to check
 			case creatureDoc && as == owner.Name:
@@ -389,6 +393,12 @@ func (w *World) EndGate(opt GateOptions) func(ctx context.Context, s *loop.Sessi
 			return v.String(), holes, fmt.Errorf("gate cancelled — %w", ctx.Err())
 		}
 		if v.Word == "pass" {
+			// a genesis that passed is a birth — logged once, at the body's first
+			for _, c := range v.Born {
+				if len(w.Births(c.Name)) == 0 {
+					w.logBirth(birthRecord{Body: c.Name, Kind: "genesis", From: or(as, Rimuru), By: or(as, Rimuru), Doc: c.Doc})
+				}
+			}
 			// pair law (freeze review 2026-10-07): a doc that moved and PASSED law marks the
 			// pairing window — later waves that touch the territory without re-moving the doc pair
 			// against the mark, once (the gate spends marks after its wrote loop). Failures never

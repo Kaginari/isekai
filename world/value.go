@@ -346,7 +346,12 @@ func (w *World) AllSignals() map[string]value.Signals {
 		return map[string]value.Signals{}
 	}
 	out := value.Fold(w.Ledger(), w.ValueOpts())
+	now := time.Now()
 	for body, s := range out {
+		s["tenure"] = 0
+		if born, ok := w.bornAt(body); ok {
+			s["tenure"] = value.TenureDays(born, now)
+		}
 		s["score"] = value.Clamp(w.scoreExpr(w.RankOf(body).Name).Eval(s))
 	}
 	return out

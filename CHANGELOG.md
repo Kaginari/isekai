@@ -8,6 +8,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Every creature has a birth record.** Each time a creature is born — written by its parent,
+  split off by the council, risen by ascension or remade by evolution — one line is added to
+  `.isekai/attic/births/<creature>.jsonl` saying when, how and from whom. A new `tenure` value
+  reads how many days a creature has existed, so an ascension rule can ask for experience over
+  time (`tenure >= 14`). Creatures born before this record existed count from the commit that
+  added their README.
 - **Retiring a creature looks after the ones below it.** When the council splits or retires a
   creature that others report to, each of them is moved to the right new manager — the half of
   the split that holds its files, or the retired creature's own manager — and the retired

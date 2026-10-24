@@ -444,7 +444,9 @@ bodies it dispatched, strain read as a percent of `law.stress.escalateAt`), `pla
 `reaskRate` (its dispatches that landed / that re-commissioned a body after a council warrant,
 commanders), `askDoneRate` (the throne: human turns closed with a pass and not reopened — the same
 paths rewritten — within `law.value.reopenTurns` turns), `upheldRate` (reports with findings that
-landed), `findings`, `thrashRate`, `momentum`, `strain`, `strainPct`, `tokens`, and `score`. A
+landed), `findings`, `thrashRate`, `momentum`, `strain`, `strainPct`, `tokens`, `tenure` (whole
+days since the body's first birth in the births ledger, `attic/births/<body>.jsonl`; a body born
+before the ledger is grandparented — the commit that added its doc stands in), and `score`. A
 rate on no basis reads zero.
 
 **Families.** A rank's flags pick its family, in order: the throne → `root`; authors that hold

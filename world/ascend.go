@@ -112,6 +112,7 @@ func (w *World) ascendMaybe(body string) {
 		w.ascendHole(body, watcher, fmt.Sprintf("ascend %s: %v", body, err))
 		return
 	}
+	w.logBirth(birthRecord{At: ev.At, Body: ev.New, Kind: "ascend", From: body, Doc: ev.Doc})
 	w.ascend.mu.Lock()
 	w.ascend.Events = append(w.ascend.Events, ev)
 	w.ascend.news = append(w.ascend.news, ev)

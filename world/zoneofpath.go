@@ -17,8 +17,8 @@ const (
 	// SoilSeat is a creature's own seat: its directory under <worldDir>/<rank>/, where its doc
 	// lives. The seat is the creature's, whatever another creature's broad claim covers.
 	SoilSeat
-	// SoilHarness is the harness's own bookkeeping — the shared shelf (queue, ledgers, value)
-	// and the instruments shelf (journals, reports, usage). It lands from the harness only and
+	// SoilHarness is the harness's own bookkeeping — the shared shelf (queue, ledgers, value),
+	// the instruments shelf (journals, reports, usage) and the attic (old docs, births). It lands from the harness only and
 	// never bills a body: no creature owns it, so no doc is owed for it.
 	SoilHarness
 	// SoilScratch is the world's scratch (<worldDir>/tmp/): a body's own nest — its redirected
@@ -37,8 +37,8 @@ type Zone struct {
 }
 
 // harnessShelves and scratchShelf are the world-dir children ZoneOfPath reads as harness soil
-// and scratch.
-var harnessShelves = []string{sharedShelf, "instruments"}
+// and scratch. The attic keeps what the harness set aside: old docs, the births ledger.
+var harnessShelves = []string{sharedShelf, "instruments", "attic"}
 
 const scratchShelf = "tmp"
 

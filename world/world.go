@@ -114,6 +114,8 @@ type World struct {
 	// body's verify lines as the gate trusts them (world/selfheal.go)
 	stamp      uint64
 	verifyBase map[string][]string
+	// born caches each body's first birth (world/births.go); zero: none known
+	born map[string]time.Time
 }
 
 // Discover walks up from dir for the first lexicon whose world dir exists. Both `.isekai` and
@@ -144,7 +146,7 @@ func Open(root string, lex Lexicon, opt Options) (*World, error) {
 	if st, err := os.Stat(filepath.Join(abs, lex.WorldDir)); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("no %s/ under %s", lex.WorldDir, abs)
 	}
-	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, valOpt: opt.Value, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]courtWrite{}, courtWrites: map[string]map[string]courtWrite{}, stress: map[string]int{}, consults: map[string]int{}, stressDeaths: map[string]stressEnd{}, pairMarks: map[string]time.Time{}, gateStreaks: map[string]*gateStreak{}, receipts: loop.NewReceipts()}
+	w := &World{Root: abs, Lex: lex, Ranks: opt.Ranks, valOpt: opt.Value, sessions: map[*loop.Engine]*loop.Session{}, closers: map[*loop.Engine]func(){}, courtWrote: map[*loop.Engine]map[string]courtWrite{}, courtWrites: map[string]map[string]courtWrite{}, stress: map[string]int{}, consults: map[string]int{}, stressDeaths: map[string]stressEnd{}, pairMarks: map[string]time.Time{}, gateStreaks: map[string]*gateStreak{}, receipts: loop.NewReceipts(), born: map[string]time.Time{}}
 	if w.Ranks == nil {
 		w.Ranks = DefaultRanks(lex)
 	}
