@@ -229,9 +229,13 @@ document is JSON here; the same keys in YAML are the same config.
                                                       // are reads; touch, requeue, close only on work the body holds
                                                       // or its rank stands over; claims are the wake's
     "fold":      { "enabled": true },                 // restore a tool output the replay folded off the wire, byte for
-                                                      // byte, from <world>/tmp/fold/<digest>.txt (by digest or kept-at path)
+                                                      // byte, from <world>/tmp/fold/<run id>/<digest>.txt (by digest or
+                                                      // kept-at path) — the acting run's own folds only; a run's drawer
+                                                      // untouched output.foldKeepDays days is swept at start
     "custom":    {},                                  // tools.custom.<name>, below
-    "output":    { "maxLines": 2000, "maxBytes": 51200, "dumpDir": "[dist-dir]/tmp/tool-out", "keepDays": 7 },
+    "output":    { "maxLines": 2000, "maxBytes": 51200, "dumpDir": "[dist-dir]/tmp/tool-out", "keepDays": 7,
+                   "foldKeepDays": 7 },               // foldKeepDays: a run's fold drawer untouched this many days is
+                                                      // swept at start (0 keeps it)
     "missing":   { "doomLoopRepeats": 2, "proposeOnSecondNaming": true, "liveReload": true },
     "preferFileTools": "hint"                         // a bash `cat f`, `head`, `tail`, `sed -n 'A,Bp' f` gets one line
                                                       // naming the read call that serves it (numbered, cached); off = silent
