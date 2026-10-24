@@ -73,6 +73,16 @@ func TestRootIsTheDashboard(t *testing.T) {
 			t.Errorf("%s: a double-click on a neuron opens its card", f)
 		}
 	}
+	// one plate per race (a 2D column's head, a 3D key row) lights the race; the net goes full screen
+	if !strings.Contains(html, `id="net-full"`) {
+		t.Error("the net panel has no full-screen switch")
+	}
+	if src, _ := content.ReadFile("web/components/net/net.js"); !strings.Contains(string(src), "net-col-plate") || !strings.Contains(string(src), "raceSet") {
+		t.Error("net.js: a 2D column's head is its race's plate")
+	}
+	if src, _ := content.ReadFile("web/components/net/net3d.js"); !strings.Contains(string(src), "button[data-race]") || !strings.Contains(string(src), "onRace") {
+		t.Error("net3d.js: a 3D key row is its race's plate")
+	}
 	for _, gone := range []string{"board pages", `href="./"`, "bootstrap"} {
 		if strings.Contains(html, gone) {
 			t.Errorf("the dashboard still links the old pages: %q", gone)
