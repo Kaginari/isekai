@@ -97,6 +97,13 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **A refused order says how to get there.** When a body may not order a creature outside its
+  own line, the refusal now names a route that is checked step by step: the nearest creature in
+  that line the body may order itself, or up through its own managers to where the two lines
+  meet and back down. If no step-by-step route holds, it says so and hands the question to the
+  human instead of guessing. A creature whose manager no longer exists is reported as such,
+  never named as the one to ask, and the list of creatures a body may order leaves out anything
+  the order would then be refused for, and names each one once.
 - **The world notices docs that changed under it.** When another session, a checkout or a person
   edited a creature's README, the running session kept its old picture until the next gate: it
   could still send work to a creature that had been retired, or refuse a write the creature had
