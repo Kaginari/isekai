@@ -633,8 +633,9 @@ func (w *World) Dispatcher(parent *loop.Engine, b Build) tool.Dispatcher {
 			strainNow := w.stress[body]
 			w.mu.Unlock()
 			if strainNow >= rel && w.Creature(body) != nil {
-				if act, ok := w.relieve(body); ok {
+				if act, wrote, ok := w.relieve(body); ok {
 					rep.Text += "\n@? council relief — " + body + " crosses relieveAt: " + act
+					w.courtGated(parent, body, wrote) // the harness's writes, never the dispatcher's
 				}
 			}
 		}

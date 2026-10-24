@@ -43,12 +43,14 @@ is:knownBy a is:Property ; is:inverseOf is:knows .
 is:about a is:Property ; is:domain is:Fact .
 is:doc a is:Property ; is:range is:Doc .
 is:shared a is:Property ; is:domain is:Mind .
+is:heir a is:Property ; is:domain is:Creature ; is:range is:Creature .
 
 # ---- attributes (literal-valued)
 is:name a is:Property .
 is:path a is:Property ; is:domain is:Doc .
 is:text a is:Property ; is:domain is:Fact .
 is:said a is:Property ; is:domain is:Fact .
+is:retired a is:Property ; is:domain is:Creature .
 
 # ---- shapes: what check enforces (is:unless names a boolean property that exempts an instance)
 is:unless a is:Property ; is:domain is:Shape .

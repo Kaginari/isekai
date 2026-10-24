@@ -19,7 +19,7 @@ func endSite(w *World, body string, verdict string, r *loop.Result, court CourtO
 		strainNow := w.stress[body]
 		w.mu.Unlock()
 		if strainNow >= rel {
-			if act, ok := w.relieve(body); ok {
+			if act, _, ok := w.relieve(body); ok {
 				relieved = "council relief — " + body + " crosses relieveAt: " + act
 			}
 		}

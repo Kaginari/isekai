@@ -600,3 +600,43 @@ func TestRetiredSeatClaimsNoSoil(t *testing.T) {
 		}
 	}
 }
+
+// A retired seat names its live heir: its Heir line, walked through an heir that retired in
+// turn, or the body that ascended from it; a living child of a seat with no live heir is a
+// finding.
+func TestHeirOf(t *testing.T) {
+	dir := t.TempDir()
+	for p, s := range map[string]string{
+		".isekai/orc/old/README.md":         "# orc-old\n\n- **Reports to:** elf-e\n- **Retired:** true — relief\n- **Heir:** orc-mid\n",
+		".isekai/orc/mid/README.md":         "# orc-mid\n\n- **Reports to:** elf-e\n- **Retired:** true — relief\n- **Heir:** orc-new\n",
+		".isekai/orc/new/README.md":         "# orc-new\n\n- **Reports to:** elf-e\n",
+		".isekai/orc/base/README.md":        "# orc-base\n\n- **Reports to:** elf-e\n- **Retired:** true — ascended\n",
+		".isekai/orc/risen/README.md":       "# orc-risen\n\n- **Ascendant of:** `orc-base` — ascended\n- **Reports to:** elf-e\n",
+		".isekai/orc/gone/README.md":        "# orc-gone\n\n- **Reports to:** elf-e\n- **Retired:** true — relief\n",
+		".isekai/elf/e/README.md":           "# elf-e\n\n- **Reports to:** rimuru\n",
+		".isekai/slime/orphan/README.md":    "# slime-orphan\n\n- **Reports to:** orc-gone\n",
+		".isekai/slime/sheltered/README.md": "# slime-sheltered\n\n- **Reports to:** orc-old\n",
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		os.WriteFile(full, []byte(s), 0o644)
+	}
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"orc-old": "orc-new", "orc-mid": "orc-new", "orc-base": "orc-risen", "orc-gone": "", "orc-new": ""} {
+		if got := w.HeirOf(name); got != want {
+			t.Errorf("HeirOf(%s) = %q, want %q", name, got, want)
+		}
+	}
+	var heirLive []string
+	for _, f := range w.Validate() {
+		if f.Shape == "HeirLive" {
+			heirLive = append(heirLive, f.String())
+		}
+	}
+	if len(heirLive) != 1 || !strings.Contains(heirLive[0], "slime-orphan reports to orc-gone") {
+		t.Errorf("HeirLive findings: %v", heirLive)
+	}
+}

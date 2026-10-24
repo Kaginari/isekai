@@ -198,7 +198,8 @@ var (
 	reWord    = regexp.MustCompile(`[a-z0-9][a-z0-9-]*`)
 	reRetired = regexp.MustCompile(`(?m)^[ \t]*[-*][ \t]*\*\*Retired:\*\*[ \t]*true\b`)
 	fieldKeys = map[string]string{"reports to": "parent", "orc": "parent", "elf": "parent", "parent": "parent",
-		"territory": "territory", "zone": "territory", "owns": "territory", "minds": "minds", "mind": "minds", "wears": "minds", "hats": "minds"}
+		"territory": "territory", "zone": "territory", "owns": "territory", "minds": "minds", "mind": "minds", "wears": "minds", "hats": "minds",
+		"heir": "heir", "ascendant of": "ascendant"}
 )
 
 // fields reads `- **Key:** value` lines leniently; keys are normalized.
@@ -494,6 +495,17 @@ func (w *World) derive() error {
 		// memory — its name, its bonds, its minds — but claims no soil: its old Territory line
 		// and its prose mint no owns, so the young that took its zone never overlap it
 		retired := reRetired.MatchString(c.text)
+		// succession (HeirOf): a retired seat is marked, and its Heir line names who took its
+		// line; an ascendant's `Ascendant of` line makes it its base's heir
+		if retired {
+			add(self, pRetired, Bool(true))
+			if m := strings.ToLower(reName.FindString(vals["heir"])); m != "" && m != c.id {
+				add(self, pHeir, Is(m))
+			}
+		}
+		if m := strings.ToLower(reName.FindString(vals["ascendant"])); m != "" && m != c.id {
+			add(Is(m), pHeir, self)
+		}
 		entries := []string{}
 		for _, e := range strings.Split(vals["territory"], ",") {
 			if retired {
@@ -739,6 +751,35 @@ func baseOf(p string) string {
 		return p[i+1:]
 	}
 	return p
+}
+
+// HeirOf names the live creature that holds a retired seat's line: its heir edges (the seat's
+// Heir line, an ascendant naming it as base) walked through any heir that retired in turn,
+// nearest first. "" when name is not a retired seat, or its line ends with no live heir.
+func (w *World) HeirOf(name string) string {
+	start := Is(strings.ToLower(strings.TrimSpace(name)))
+	if !w.Graph.Has(Triple{start, pRetired, Bool(true)}) {
+		return ""
+	}
+	seen := map[Term]bool{start: true}
+	for queue := []Term{start}; len(queue) > 0; queue = queue[1:] {
+		heirs := w.Graph.Objects(queue[0], pHeir)
+		sort.Slice(heirs, func(i, j int) bool { return heirs[i].Value < heirs[j].Value })
+		for _, h := range heirs {
+			if seen[h] {
+				continue
+			}
+			seen[h] = true
+			if !w.Graph.Has(Triple{h, pRetired, Bool(true)}) {
+				if w.Graph.Has(Triple{h, rdfType, cCreature}) {
+					return h.Local()
+				}
+				continue // a name with no seat of its own is no heir
+			}
+			queue = append(queue, h)
+		}
+	}
+	return ""
 }
 
 // Creature resolves a name like slime-auth (or auth, when unambiguous) to its term.

@@ -296,7 +296,7 @@ func creaturesOf(root string, ow *onto.World, ranks Ranks) []Creature {
 		}
 		for _, p := range bondProps {
 			for _, o := range g.Objects(t, p) {
-				if g.Derived(onto.Triple{S: t, P: p, O: o}) && !oneHopAbove(g, t, o) {
+				if g.Derived(onto.Triple{S: t, P: p, O: o}) && !onto.OneHop(g, t, o) {
 					continue // the transitive closure, not a hop
 				}
 				c.Parent = o.Local()
@@ -317,22 +317,18 @@ func creaturesOf(root string, ow *onto.World, ranks Ranks) []Creature {
 		c.AscendantOf = ascendantOf(text)
 		out = append(out, c)
 	}
-	// succession: a creature whose one-hop-up retired by ascending reports to its ascendant —
-	// the base's doc stays as the graph's memory, its line now runs through the risen body
-	succ, live := map[string]string{}, map[string]bool{}
+	// succession: a creature whose one hop up retired reports to that seat's live heir
+	// (onto.HeirOf: the seat's Heir line, or the body that ascended from it) — the retired
+	// doc stays as the graph's memory, its line now runs through the heir
+	live := map[string]bool{}
 	for _, c := range out {
 		live[c.Name] = true
 	}
-	for _, c := range out {
-		if c.AscendantOf != "" && !live[c.AscendantOf] {
-			succ[c.AscendantOf] = c.Name
-		}
-	}
 	for i := range out {
-		seen := map[string]bool{}
-		for p := out[i].Parent; succ[p] != "" && !seen[p]; p = out[i].Parent {
-			seen[p] = true
-			out[i].Parent = succ[p]
+		if p := out[i].Parent; p != "" && p != Rimuru && !live[p] {
+			if h := ow.HeirOf(p); h != "" && h != out[i].Name && live[h] {
+				out[i].Parent = h
+			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
@@ -409,17 +405,6 @@ func (w *World) creatureByName(name string) *Creature {
 		}
 	}
 	return hit
-}
-
-// oneHopAbove is true when no third creature sits between s and o on the above chain.
-func oneHopAbove(g *onto.Graph, s, o onto.Term) bool {
-	above := onto.Is("above")
-	for _, mid := range g.Objects(s, above) {
-		if mid != o && g.Has(onto.Triple{S: mid, P: above, O: o}) {
-			return false
-		}
-	}
-	return true
 }
 
 // RankOf is a creature's rank row (rimuru's for the session or an unknown name).

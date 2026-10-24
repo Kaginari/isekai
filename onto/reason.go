@@ -31,6 +31,8 @@ var (
 	pKnows      = Is("knows")
 	pAbout      = Is("about")
 	pShared     = Is("shared")
+	pHeir       = Is("heir")
+	pRetired    = Is("retired")
 	pUnless     = Is("unless")
 	cCreature   = Is("Creature")
 	cRimuru     = Is("Rimuru")

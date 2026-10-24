@@ -8,6 +8,13 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Retiring a creature looks after the ones below it.** When the council splits or retires a
+  creature that others report to, each of them is moved to the right new manager — the half of
+  the split that holds its files, or the retired creature's own manager — and the retired
+  creature's README names who took its place. A creature that still names the retired one is
+  routed to that successor, and `onto check` reports any creature left reporting to a retired
+  one with no successor. The files the council rewrote no longer count against the body whose
+  turn it happened in.
 - **A parent can write its new child's README.** An orc founding a slime for part of its zone, or
   the throne founding an elf, used to fail the end-of-turn gate as if it had written another
   creature's file. The gate now lets it through while the README is new (not yet committed), the
