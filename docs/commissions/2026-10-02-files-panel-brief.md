@@ -1,7 +1,7 @@
 # Commission — Dashboard files-activity panel
 
 **From:** rimuru · **Through:** elf-isekai · **To:** orc-host (relay to slime-tui-board + slime-app-commands)
-**Date:** 2026-10-02 · **World root:** `/Users/j00000/Workspace/agentic/operation-room-litellm/isekai` (run everything from here; sandbox forbids `cd`).
+**Date:** 2026-10-02 · **World root:** `<workspace>/isekai` (run everything from here; sandbox forbids `cd`).
 
 Orc-host: read this whole file, then dispatch the two slimes. You own them; elf-isekai cannot reach them. One slime NEVER edits another creature's land — it does the writes in its own territory and emits **exact unified-diff hunks** for every neighbour file (never cross-edit). Each hunk is anchored to the file:line it is based on. Brand every handoff `HANDOFF-<rank>-<file>`.
 

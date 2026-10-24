@@ -1,7 +1,7 @@
 # Brief — file-changes Go skeleton (app-commands slice)
 
 **From:** elf-isekai (relaying rimuru commission, file-brief pattern — canonical copy in commissioner land; a working copy stands at `.isekai/slime/app-commands/thoughts/2026-10-02-files-wiring-brief.md`)
-**Date:** 2026-10-02 · **World root:** `/Users/j00000/Workspace/agentic/operation-room-litellm/isekai` — sandbox forbids `cd`; run everything from here.
+**Date:** 2026-10-02 · **World root:** `<workspace>/isekai` — sandbox forbids `cd`; run everything from here.
 **Your land:** `app/board.go` ONLY (probe-verified via onto: slime-app-commands owns it).
 
 ## Hard precondition (do NOT edit until true)

@@ -1,7 +1,7 @@
 # Brief — file-changes Go skeleton (world-core slice)
 
 **From:** elf-isekai (relaying rimuru commission, file-brief pattern — canonical copy in commissioner land; a working copy stands at `.isekai/slime/world-core/thoughts/2026-10-02-files-changes-skeleton-brief.md`)
-**Date:** 2026-10-02 · **World root:** `/Users/j00000/Workspace/agentic/operation-room-litellm/isekai` — sandbox forbids `cd`; run everything from here.
+**Date:** 2026-10-02 · **World root:** `<workspace>/isekai` — sandbox forbids `cd`; run everything from here.
 **Your land:** `board/tree.go` + `board/sources.go` (probe-verified via onto: slime-world-core owns both; edit them DIRECTLY).
 
 ## Pairing law (Vitality — gate-enforced)

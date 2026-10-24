@@ -1,7 +1,7 @@
 # Consolidated relaunch brief — files-activity panel (wave 1)
 
 **From:** elf-isekai (per Veldora slab vote) · **To:** orc-world (relay to slime-world-core) · **Date:** 2026-10-02
-**World root:** `/Users/j00000/Workspace/agentic/operation-room-litellm/isekai` — sandbox forbids `cd`; run everything from here.
+**World root:** `<workspace>/isekai` — sandbox forbids `cd`; run everything from here.
 
 This brief consolidates the daemon-side order (`.isekai/slab/2026-10-02-relaunch-files-panel.md:18`), the FE panel contract (`docs/commissions/2026-10-02-files-panel-brief.md`, still binding for wave 2) and the Go skeleton spec (`docs/commissions/2026-10-02-files-changes-skeleton-world-core-brief.md`, EDITS written to the letter) into one launch point.
 
