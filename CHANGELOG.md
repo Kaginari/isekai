@@ -8,6 +8,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Added
 
+- **Traces for your observability stack.** Set `instruments.otlp` in your global config or
+  `.isekai/config.local.yaml` and every turn, court and tool call is sent as OpenTelemetry spans
+  to the collector you name (OTLP over HTTP, so Jaeger, Grafana Tempo and any other OpenTelemetry
+  backend read it). A turn is named after the creature's rank and name, a court's work nests
+  under the dispatch that started it, and each tool call that actually ran gets its own span,
+  carrying its input and output (cut at 4 KB) — the collector sees what the model sees.
+  It is off by default; it never switches on from a repository's own config file, environment
+  variables or flags; API keys are named by environment variable, never written in the file. If
+  the collector is down or refuses the key, you get one notice in the terminal or on the board —
+  not a stream of errors.
 - **Two knobs for the shipped ascension rule.** `law.ascend.greenFloor` adds a minimum share of
   runs that landed cleanly (`landRate`, in percent), and `law.ascend.tenure` a minimum number of
   days since the creature was born, to the built-in rule for rising to high-elf or high-orc. Both

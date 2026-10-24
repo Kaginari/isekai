@@ -18,9 +18,10 @@
 - Off() names law.forge.demandAtSteps when a layer sets it to 0 (the forge question switched off); tools.custom.<name>.crafted {by, run, at, draft} is a minted tool's provenance (the forge writes it).
 - rules.go: injected rules with scopes all | rank:<race> | creature:<name>; RunCheck runs a check under sandbox.Contain. examples/gateway is the vLLM gateway world README's Configuration section cites — it must pass `config check`; examples/world-rules.yaml is the annotated config.local.yaml example. config.SelftestIn is the instrument that says whether docs/canon/config.md and the code still agree.
 - law.guts.repin (3) and law.guts.actBudget (40) arm the loop's stall guards; 0 takes the default, negative = off; repin 1 is refused (the first read repeats nothing).
+- instruments.otlp (checkOTLP): trace export is outward — headersEnv values must be env var names; enabled needs an http(s) endpoint and every instruments.otlp key from the default, global or local layer (never project, env or flag); secretKey refuses apiKey/token/…/`headers` under instruments.otlp.
 
 ## Verify
-- `go test -count=1 -run 'TestSectionFiles|TestLocalSectionFiles|TestPrecedence|TestModelsResolution|TestRanks|TestAscendKnobs|TestPermissionRefusals|TestProjectAllowNeverPreApprovesOutward|TestProviderKeyInlineFallback|TestSelftest' ./config/`
+- `go test -count=1 -run 'TestOTLPExportIsTheMachinesWord|TestSectionFiles|TestLocalSectionFiles|TestPrecedence|TestModelsResolution|TestRanks|TestAscendKnobs|TestPermissionRefusals|TestProjectAllowNeverPreApprovesOutward|TestProviderKeyInlineFallback|TestSelftest' ./config/`
 - `go run ./cmd/isekai config check --root examples/gateway`
 
 ## Thoughts

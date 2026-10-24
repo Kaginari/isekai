@@ -307,7 +307,18 @@ document is JSON here; the same keys in YAML are the same config.
     "context": { "enabled": true },                   // occupancy from provider usage
     "loop":    { "enabled": true, "journalDir": "[dist-dir]/instruments/loop" },
     "toolbox": { "enabled": true, "journalDir": "[dist-dir]/instruments/toolbox" },
-    "status":  { "showOff": true }                    // the honesty rule; false is itself shown as off
+    "status":  { "showOff": true },                   // the honesty rule; false is itself shown as off
+    // OpenTelemetry spans over OTLP/HTTP (JSON): a CHAIN per turn named "<rank> · <body>", an
+    // AGENT per court (its dispatch; the court's turn is its child, in the same trace), a TOOL per
+    // executed call (input.value / output.value cut at 4 KB; a refused call never ran, no span).
+    // Outward (Nature 7): honored only from the global config or config.local.yaml — never the
+    // project config, env or a flag — and only with the endpoint named. Header values come from
+    // the env vars headersEnv names; a literal key or a `headers` map is refused. A failing
+    // collector is one notice per failure class on the session's notice line, never stderr.
+    "otlp":    { "enabled": false,
+                 "endpoint": "",                      // the traces URL, as-is: https://collector.example/v1/traces
+                 "headersEnv": {},                    // { "api_key": "TRACE_API_KEY" } — the NAME, never the value
+                 "service": "" }                      // service.name; "" = the distribution's name
   },
 
   // ---------------------------------------------------------------- permissions
