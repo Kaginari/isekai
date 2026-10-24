@@ -108,6 +108,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **A creature's notes no longer claim whole folders.** Mentioning `src/` or `docs/` (or a pattern
+  like `**/`) in the free text of a creature's README, near its own name, used to make it the
+  owner of that entire folder. Only the Territory line can claim a whole top-level folder now.
+  When two claims overlap, `onto check` says whether each came from the Territory line or from
+  the text, and points at the line that made it.
 - **A refused order says how to get there.** When a body may not order a creature outside its
   own line, the refusal now names a route that is checked step by step: the nearest creature in
   that line the body may order itself, or up through its own managers to where the two lines

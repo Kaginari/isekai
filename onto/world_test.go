@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -113,7 +114,7 @@ func TestValidateBroken(t *testing.T) {
 	}
 	want := []string{
 		".claude/skills/slime-lonely/SKILL.md:1: mind-slime-lonely has 0 wornBy edges, wants at least 1 (MindWorn)",
-		".isekai/slime/auth/README.md:4: slime-auth owns src/auth, overlapping src/auth/login of slime-orphan (SlimeTerritory)",
+		".isekai/slime/auth/README.md:4: slime-auth owns src/auth (structured, line 4), overlapping src/auth/login of slime-orphan (structured, line 4) (SlimeTerritory)",
 		".isekai/slime/orphan/README.md:1: slime-orphan has 0 truth edges, wants exactly 1 (SlimeTruth)",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
@@ -638,5 +639,37 @@ func TestHeirOf(t *testing.T) {
 	}
 	if len(heirLive) != 1 || !strings.Contains(heirLive[0], "slime-orphan reports to orc-gone") {
 		t.Errorf("HeirLive findings: %v", heirLive)
+	}
+}
+
+// Every owns edge names its lane and line, and a territory finding points at the line that made
+// the claim; prose never mints a whole tree — a bare segment or a glob is a region, not a claim.
+func TestClaimProvenanceAndProseAdjacency(t *testing.T) {
+	dir := t.TempDir()
+	for p, s := range map[string]string{
+		".isekai/slime/auth/README.md": "# slime-auth\n\n- **Territory:** `src/auth/`\n- **Reports to:** orc-x\n\n## Thoughts\n\nI read `src/` and `docs/` often, and `**/` and `*/*`.\nslime-auth keeps `auth/handlers` too.\n",
+		".isekai/slime/b/README.md":    "# slime-b\n\n- **Territory:** `.isekai`\n- **Reports to:** orc-x\n",
+	} {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		os.WriteFile(full, []byte(s), 0o644)
+	}
+	w, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var owns []string
+	for _, o := range w.Graph.Objects(Is("slime-auth"), pOwns) {
+		owns = append(owns, o.Value)
+	}
+	sort.Strings(owns)
+	if strings.Join(owns, ",") != "auth/handlers,src/auth" {
+		t.Fatalf("slime-auth owns %v", owns)
+	}
+	if c, ok := w.ClaimOf(Is("slime-auth"), "src/auth"); !ok || c != (Claim{"structured", 3}) {
+		t.Errorf("structured claim: %+v %v", c, ok)
+	}
+	if c, ok := w.ClaimOf(Is("slime-auth"), "auth/handlers"); !ok || c != (Claim{"prose", 9}) {
+		t.Errorf("prose claim: %+v %v", c, ok)
 	}
 }

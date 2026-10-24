@@ -27,7 +27,19 @@ type World struct {
 type DocRef struct {
 	Path  string         // relative to Root
 	Lines map[string]int // field → line number (1-based)
+	// Claims is each owns edge's provenance, by the owned path: the lane that minted it and
+	// the doc line it stands on — a finding about a claim points at the line that made it.
+	Claims map[string]Claim
 }
+
+// Claim is one owns edge's provenance.
+type Claim struct {
+	Lane string // structured (the Territory field) | prose (a self-naming backticked span)
+	Line int    // 1-based line in the doc
+}
+
+// String renders the provenance for a finding: `prose, line 12`.
+func (c Claim) String() string { return fmt.Sprintf("%s, line %d", c.Lane, c.Line) }
 
 // RankDir is one rank as the derivation needs it: its canonical name, the folder its
 // creatures live in (also their id prefix, `<dir>-<name>`) and the rank it reports to
@@ -420,7 +432,14 @@ func (w *World) derive() error {
 		}
 		docNode(self, c.doc)
 		vals, lines := fields(c.text)
-		w.Docs[self] = &DocRef{Path: c.doc, Lines: lines}
+		ref := &DocRef{Path: c.doc, Lines: lines, Claims: map[string]Claim{}}
+		w.Docs[self] = ref
+		own := func(p, lane string, line int) {
+			add(self, pOwns, L(p))
+			if _, ok := ref.Claims[p]; !ok {
+				ref.Claims[p] = Claim{Lane: lane, Line: line}
+			}
+		}
 
 		// parent: the declared field, else the first creature of the expected rank the doc names
 		parent := ""
@@ -574,7 +593,7 @@ func (w *World) derive() error {
 			if !inZone(p) {
 				continue // zone-foreign structured claim: crossref, never owns
 			}
-			add(self, pOwns, L(p))
+			own(p, "structured", lines["territory"])
 		}
 		// Prose supplement: backticked path spans in the doc body — but only
 		// spans that SELF-NAME the creature (its name or zone dir adjoining
@@ -591,6 +610,12 @@ func (w *World) derive() error {
 				continue
 			}
 			p := normPath(span)
+			// prose never mints a whole tree: a span that normalizes to one bare segment (`src/`,
+			// `docs/`) or carries a glob (`**/`, `*/*`) names a region, never this creature's
+			// claim — the structured Territory field is the only lane for a top-level tree
+			if !strings.Contains(p, "/") || strings.Contains(p, "*") {
+				continue
+			}
 			// census class (f) 2026-10-11: prose claims must cite the creature's
 			// seat-root; those that do not are foreign territorials minted by
 			// selfNamesSpan whole-word adjacency from the SAME comment naming the
@@ -655,7 +680,7 @@ func (w *World) derive() error {
 				continue
 			}
 			seen[p] = true
-			add(self, pOwns, L(p))
+			own(p, "prose", 1+strings.Count(c.text[:m[2]], "\n"))
 		}
 
 		// worn minds: named in a Minds field, or any mind's name in the doc as a whole word
