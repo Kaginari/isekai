@@ -72,7 +72,7 @@ func (b *Board) act(w http.ResponseWriter, r *http.Request) bool {
 func (b *Board) liveRoutes() {
 	web, _ := fs.Sub(content, "web")
 	files := http.StripPrefix("/web/", http.FileServer(http.FS(web)))
-	b.mux.Handle("/web/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	b.mux.Handle("/web/", guarded(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
 		// the vendored faces: the system's mime table may not know woff2
 		if strings.HasSuffix(r.URL.Path, ".woff2") {
@@ -84,7 +84,7 @@ func (b *Board) liveRoutes() {
 	b.mux.HandleFunc("/dash/stream", b.dashStream)
 	// the world's two planes beside the ontology: the minted bodies, every wearable skill, and
 	// the desks (thoughts live in the worn mind)
-	b.mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) {
+	b.mux.HandleFunc("/api/world", guarded(func(w http.ResponseWriter, r *http.Request) {
 		bodies, skills := b.src.Bodies(), b.src.Skills()
 		if bodies == nil {
 			bodies = []BodyInfo{}
@@ -97,8 +97,8 @@ func (b *Board) liveRoutes() {
 			desks = m.Desks
 		}
 		writeJSON(w, map[string]any{"bodies": bodies, "skills": skills, "desks": desks})
-	})
-	b.mux.HandleFunc("/api/live", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	b.mux.HandleFunc("/api/live", guarded(func(w http.ResponseWriter, r *http.Request) {
 		st := map[string]any{"session": false}
 		if b.opt.Live != nil {
 			st = b.opt.Live.Status()
@@ -106,7 +106,7 @@ func (b *Board) liveRoutes() {
 		}
 		st["world"] = b.worldName()
 		writeJSON(w, st)
-	})
+	}))
 	b.mux.HandleFunc("/api/ask", func(w http.ResponseWriter, r *http.Request) {
 		if !b.act(w, r) {
 			return

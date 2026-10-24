@@ -127,6 +127,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **The dashboard answers only your own machine, on every address.** The dashboard page itself
+  (which carries the key the console's actions need), its stylesheets and scripts, the theme list,
+  and the live-session and world summaries now refuse a request that does not come addressed to
+  `localhost`, as the world's records already did. A web page elsewhere that points a borrowed
+  domain name at your machine can no longer read any of them.
 - **A creature's notes no longer claim whole folders.** Mentioning `src/` or `docs/` (or a pattern
   like `**/`) in the free text of a creature's README, near its own name, used to make it the
   owner of that entire folder. Only the Territory line can claim a whole top-level folder now.
