@@ -89,14 +89,17 @@ func (w *World) Policy(body string, opt TerritoryOptions) tool.Policy {
 			}
 			return nil
 		}
-		w.SelfHeal() // a claim granted since the roster was read counts (world/selfheal.go)
+		w.SelfHeal() // a claim granted since the roster was read counts (world/selfheal.go) — on open ground at once, on a living body's soil once its parent's gate passed it (world/claims.go)
 		c := w.Creature(body)
 		if c == nil || !opt.held(w, c) || (len(c.Territory) == 0 && c.Dir == "") {
 			return nil
 		}
 		for _, p := range a.Paths {
 			rel := w.Rel(p)
-			if c.InTerritory(rel) {
+			// judged by the claims the gate trusts: a body's own fresh claim on another living
+			// body's soil admits nothing until its parent's gate has passed it (world/claims.go)
+			tz, tc := w.trustedZone(rel, c.Name)
+			if tc != nil && tc.InTerritory(rel) {
 				continue
 			}
 			if w.ZoneOfPath(rel).Soil == SoilScratch {
@@ -105,7 +108,7 @@ func (w *World) Policy(body string, opt TerritoryOptions) tool.Policy {
 				}
 				continue // the scratch is every body's own nest
 			}
-			owner := w.Owner(rel)
+			owner := tz.Creature
 			if owner != nil && owner.Name != c.Name && owner.Rank == c.Rank {
 				// sideways soil of the same rank IS licensed — dispatch the owner directly.
 				myRank, _ := w.Ranks.Get(c.Rank)

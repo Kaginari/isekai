@@ -107,6 +107,12 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 		}
 	}
 	self := w.Creature(as)
+	// the claims self's README holds back (world/claims.go): soil another living body held that
+	// self granted itself — its own gate never passes them, nor a write they alone would admit
+	var held map[string]string
+	if self != nil {
+		held = w.heldClaims(self.Name)
+	}
 	touched := map[string]*Creature{}
 	if self != nil {
 		touched[self.Name] = self
@@ -154,6 +160,11 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 		// 1. right slime authored
 		if opt.RightAuthor && orcs {
 			switch {
+			case len(held) > 0 && creatureDoc && owner.Name == self.Name:
+				fail(fmt.Sprintf("%s: %s grants %s %s — a body never grants itself another living body's soil; its parent widens the claim (writes this README) or the soil stays its owner's", w.Lex.Checks[0], rel, self.Name, heldList(held)))
+			case len(held) > 0 && owner != nil && owner.Name == self.Name && zone.Soil == SoilTerritory && w.heldAdmits(rel, self.Name):
+				tz, _ := w.trustedZone(rel, self.Name)
+				fail(fmt.Sprintf("%s: %s belongs to %s, written by %s — %s's own claim on it is not granted until its parent's gate passes it", w.Lex.Checks[0], rel, or(creatureName(tz.Creature), "open ground no claim of its admits"), self.Name, self.Name))
 			case w.genesisExempt(as, rel, zone, before):
 				// genesis (gate_genesis.go): the zone-parent mints its own child's README — new
 				// since the last commit, reporting to the writer, claiming only live soil the
@@ -302,6 +313,8 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 	}
 	if len(v.Reasons) > 0 {
 		v.Word = "fail"
+	} else {
+		w.grantClaims(as, wrote) // a README its line above carried through a clean gate is trusted
 	}
 	return v
 }

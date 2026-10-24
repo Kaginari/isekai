@@ -627,7 +627,7 @@ func (w *World) applyPlan(ctx context.Context, p *EvolvePlan) EvolveEvent {
 		w.appendValue(value.Row{Kind: value.KindRebirth, Body: p.Body, Rank: w.RankOf(p.Body).Name, Arm: "rebirth", Reason: p.Reason})
 		w.val.mu.Unlock()
 	}
-	_ = w.Reload()
+	_ = w.reloadMinted()
 	switch {
 	case p.Arm == "split":
 		for _, y := range p.Into {

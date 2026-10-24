@@ -132,7 +132,7 @@ func (w *World) ascendMaybe(body string) {
 	}
 	// the ascended body must be dispatchable on the next commission and the base must leave
 	// the roster: re-derive it from the docs
-	if err := w.Reload(); err != nil {
+	if err := w.reloadMinted(); err != nil {
 		w.ascendHole(body, watcher, fmt.Sprintf("reload after %s: %v", ev.New, err))
 	}
 }

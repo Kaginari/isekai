@@ -155,6 +155,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **A creature can no longer hand itself another creature's ground.** A creature could add a
+  folder inside a neighbour's territory to its own README and write there in the same turn — the
+  longer claim made it the owner. Now a claim that takes ground another living creature holds
+  counts only once a gate other than the claimant's — its parent's or the throne's — has passed
+  the README that makes it; until then the write is refused and the claimant's own gate fails.
+  Claiming open ground nobody holds still works at once.
 - **The plan meter in the dashboard's header lights up.** It read a deck file the plan tool never
   writes, so it stayed hidden; it now shows the same deck as the overview's plan. The plan reader
   also no longer follows a name that climbs out of the plans folder.

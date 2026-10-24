@@ -114,6 +114,8 @@ type World struct {
 	// body's verify lines as the gate trusts them (world/selfheal.go)
 	stamp      uint64
 	verifyBase map[string][]string
+	// claimBase is each body's territory claims as the gate trusts them (world/claims.go)
+	claimBase map[string][]string
 	// born caches each body's first birth (world/births.go); zero: none known
 	born map[string]time.Time
 }
@@ -196,8 +198,15 @@ func (w *World) Rel(abs string) string {
 }
 
 // Reload re-derives the roster from the docs (they change during a session) and takes their
-// verify lines as the gate's base (selfheal.go).
-func (w *World) Reload() error {
+// verify lines as the gate's base (selfheal.go) and the claims it trusts (claims.go): a claim
+// that takes another living body's soil stays held back.
+func (w *World) Reload() error { return w.reload(false) }
+
+// reloadMinted is Reload after the harness's own mint (relief, ascension, evolution): every
+// claim on disk is the harness's, and trusted.
+func (w *World) reloadMinted() error { return w.reload(true) }
+
+func (w *World) reload(minted bool) error {
 	st := w.docStamp() // before the read: a doc moved during it re-heals on the next ask
 	ow, err := onto.LoadLayout(w.Root, w.Ranks.Layout(w.Lex))
 	if err != nil {
@@ -208,6 +217,7 @@ func (w *World) Reload() error {
 	w.Notes = append(w.Notes, ow.Notes...)
 	w.verifyBase = nil
 	w.mergeFreshLocked(ow)
+	w.rebaseClaimsLocked(minted)
 	w.stamp = st
 	return nil
 }
