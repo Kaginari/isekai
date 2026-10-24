@@ -21,7 +21,7 @@
 - Race plates and a full-screen net: one plate per race, never per body — a 2D column's head (`.net-col-plate`, role=button) and a 3D key row (`.net-3d-key button[data-race]`, onRace); a press lights every creature of the race and the bond each hangs from (net.js race/raceSet; net3d dims around a focus no neuron is), again lets go, a neuron's pin clears it. `#net-full` puts the net panel full screen (the Fullscreen API; netFit fits the stage to it, the card still opens over it; hidden where the API is not).
 
 ## Verify
-- `go test -count=1 -run 'TestDashActsNeedTokenLoopbackAndOrigin|TestDashPageCarriesTokenAndCSP|TestDashStreamReplaysThenStreams|TestDashboardHoldsTheUISystem|TestAPICourtsNeverLeaksBodies|TestWorldAPIsRefuseAReboundHost|TestOldAddressesRedirectOrAreGone|TestAPIColonyOnAnEmptyWorld|TestLexiconWordsReachThePage|TestAPIBoardReadsTheSharedShelf|TestAPIPlanStaysInTheDecks|TestRootIsTheDashboard' ./board/`
+- `go test -count=1 -run 'TestDashActsNeedTokenLoopbackAndOrigin|TestDashPageCarriesTokenAndCSP|TestDashStreamReplaysThenStreams|TestDashboardHoldsTheUISystem|TestAPICourtsNeverLeaksBodies|TestWorldAPIsRefuseAReboundHost|TestOldAddressesRedirectOrAreGone|TestAPIColonyOnAnEmptyWorld|TestLexiconWordsReachThePage|TestAPIBoardReadsTheSharedShelf|TestAPIPlanStaysInTheDecks|TestRootIsTheDashboard|TestDashScriptFindsEveryIDOnThePage' ./board/`
 - `go test -count=1 ./board/...`
 
 ## Thoughts
