@@ -85,6 +85,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **One answer to "whose file is this?"** The gate, the write rules and `isekai onto owner` now
+  read ownership the same way. A creature's own folder is always its own, even when another
+  creature's claim covers the whole `.isekai/` tree, so editing your own README no longer owes
+  someone else's doc. The shared shelf and the instruments shelf belong to no creature and are
+  never billed to one. The scratch folder (`.isekai/tmp/`) is every body's own: writing there is
+  lawful and owes no doc, except another body's plan deck, which is refused.
 - **The test suite no longer leaves folders in `/tmp`.** Two dashboard tests let a turn keep
   writing after their scratch folder was swept, so it came back; the end-to-end binaries were
   built into a folder nothing removed. Each run now leaves nothing behind.

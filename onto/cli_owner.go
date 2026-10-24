@@ -5,15 +5,22 @@ import (
 	"strings"
 )
 
-// ownerLine mirrors world.Owner() against the onto graph and returns the
-// winning creature, or "" with no owner. Kept as a helper so CLI can wire it
-// with its `case` + stdout conventions (cli.go is the dispatch surface).
+// CLIOwner is the world's own ownership reading (world.ZoneOfPath), wired by the binary so
+// `onto owner` answers what the gate and the territory policy answer; nil falls back to the
+// graph's mirror (ownerOf).
+var CLIOwner func(root, path string) (string, error)
+
+// ownerLine answers the creature that owns p, or "" with no owner. Kept as a helper so CLI can
+// wire it with its `case` + stdout conventions (cli.go is the dispatch surface).
 func ownerLine(root, p string) (string, error) {
 	if root == "" {
 		root = "."
 		if v := os.Getenv("ISEKAI_ROOT"); v != "" {
 			root = v
 		}
+	}
+	if CLIOwner != nil {
+		return CLIOwner(root, p)
 	}
 	w, err := Load(root)
 	if err != nil {

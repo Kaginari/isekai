@@ -486,41 +486,10 @@ func under(rel, prefix string) bool {
 	return prefix != "" && prefix != "." && (rel == prefix || strings.HasPrefix(rel, prefix+"/"))
 }
 
-// Owner is the body that owns a root-relative path: the authoring creature with the longest
-// matching territory, else the gate holder's, else nil. Its doc is the one Vitality demands.
-func (w *World) Owner(rel string) *Creature {
-	rel = normRel(rel)
-	for _, pick := range []func(Rank) bool{func(r Rank) bool { return r.Authors }, func(r Rank) bool { return r.HoldsGate && !r.Authors }} {
-		var best *Creature
-		bestLen := -1
-		for i := range w.Creatures {
-			c := &w.Creatures[i]
-			if r, ok := w.Ranks.Get(c.Rank); !ok || !pick(r) {
-				continue
-			}
-			for _, t := range c.Territory {
-				if under(rel, t) && len(t) > bestLen {
-					best, bestLen = c, len(t)
-				}
-			}
-		}
-		if best != nil {
-			return best
-		}
-	}
-	// Seat fallback (darkelf verdict 2026-10-02, arm-2 discrimination follow-up
-	// 2026-10-04): seat docs are the creature's authorship; territory prefixes
-	// never cover the seat — a doc at a creature's Dir matches no territory
-	// prefix (e.g. .isekai/slime/api/README.md, territory src/api/), so without
-	// this pass Owner returns nil and the gate's creatureDoc branch stays dead.
-	for i := range w.Creatures {
-		c := &w.Creatures[i]
-		if c.Doc != "" && normRel(c.Doc) == rel {
-			return c
-		}
-	}
-	return nil
-}
+// Owner is the body that owns a root-relative path — ZoneOfPath's creature: a seat's creature,
+// else the authoring creature with the longest matching territory, else the gate holder's;
+// nil on open ground, the harness's shelves and the scratch. Its doc is the one Vitality demands.
+func (w *World) Owner(rel string) *Creature { return w.ZoneOfPath(rel).Creature }
 
 func parentDir(d string) string { return filepath.Dir(d) }
 

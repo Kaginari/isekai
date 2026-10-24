@@ -109,7 +109,16 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 		touched[self.Name] = self
 	}
 	for _, rel := range wrote {
-		owner := w.Owner(rel)
+		zone := w.ZoneOfPath(rel)
+		if zone.Soil == SoilScratch {
+			// the scratch is every body's own nest (its redirected /tmp, its plan deck): lawful,
+			// nobody's soil, never a doc debt — but a deck speaks for its body alone
+			if deck := w.foreignDeck(as, rel); deck != "" && opt.RightAuthor && orcs {
+				fail(fmt.Sprintf("%s: %s is %s's plan deck, written by %s — a deck speaks for its own body; the plan tool pens yours", w.Lex.Checks[0], rel, deck, or(as, "rimuru")))
+			}
+			continue
+		}
+		owner := zone.Creature
 		if owner != nil {
 			touched[owner.Name] = owner
 		}
@@ -175,7 +184,8 @@ func (w *World) Gate(ctx context.Context, s *loop.Session, opt GateOptions, as s
 		// it (arm 2; lane B keyed by creature name, kept at Close, bound 8 per creature) —
 		// otherwise the check double-fired on every retry for a doc the throne cannot lawfully
 		// write itself.
-		if opt.DocTruthful && !throneSeat && owner != nil && owner.Doc != "" && !contains(wrote, owner.Doc) && normRel(rel) != normRel(owner.Doc) && !docPaired {
+		// A seat's files are the creature's doc set, never a change its doc owes a pairing for.
+		if opt.DocTruthful && !throneSeat && zone.Soil != SoilSeat && owner != nil && owner.Doc != "" && !contains(wrote, owner.Doc) && normRel(rel) != normRel(owner.Doc) && !docPaired {
 			fail(fmt.Sprintf("%s (Vitality): %s changed under %s's territory but %s did not move — pair it: edit %s in this wave, or have %s's own court author its doc first (the doc names the pairing vehicle)", w.Lex.Checks[3], rel, owner.Name, owner.Doc, owner.Doc, owner.Name))
 		}
 	}

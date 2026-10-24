@@ -98,6 +98,12 @@ func (w *World) Policy(body string, opt TerritoryOptions) tool.Policy {
 			if c.InTerritory(rel) {
 				continue
 			}
+			if w.ZoneOfPath(rel).Soil == SoilScratch {
+				if deck := w.foreignDeck(c.Name, rel); deck != "" {
+					return fmt.Errorf("territory: %s is %s's plan deck — a deck speaks for its own body; the plan tool pens yours", normRel(rel), deck)
+				}
+				continue // the scratch is every body's own nest
+			}
 			owner := w.Owner(rel)
 			if owner != nil && owner.Name != c.Name && owner.Rank == c.Rank {
 				// sideways soil of the same rank IS licensed — dispatch the owner directly.
