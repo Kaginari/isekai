@@ -78,3 +78,24 @@ func TestGateGenesisExemption(t *testing.T) {
 		t.Errorf("genesis outlived its commit window: %s", v)
 	}
 }
+
+// Without git, "new" is read against the roster the turn opened with — and a heal between the
+// README's write and the gate (a dispatch preflight, a policy check, a roster miss) does not
+// make the child "known" before its birth.
+func TestGateGenesisNoGitSurvivesAHeal(t *testing.T) {
+	dir := fixture(t)
+	w := open(t, dir)
+	os.MkdirAll(filepath.Join(dir, "src/pay"), 0o755)
+	rel := ".isekai/slime/pay/README.md"
+	full := filepath.Join(dir, rel)
+	os.MkdirAll(filepath.Dir(full), 0o755)
+	if err := os.WriteFile(full, []byte("# slime-pay\n\n- **Rank:** Slime\n- **Territory:** `src/pay/`\n- **Reports to:** orc-security\n- **Verify:** `true`\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !w.SelfHeal() || w.Creature("slime-pay") == nil {
+		t.Fatal("the heal did not read the new seat")
+	}
+	if v := w.Gate(context.Background(), nil, DefaultHooks().Gate, "orc-security", []string{rel}, &wire.Report{Status: "DONE"}, true, "x"); v.Word != "pass" || len(v.Born) != 1 {
+		t.Fatalf("a heal before the gate broke a no-git genesis: %s", v)
+	}
+}

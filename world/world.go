@@ -215,8 +215,11 @@ func (w *World) reload(minted bool) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.Notes = append(w.Notes, ow.Notes...)
-	w.verifyBase = nil
 	w.mergeFreshLocked(ow)
+	w.verifyBase = map[string][]string{}
+	for _, c := range w.Creatures {
+		w.verifyBase[c.Name] = append([]string(nil), c.Verify...)
+	}
 	w.rebaseClaimsLocked(minted)
 	w.stamp = st
 	return nil

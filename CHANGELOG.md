@@ -155,6 +155,11 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Fixed
 
+- **A parent can found its child in a world without git, even when the roster refreshed
+  first.** If anything re-read the creature docs between the parent writing the child's README and
+  the turn's check — a dispatch, a write check — the child already looked known, the birth was
+  read as editing someone else's doc, and the turn failed. The check now reads the roster as it
+  stood when the turn opened.
 - **A creature can no longer hand itself another creature's ground.** A creature could add a
   folder inside a neighbour's territory to its own README and write there in the same turn — the
   longer claim made it the owner. Now a claim that takes ground another living creature holds

@@ -20,9 +20,9 @@ import (
 // an engine's build, a write's territory policy, and a roster miss.
 //
 // Healing never moves trust. The verify lines the gate runs as "before the turn" (verifyBase)
-// change only at an explicit Reload (Open, the gate, the harness's own mints); a heal adds the
-// lines of a body it had never seen and leaves every known body's lines as they were — a body
-// cannot pass its gate by rewriting its check and waiting for a heal.
+// change only at an explicit Reload (Open, the gate, the harness's own mints); a heal leaves
+// them as they were, a never-seen body's included — a body cannot pass its gate by rewriting its
+// check and waiting for a heal, and a child minted this turn is not "known" before its birth.
 
 // docStamp fingerprints the creature docs on disk.
 func (w *World) docStamp() uint64 {
@@ -78,22 +78,15 @@ func (w *World) selfHealLocked() bool {
 }
 
 // mergeFreshLocked puts a fresh derivation on the roster: the docs' creatures, then the foreign
-// bodies the docs do not name. A body the roster never held brings its verify lines into the
-// gate's base; a known body's lines stay as the last Reload read them.
+// bodies the docs do not name. The gate's base is not touched: a body the heal brings in is not
+// on it until the next explicit Reload — its lines are new to the gate (never run unconfirmed),
+// and a no-git genesis still reads the child as new (gate_genesis.go).
 func (w *World) mergeFreshLocked(ow *onto.World) {
 	w.Onto = ow
 	w.Creatures = creaturesOf(w.Root, ow, w.Ranks)
 	for _, f := range w.Foreign {
 		if w.creatureLocked(f.Name) == nil {
 			w.Creatures = append(w.Creatures, f)
-		}
-	}
-	if w.verifyBase == nil {
-		w.verifyBase = map[string][]string{}
-	}
-	for _, c := range w.Creatures {
-		if _, known := w.verifyBase[c.Name]; !known {
-			w.verifyBase[c.Name] = append([]string(nil), c.Verify...)
 		}
 	}
 }
