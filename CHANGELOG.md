@@ -6,6 +6,18 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-24
+
+### Highlights
+
+Runs that survive: a stream that stalls is cut and a gateway restart no longer ends the run, stall
+guards and timeout autopsies say why a court stopped, and a dispatch to a missing body fails at
+once. The world shares one work queue and one shelf for its bookkeeping, folded tool output can
+be brought back with `fold`, and `read` takes ranges and folders. The dashboard shows the plan,
+the shared board and the files written, with an ID card, race plates and a full-screen net;
+traces go to any OpenTelemetry collector. The law gains its negative half and says whose a seat is,
+the quick start leads with a model served by vLLM, and local builds are stamped with their version.
+
 ### Added
 
 - **Light a whole race on the dashboard's net, and take the net full screen.** Each race's
