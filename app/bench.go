@@ -242,7 +242,7 @@ func (a *App) benchOne(ctx context.Context, model string, t benchTask, mcpBin st
 		_ = os.MkdirAll(filepath.Dir(full), 0o755)
 		_ = os.WriteFile(full, []byte(s), 0o644)
 	}
-	write(".isekai/isekai.md", LawText("isekai"))
+	write(".isekai/isekai.md", LawText())
 	write(".isekai/log.md", "# Chronicle\n\n---\n")
 	write(".isekai/orc/security/README.md", "# orc-security\n\n- **Rank:** Orc\n- **Territory:** `src/`\n")
 	write(".isekai/slime/auth/README.md", "# slime-auth\n\n- **Rank:** Slime\n- **Territory:** `src/auth/`\n- **Reports to:** orc-security\n")

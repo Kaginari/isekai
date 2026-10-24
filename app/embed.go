@@ -10,22 +10,15 @@ import (
 	"github.com/Kaginari/isekai/onto"
 )
 
-// The laws, embedded so `init` can found a world anywhere (a bench container, a fresh
-// checkout). A test keeps each equal to the world's own copy (Vitality).
+// The law, embedded so `init` can found a world anywhere (a bench container, a fresh
+// checkout). A test keeps it equal to the world's own copy (Vitality). Agent-one's law ships
+// with the agent-one binary, from its own repository: this binary carries no twin to drift.
 //
 //go:embed law/isekai.md
 var lawIsekai string
 
-//go:embed law/AGENT-ONE.md
-var lawAgentOne string
-
-// LawText is the embedded law of a distribution.
-func LawText(dist string) string {
-	if dist == "agent-one" {
-		return lawAgentOne
-	}
-	return lawIsekai
-}
+// LawText is the embedded law.
+func LawText() string { return lawIsekai }
 
 // Init seeds a minimal world under root: <dist-dir>/ with the law, an empty log, the
 // instrument dirs and the memory tiers' folders, and a portraits/ with the rank PNGs
@@ -35,6 +28,9 @@ func Init(dist, root string) ([]string, error) {
 	d, err := parseDist(dist)
 	if err != nil {
 		return nil, err
+	}
+	if d.Name != "isekai" {
+		return nil, fmt.Errorf("%s's law ships with the %s binary — found the %s with it", d.Name, d.Name, worldWord(d.Name))
 	}
 	base := filepath.Join(root, d.WorldDir)
 	var made []string
@@ -50,7 +46,7 @@ func Init(dist, root string) ([]string, error) {
 		made = append(made, relOrAbs(root, p)+"/")
 	}
 	files := map[string]string{
-		d.LawFile:                   LawText(d.Name),
+		d.LawFile:                   LawText(),
 		"log.md":                    "# Chronicle — change log\n\nAppend-only. Newest entries at the bottom. One entry per change.\n\n---\n",
 		"name":                      filepath.Base(root) + "\n",
 		"memory/shared/notes.jsonl": "",

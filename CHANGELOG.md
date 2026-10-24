@@ -244,6 +244,13 @@ All notable changes to Isekai are recorded here. The format follows
 - **`gofmt -l` and `goimports -d` are reads; `go fmt` and `-w` are writes.** `go fmt` was read
   as read-only.
 
+### Removed
+
+- **The isekai binary no longer carries a copy of agent-one's law.** Agent-one's law ships with
+  the agent-one binary, from its own repository; the second copy here only drifted from it.
+  `isekai --dist agent-one init` now refuses and names the agent-one binary instead of founding
+  a workspace with a stale law.
+
 ## [1.0.0] - 2026-10-11
 
 The first stable release. From here the configuration keys, the `isekai` commands and flags, and

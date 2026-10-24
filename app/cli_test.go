@@ -34,34 +34,32 @@ func (s *syncBuffer) String() string {
 }
 
 func TestEmbeddedLawsMatchTheWorld(t *testing.T) {
-	// Compare against the law at hand: in the vendor workroom the laws live as siblings
-	// (../../agent-one/…), in a standalone checkout at the project root (../../AGENT-ONE.md).
-	// Never against a deployment's live law (a top-level .isekai/ watched by a running world).
-	candidates := []struct {
-		paths []string
-		dist  string
-	}{
-		{[]string{"../ISEKAI.md", "../../ISEKAI.md"}, "isekai"},
-		{[]string{"../../agent-one/AGENT-ONE.md", "../../AGENT-ONE.md"}, "agent-one"},
-	}
-	for _, c := range candidates {
-		var want []byte
-		var err error
-		var from string
-		for _, p := range c.paths {
-			want, err = os.ReadFile(p)
-			if err == nil {
-				from = p
-				break
-			}
-		}
+	// Compare against the law at hand: the project root's ISEKAI.md (../ISEKAI.md from app/), or
+	// one level further up in a vendor workroom. Never against a deployment's live law (a
+	// top-level .isekai/ watched by a running world).
+	for _, p := range []string{"../ISEKAI.md", "../../ISEKAI.md"} {
+		want, err := os.ReadFile(p)
 		if err != nil {
-			t.Logf("%s: no law at hand (%v)", c.dist, err) // the other distribution's law lives elsewhere
 			continue
 		}
-		if string(want) != LawText(c.dist) {
-			t.Errorf("app/law/%s differs from %s — Vitality: copy it in the same change", filepath.Base(c.paths[0]), from)
+		if string(want) != LawText() {
+			t.Errorf("app/law/isekai.md differs from %s — Vitality: copy it in the same change", p)
 		}
+		return
+	}
+	t.Log("isekai: no law at hand")
+}
+
+// TestInitRefusesAnotherDistributionsLaw: this binary embeds only isekai's law, so founding an
+// agent-one workspace with it is refused, naming the binary that carries that law.
+func TestInitRefusesAnotherDistributionsLaw(t *testing.T) {
+	root := t.TempDir()
+	made, err := Init("agent-one", root)
+	if err == nil || !strings.Contains(err.Error(), "agent-one binary") || len(made) != 0 {
+		t.Fatalf("Init(agent-one) = %v, %v; want a refusal naming the agent-one binary and nothing made", made, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".agent-one")); !os.IsNotExist(err) {
+		t.Fatalf("a refused init wrote the workspace dir: %v", err)
 	}
 }
 
@@ -217,7 +215,7 @@ func TestLessons(t *testing.T) {
 }
 
 func TestInitBench(t *testing.T) {
-	for _, dist := range []string{"isekai", "agent-one"} {
+	for _, dist := range []string{"isekai"} { // agent-one founds with its own binary (TestInitRefusesAnotherDistributionsLaw)
 		w := newTestWorld(t, dist, nil)
 		_ = os.MkdirAll(w.root, 0o755)
 		_ = os.WriteFile(filepath.Join(w.root, "outside.txt"), []byte("x"), 0o644)
