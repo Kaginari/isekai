@@ -22,7 +22,7 @@ func TestLedgersSurviveRestarts(t *testing.T) {
 	}
 	// death memo + write attribution: noted the same way the real mutations do
 	w.mu.Lock()
-	w.ledgerNote(ledgerRow{Kind: "death", Body: "slime-auth", Lane: "glm-5-3-conduit"})
+	w.ledgerNote(ledgerRow{Kind: "death", Body: "slime-auth", Lane: "openai/z-ai/glm-5.3"})
 	w.ledgerNote(ledgerRow{Kind: "courtWrite", Body: "slime-auth", Path: ".isekai/slime/auth/README.md", Writer: "slime-auth"})
 	w.mu.Unlock()
 
@@ -34,7 +34,7 @@ func TestLedgersSurviveRestarts(t *testing.T) {
 		if w2.stress["orc-security"] == 0 || w2.consults["orc-security"] == 0 {
 			t.Fatalf("strain/consults did not replay: %+v %+v", w2.stress, w2.consults)
 		}
-		if w2.stressDeaths["slime-auth"].Lane != "glm-5-3-conduit" {
+		if w2.stressDeaths["slime-auth"].Lane != "openai/z-ai/glm-5.3" {
 			t.Fatalf("the death memo did not replay: %+v", w2.stressDeaths)
 		}
 		if cw := w2.courtWrites["slime-auth"][normRel(".isekai/slime/auth/README.md")]; cw.Writer != "slime-auth" {

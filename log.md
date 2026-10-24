@@ -351,8 +351,8 @@ Session-dispatch backgrounding stays off at the default flip: mid-chain courts, 
 backgrounded, would strand their reports (the wake channel feeds the session only). Foreground
 is the law between ranks by design.
 
-Examples re-skined to the conduit mounts (glm-5-3-conduit / kimi-3-conduit /
-nemotron-3-super-120b-conduit) with two-deep fallbacks and no gemma anywhere.
+Examples re-skined to the gateway mounts (glm-5.3 / kimi-k3 /
+nemotron-3-super-120b) with two-deep fallbacks and no gemma anywhere.
 
 # Log — tiers declared, nags closed — 2026-10-03 04:10
 

@@ -188,8 +188,8 @@ Who: rimuru (the throne, machine-global), on bench-forge, work mirrored 1:1 into
   ride a body's office (findings→great-sage, verdict→raphael, draft→ciel); a creature's
   pin overrides its office.
 - **Fallback ride on 404:** `retryable()` treats HTTP 404 as missed-roll (gateway model
-  group names rot); live model IDs for the local gateway: glm-5-**3**-conduit,
-  kimi-3-conduit, muse-glimmer-30b.
+  group names rot); live model IDs for the gateway: glm-5.**3**,
+  kimi-k3, muse-glimmer-30b.
 
 ## Open
 
@@ -229,7 +229,7 @@ landed here too. What a fresh session in this dir needs to know.
 
 ## Earned lessons (Nature 3 — read before touching config again)
 
-- A **section file holds the section's VALUE, bare** (`providers.yaml` starts at `conduit:`);
+- A **section file holds the section's VALUE, bare** (`providers.yaml` starts at `gateway:`);
   a **full config file keeps the nested key**. Mixing them fails validation loudly
   (`providers.providers.type`).
 - `--check`'s known-key set is `defaults keys ∪ Config struct json tags` — legal keys like
@@ -317,9 +317,9 @@ the office ahead of the rank — a race pin could never force. Fixed in code:
 agent-one as member → rank → role → task → default). A collision row in `TestModelsResolution`
 locks it. Global routing configured per Veldora's matching: the cheap class reads+writes
 (muse-glimmer-30b = great-sage hat + slime/zone pins), verdicts ride the mid court
-(glm-5-conduit = raphael/judge + orc/domain/kijin/service/auditor pins), the colony's thinker
-is the strongest (kimi-3-conduit = ciel/drafter + elf/coord pins), and the binary's own tasks
-match: gate+drain on glm-5-conduit, log+bench on muse-glimmer-30b — all fall back up the ladder.
+(glm-5 = raphael/judge + orc/domain/kijin/service/auditor pins), the colony's thinker
+is the strongest (kimi-k3 = ciel/drafter + elf/coord pins), and the binary's own tasks
+match: gate+drain on glm-5, log+bench on muse-glimmer-30b — all fall back up the ladder.
 Files: ~/.config/isekai/models.yaml · ~/.config/agent-one/models.yaml (machine layer; nothing
 world-tracked moved). Validated live: `isekai status` in bench-forge lists every rank pin with
 file:line origins; agent-one's ledger via `config explain` (its bare-world status prints hold
@@ -370,7 +370,7 @@ ctrl+t to watch, push a line in its pipe." Landed:
   first. Mirror in agent-one incl. its no-leak guard repointing (the court word stayed out).
 Tests: tool/dispatch_stamp_test.go (background default), app/container_test.go (trust),
 tui/model_test.go (the pane pipe x2 trees).
-Open from Veldora's last live log: glm-5-conduit 404s on the gateway (provider group —
+Open from Veldora's last live log: glm-5 404s on the gateway (provider group —
 gateway-side, outside creature territory; the global pins ride it for raphael/judge-class work:
 watch or repin); the gate's "don't ask again" rule-write failed once mid-run ("edit produced an
 unreadable document" on config.local.yaml) — a rule-write leg to own next; isekai's

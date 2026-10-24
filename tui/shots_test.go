@@ -77,18 +77,18 @@ func TestShots(t *testing.T) {
 	shot("court-live", m.Render())
 	// slice 1: the pulse states, frozen mid-frame so the colour shows (the goldens strip it)
 	pulseShots := []string{
-		m.theme.Court(CourtView{Name: "rimuru", Rank: "rimuru", Model: "kimi-3-conduit", State: "thinking", Elapsed: 28 * time.Second, Ask: "coordinate the files-panel slices"}, m.width,
+		m.theme.Court(CourtView{Name: "rimuru", Rank: "rimuru", Model: "moonshotai/kimi-k3", State: "thinking", Elapsed: 28 * time.Second, Ask: "coordinate the files-panel slices"}, m.width,
 			Pulse{Lane: m.theme.lane("rimuru"), Phase: 7}),
-		m.theme.Court(CourtView{Name: "elf-isekai", Rank: "elf", Model: "kimi-3-conduit", State: "thinking", Elapsed: 9 * time.Second, Ask: "weave the witness chain"}, m.width,
+		m.theme.Court(CourtView{Name: "elf-isekai", Rank: "elf", Model: "moonshotai/kimi-k3", State: "thinking", Elapsed: 9 * time.Second, Ask: "weave the witness chain"}, m.width,
 			Pulse{Lane: m.theme.lane("elf"), Phase: 3}),
 		m.theme.Court(CourtView{Name: "slime-auth", Rank: "slime", Office: "great-sage", Model: "glm-latest", State: "tool", Elapsed: 12 * time.Second, Ask: "land the token file"}, m.width,
 			Pulse{Lane: m.theme.lane("slime"), Phase: 3, Tool: "edit", Frames: []string{"⠋", "⠙", "⠹", "⠸"}}),
-		m.theme.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "glm-5-3-conduit", State: "waiting on gate", Elapsed: 31 * time.Second, Ask: "verdict on the import"}, m.width,
+		m.theme.Court(CourtView{Name: "orc-security", Rank: "orc", Office: "raphael", Model: "z-ai/glm-5.3", State: "waiting on gate", Elapsed: 31 * time.Second, Ask: "verdict on the import"}, m.width,
 			Pulse{Lane: m.theme.lane("orc"), Phase: 9, Bob: 1.4}),
 		m.theme.Court(CourtView{Name: "slime-auth", Rank: "slime", Model: "glm-latest", State: "done", Elapsed: 24 * time.Second, Ask: "land the token file",
 			Report: &ReportView{Status: "PASS", Findings: []string{"src/auth/token.go:1 token ttl is 15m", "src/auth/login.go:12 the session cookie is httpOnly"}}}, m.width,
 			Pulse{Lane: m.theme.lane("slime"), Flash: 0.9}),
-		m.theme.Court(CourtView{Name: "orc-security", Rank: "orc", Model: "glm-5-3-conduit", State: "done", Elapsed: 41 * time.Second, Failed: true, Exit: "FAIL", Ask: "verdict on the import",
+		m.theme.Court(CourtView{Name: "orc-security", Rank: "orc", Model: "z-ai/glm-5.3", State: "done", Elapsed: 41 * time.Second, Failed: true, Exit: "FAIL", Ask: "verdict on the import",
 			Report: &ReportView{Status: "FAIL — provider: HTTP 503", Holes: []string{"provider: HTTP 503 after 3 retries"}}}, m.width,
 			Pulse{Lane: m.theme.lane("orc"), Flash: 0.6}),
 	}
@@ -101,7 +101,7 @@ func TestShots(t *testing.T) {
 	m2.Update(EvCourt{Court: CourtView{Name: "slime-auth", Rank: "slime", Office: "great-sage", Model: "glm-latest", State: "tool", Ask: "land the token file"}})
 	m2.pulses["elf-isekai"].active = time.Now()
 	m2.pulses["slime-auth"].active = time.Now()
-	m2.footer = FooterView{Model: "kimi-3-conduit", Ctx: "ctx 42%", Cost: "$0.0123", World: "/w", CtxPct: 42, CtxKnown: true, Zone: "NEAR", Tokens: 15420}
+	m2.footer = FooterView{Model: "moonshotai/kimi-k3", Ctx: "ctx 42%", Cost: "$0.0123", World: "/w", CtxPct: 42, CtxKnown: true, Zone: "NEAR", Tokens: 15420}
 	shot("panes", m2.Render())
 	m.openBodies()
 	shot("bodies", m.Render())

@@ -109,6 +109,12 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **The example config and the court's model ladder name OpenRouter models.** The full example
+  (`config/testdata/example.yaml` and `.json`) routes through an `openrouter` provider
+  (`https://openrouter.ai/api/v1`, key in `OPENROUTER_API_KEY`) with real model ids such as
+  `openrouter/z-ai/glm-5.3`, and the next-fit ladder a court climbs after a clock death is
+  `meta/muse-glimmer-30b` → `moonshotai/kimi-k3` → `z-ai/glm-5.3`, matched whatever provider
+  name a lane carries.
 - **The law says whose a creature's seat is.** `ISEKAI.md`'s gate now states what the harness
   already does: a creature's own directory stays its own under a broader territory claim, an edit
   there owes no other creature's doc, and the parent that founds a creature may write its first

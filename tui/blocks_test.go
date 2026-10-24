@@ -116,7 +116,7 @@ func TestBlocksGolden(t *testing.T) {
 		// tripwire and rendering pinned here)
 		// the right rail's cards (third-of-window proportioning; the fixture rides 36 wide)
 		{"rail", func(w int) string {
-			return th.Rail(RailView{World: "isekai", Model: "kimi-3-conduit", CtxPct: 42, CtxKnown: true, CtxMax: "128k", Tokens: 15420, Cost: "$0.0123",
+			return th.Rail(RailView{World: "isekai", Model: "moonshotai/kimi-k3", CtxPct: 42, CtxKnown: true, CtxMax: "128k", Tokens: 15420, Cost: "$0.0123",
 				Layers: []RailLayer{{Rank: "rimuru", Tokens: 8210, Lane: th.lane("rimuru")}, {Rank: "elf", Tokens: 2301, Lane: th.lane("elf")}, {Rank: "orc", Tokens: 3302, Lane: th.lane("orc")}, {Rank: "slime", Tokens: 1607, Lane: th.lane("slime")}},
 				Files:  []RailFile{{Path: "tui/blocks.go", Body: "slime-tui", Lane: th.lane("slime")}, {Path: "tui/model.go", Body: "rimuru", Lane: th.lane("rimuru")}, {Path: "tui/legacy.go", Body: "mystery"}},
 				Courts: []RailCourt{
@@ -126,7 +126,7 @@ func TestBlocksGolden(t *testing.T) {
 				}}, 36)
 		}},
 		{"rail-plan", func(w int) string {
-			return th.Rail(RailView{World: "isekai", Model: "kimi-3-conduit", CtxPct: 42, CtxKnown: true, Tokens: 15420, Cost: "$0.0123",
+			return th.Rail(RailView{World: "isekai", Model: "moonshotai/kimi-k3", CtxPct: 42, CtxKnown: true, Tokens: 15420, Cost: "$0.0123",
 				Plan: &RailPlan{Body: "elf-isekai", Rank: "elf", Lane: th.lane("elf"), Items: []RailPlanItem{
 					{Text: "Coordinate the files-panel slices", Status: "in_progress"},
 					{Text: "Land the token file", Status: "done"},
@@ -139,7 +139,7 @@ func TestBlocksGolden(t *testing.T) {
 		}},
 		{"rail-mascot", func(w int) string {
 			art, _ := Mascot("isekai")
-			return th.Rail(RailView{Mascot: art, World: "isekai", Model: "kimi-3-conduit", CtxPct: 87, CtxKnown: true, Stress: true, Zone: "NEAR", Tokens: 15420,
+			return th.Rail(RailView{Mascot: art, World: "isekai", Model: "moonshotai/kimi-k3", CtxPct: 87, CtxKnown: true, Stress: true, Zone: "NEAR", Tokens: 15420,
 				Files:  []RailFile{{Path: "tui/blocks.go", Lane: th.lane("slime")}},
 				Courts: []RailCourt{{Name: "elf-isekai", State: "thinking", Aged: "1m12s", Lane: th.lane("elf")}, {Name: "slime-auth", State: "done", Done: true, Lane: th.lane("slime")}},
 			}, 36)
@@ -218,7 +218,7 @@ func TestBlocksGolden(t *testing.T) {
 				Options: []string{"Yes", "Yes, and don't ask again for bash:git push*", "No, and tell the model why"}, Cursor: 0}, w)
 		}},
 		{"depth-rail", func(w int) string {
-			return thD.Rail(RailView{World: "isekai", Model: "kimi-3-conduit", CtxPct: 42, CtxKnown: true, CtxMax: "128k", Tokens: 15420, Cost: "$0.0123",
+			return thD.Rail(RailView{World: "isekai", Model: "moonshotai/kimi-k3", CtxPct: 42, CtxKnown: true, CtxMax: "128k", Tokens: 15420, Cost: "$0.0123",
 				Plan:   &RailPlan{Body: "elf-isekai", Rank: "elf", Lane: thD.lane("elf"), Items: []RailPlanItem{{Text: "Coordinate the files-panel slices", Status: "in_progress"}, {Text: "Land the token file", Status: "done"}}},
 				Files:  []RailFile{{Path: "tui/blocks.go", Lane: thD.lane("slime")}},
 				Courts: []RailCourt{{Name: "elf-isekai", State: "thinking", Aged: "1m12s", Lane: thD.lane("elf")}, {Name: "slime-auth", State: "done", Done: true, Lane: thD.lane("slime")}}}, 36)
