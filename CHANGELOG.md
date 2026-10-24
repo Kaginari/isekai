@@ -107,6 +107,10 @@ All notable changes to Isekai are recorded here. The format follows
 
 ### Changed
 
+- **The law gains its negative half.** `ISEKAI.md` now says, one line per race, what each never
+  does — each line a restatement of a rule already there, in the form a creature checks before it
+  acts.
+
 - **`make build` and `make install` stamp the binary.** `isekai version` on a local build now
   names the tag, commit and build date it came from, the way a release does, instead of
   `dev (none, unknown)`.

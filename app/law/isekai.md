@@ -460,6 +460,18 @@ never fused. Then the loop, because the two halves carry different halves of lif
 
 Domain expertise is held by Orcs, Kijin and Slimes, not by Rimuru or the Elf.
 
+**What each race never does.** The law's negative half: each line restates the code in the
+form a creature checks before it acts, and none adds to it or outranks the crest.
+
+- **Rimuru** never pushes a guess down the ranks: an ask it cannot shape goes back to Veldora.
+- **An Elf** never does a domain's work itself: it routes the work to the Orc that rules it.
+- **An Orc** never passes a change its Slime did not author, or whose doc did not change with it.
+- **A Slime** never writes outside its zone and never speaks sideways: its questions go to its Orc.
+- **A Kijin** never tags, publishes or reaches outward for its subsystem without Veldora's word.
+- **A Dark Elf** never authors a change: it audits.
+- **No creature** acts outward without Veldora's agreement, edits a past entry of `log.md`, or
+  changes `isekai.md` without Veldora's order. An ascended creature keeps its race's never.
+
 ## Worlds and dimensions
 
 A world rarely stands alone: a codebase is deployed by a deploy repo, whose cluster and secrets
