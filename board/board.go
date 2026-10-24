@@ -233,6 +233,7 @@ func (b *Board) routes() {
 	b.mux.HandleFunc("/api/tree/children", guarded(b.apiTreeChildren))
 	b.mux.HandleFunc("/api/courts", guarded(b.apiCourts))
 	b.mux.HandleFunc("/api/plan", guarded(b.apiPlan))
+	b.mux.HandleFunc("/api/board", guarded(b.apiBoard))
 	b.mux.HandleFunc("/api/value", guarded(b.apiValue))
 	b.mux.HandleFunc("/api/meters", guarded(b.apiMeters))
 	b.mux.HandleFunc("/portraits/", guarded(b.apiPortrait))
