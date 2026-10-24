@@ -746,7 +746,7 @@ func (h *tuiHost) observe(s *loop.Session, st *loop.StepRecord, phase string) {
 				if rep, ok := wire.ParseReport(st.Result.Output); ok {
 					var in struct{ Body string }
 					_ = json.Unmarshal(st.Input, &in)
-					h.courtReport(strings.ToLower(in.Body), rep, st.Result.Err, st.Result.Output)
+					h.courtReport(strings.ToLower(in.Body), body, rep, st.Result.Err, st.Result.Output)
 					if body == world.Rimuru {
 						// the session's dispatch step has no tool block of its own: the Court's card is it
 						return
@@ -873,14 +873,15 @@ func (h *tuiHost) state(body, state string) {
 	h.send(tui.EvState{Body: body, State: state})
 }
 
-// courtReport lands a Court's report as its block (foreground dispatch).
-func (h *tuiHost) courtReport(body string, rep wire.Report, failed bool, raw string) {
+// courtReport lands a Court's report as its block (foreground dispatch); up is the body that
+// dispatched it, the one hop up a loud verdict is addressed to.
+func (h *tuiHost) courtReport(body, up string, rep wire.Report, failed bool, raw string) {
 	h.mu.Lock()
 	started := h.courtStart[body]
 	delete(h.courtSeen, body)
 	delete(h.courtStart, body)
 	h.mu.Unlock()
-	v := tui.CourtView{Name: body, State: "done", Exit: exitVerdict(rep), Failed: failed, Word: h.words.Court, Report: reportView(rep)}
+	v := tui.CourtView{Name: body, State: "done", Exit: exitVerdict(rep), Failed: failed, Word: h.words.Court, Report: reportView(rep), Up: up}
 	if !started.IsZero() {
 		v.Elapsed = time.Since(started)
 	}
@@ -902,7 +903,7 @@ func (h *tuiHost) courtFinished(name, report string) {
 	if !ok {
 		rep = wire.Report{Status: "DONE", Other: strings.Split(strings.TrimSpace(report), "\n")}
 	}
-	h.courtReport(name, rep, strings.HasPrefix(rep.Status, "FAIL"), report)
+	h.courtReport(name, "", rep, strings.HasPrefix(rep.Status, "FAIL"), report)
 }
 
 func reportView(rep wire.Report) *tui.ReportView {

@@ -189,6 +189,8 @@ type logEntry struct {
 
 type bodyLog struct {
 	rank, state string
+	exit        string // the landed Court's verdict word (DONE, FAIL, ESCALATE…); "" before it lands
+	failed      bool
 	started     time.Time
 	entries     []logEntry
 }

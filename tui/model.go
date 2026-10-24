@@ -760,6 +760,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if c.Ask != "" {
 			cur.Ask = c.Ask
 		}
+		if c.Up != "" {
+			cur.Up = c.Up
+		}
 		cur.State, cur.Elapsed, cur.Failed = c.State, c.Elapsed, c.Failed
 		m.logOf(c.Name).state = c.State // same close-out as the open branch: the body pane never outlives its card
 		if c.Exit != "" {
@@ -1115,7 +1118,11 @@ func (m *Model) railView(rw int) RailView {
 		if c.Elapsed > 0 {
 			aged = c.Elapsed.Round(time.Second).String()
 		}
-		v.Courts = append(v.Courts, RailCourt{Name: n, State: st, Aged: aged, Lane: m.raceLane(c.Rank), Done: c.State == "done", Failed: c.Failed, Value: m.bodyValue(n)})
+		hop := c.State == "done" && hopVerdict(*c) != ""
+		if c.State == "done" && c.Exit != "" {
+			st = c.Exit // the verdict, never the bare lifecycle word
+		}
+		v.Courts = append(v.Courts, RailCourt{Name: n, State: st, Aged: aged, Lane: m.raceLane(c.Rank), Done: c.State == "done", Failed: c.Failed || hop, Hop: hop && hopVerdict(*c) == "ESCALATE", Value: m.bodyValue(n)})
 	}
 	for i := len(m.logOrder) - 1; i >= 0 && len(v.Courts) < 8; i-- {
 		b := m.logOrder[i]
@@ -1126,7 +1133,11 @@ func (m *Model) railView(rw int) RailView {
 		if l == nil || l.state != "done" {
 			continue
 		}
-		v.Courts = append(v.Courts, RailCourt{Name: b, State: "done", Lane: m.raceLane(l.rank), Done: true, Value: m.bodyValue(b)})
+		st := "done"
+		if l.exit != "" {
+			st = l.exit
+		}
+		v.Courts = append(v.Courts, RailCourt{Name: b, State: st, Lane: m.raceLane(l.rank), Done: true, Failed: l.failed, Hop: l.exit == "ESCALATE", Value: m.bodyValue(b)})
 	}
 	if len(v.Courts) > 8 {
 		v.Courts = v.Courts[:8]
@@ -1377,11 +1388,25 @@ func (m *Model) landCourt(c *CourtView) tea.Cmd {
 		m.lastBlock = &collapsed{court: &cp}
 	}
 	cv := *c
+	l := m.logOf(cv.Name)
+	l.exit, l.failed = cv.Exit, cv.Failed || hopVerdict(cv) != ""
+	if v := hopVerdict(cv); v != "" {
+		l.exit = v
+	}
 	pill, word := m.theme.pill("ok"), "✓ "+cv.Name+" done"
 	if cv.Failed {
 		pill, word = m.theme.pill("bad"), "✗ "+cv.Name+" failed"
 	}
-	return tea.Batch(m.print(func(w int) string { return m.theme.Court(cv, w) }), m.Toast(word, pill))
+	cmds := []tea.Cmd{m.print(func(w int) string { return m.theme.Court(cv, w) })}
+	if v := hopVerdict(cv); v != "" {
+		// ESCALATE, FAIL and DENIED ask the one above to act: a loud line of their own
+		cmds = append(cmds, m.print(func(w int) string { return m.theme.HopUp(cv, v, w) }))
+		pill, word = m.theme.pill("bad"), v+" · "+cv.Name
+		if cv.Up != "" {
+			word += " → " + cv.Up
+		}
+	}
+	return tea.Batch(append(cmds, m.Toast(word, pill))...)
 }
 
 // flushStream moves complete paragraphs of the streamed answer into the scrollback (all of it

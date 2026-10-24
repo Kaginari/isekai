@@ -671,6 +671,7 @@ func TestTUINestedDispatchStepsLandTheirCourts(t *testing.T) {
 
 	courts, _ := c.views()
 	var opens, reports int
+	var ups []string
 	for _, v := range courts {
 		if v.Name != "orc-x" {
 			continue
@@ -683,6 +684,7 @@ func TestTUINestedDispatchStepsLandTheirCourts(t *testing.T) {
 		}
 		if v.State == "done" && v.Report != nil {
 			reports++
+			ups = append(ups, v.Up)
 			if v.Exit != "PASSED" {
 				t.Fatalf("a DONE journal verdict must read PASSED on the card face, got %q", v.Exit)
 			}
@@ -690,6 +692,9 @@ func TestTUINestedDispatchStepsLandTheirCourts(t *testing.T) {
 	}
 	if opens != 1 || reports != 2 {
 		t.Fatalf("opens %d, landed reports %d — want 1 open, 2 reports (parent's + session's): %+v", opens, reports, courts)
+	}
+	if len(ups) != 2 || ups[0] != "elf-colony" || ups[1] != world.Rimuru {
+		t.Fatalf("a landed report names the body one hop up (its dispatcher), got %q", ups)
 	}
 	var parentLogs, toolBlocks int
 	for _, m := range c.events() {
