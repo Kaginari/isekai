@@ -18,8 +18,12 @@ run_mode() {
   local mode=$1 want=$2
   FAKE_MODE=$mode "$R/bin/fakevllm" -addr "$GW:$PORT" > "$R/bench/.fakevllm-$mode.log" 2>&1 &
   local fpid=$!
-  trap 'kill $fpid 2>/dev/null || true' RETURN
+  # EXIT, not only RETURN: under set -e a failing step exits without returning, and a server left
+  # behind would answer the next mode's run with the wrong script
+  trap "kill $fpid 2>/dev/null || true" RETURN EXIT
   sleep 1
+  # the run must talk to THIS mode's server: if another process holds the port, ours died on bind
+  kill -0 "$fpid" 2>/dev/null || { echo "smoke: fakevllm ($mode) did not start: $(tail -1 "$R/bench/.fakevllm-$mode.log")" >&2; exit 2; }
   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$R:$R" -w "$R/bench" \
     --group-add "$(stat -c %g /var/run/docker.sock)" \
     -e PYTHONPATH="$R/bench/harbor" -e BENCH_DIST="$DIST" -e BENCH_BIN="$BIN" \

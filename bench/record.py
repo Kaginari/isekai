@@ -10,6 +10,8 @@ run are set side by side in RESULTS.md, agent × model. runs.jsonl is append-onl
 generated from it and never hand-edited.
 """
 
+from __future__ import annotations  # `str | None` annotations on Pythons before 3.10
+
 import argparse
 import json
 import subprocess
