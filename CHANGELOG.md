@@ -6,6 +6,16 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-26
+
+### Highlights
+
+A security fix: a path outside the world written in quotes — `cat '/etc/shadow'`,
+`cat "$HOME/.ssh/id_rsa"` — read as a plain read and skipped the gate since 1.0.0; commands are now
+split into words the way the shell splits them, so it asks like a bare path. Also: a quoted regex is
+no longer taken for a path, the binary reaches HTTPS from containers without CA certificates, and an
+upstream that fails mid-answer is asked again. Upgrade from 1.1.0 is recommended.
+
 ### Security
 
 - **A quoted path outside the world now needs the gate.** The command classifier skipped any word
