@@ -6,8 +6,21 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- **A quoted path outside the world now needs the gate.** The command classifier skipped any word
+  that began with a quote, so `cat '/etc/shadow'` or `cat "$HOME/.ssh/id_rsa"` read as a plain
+  read and never reached the gate, as did a quoted path given to grep or sed after its pattern.
+  Commands are now split into words the way the shell splits them, quotes removed, so a quoted
+  path counts like a bare one — spaces in it included — and a quoted program run by a shell
+  (`bash -c '…'`) is read word by word.
+
 ### Fixed
 
+- **A regex inside a quoted awk, sed, grep or jq program is no longer taken for a path.** A
+  call like `awk '/([0-9]{4}-[0-9]{2})/, /x/ {print}' log` was escalated as reading outside the
+  world. The program of a pattern tool is now read in its own language: a regex names no file,
+  while the file of a sed `r`/`w` command and an awk string such as `getline < "/etc/x"` still do.
 - **The binary reaches a provider over HTTPS from a container without CA certificates.** The
   release binary is static and trusted only the host's certificate store, so in a minimal image
   (a benchmark's task container, `debian:*-slim` without `ca-certificates`) every call failed with
