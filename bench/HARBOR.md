@@ -18,18 +18,31 @@ with an agent × model table.
 | `python3`, `curl` | `record.py`, the gateway probe | |
 
 The preflight checks all of these and stops at the first failure with the fix. Task containers need
-network access to install OpenCode (`npm i -g opencode-ai`) and to reach the gateway. **On an
-Artifactory-only network** (no public egress from containers) the stock Harbor OpenCode cannot install —
-its setup curls nvm from github + node from nodejs.org. isekai mirrors agent-one's
-`bench/harbor/harbor_opencode.py` (`harbor_opencode:HarborOpenCode`): same agent, install is
-node-prebaked-tree + Artifactory `npm i -g` only.
+network access to reach the gateway, and — for OpenCode — to install it (`npm i -g opencode-ai`).
+**On a network with no public egress** (a private package mirror only) the stock Harbor OpenCode
+cannot install — its setup curls nvm from github and node from nodejs.org. isekai mirrors agent-one's
+`bench/harbor/harbor_opencode.py` (`harbor_opencode:HarborOpenCode`): same agent, installed from a
+node-prebaked tree and the mirror's `npm i -g` (`--npm-key-env`).
 
 ## Quick start
 
+isekai alone on Terminal-Bench 2, through OpenRouter, on a free model — no gateway of your own:
+
 ```sh
-export GATEWAY_API_KEY=…      # the key, in the shell only
-bench/harbor.sh --gateway https://llm-gateway.example.corp/v1 --key-env GATEWAY_API_KEY \
-                --models kimi-k3,glm-5-3 --attempts 3
+export OPENROUTER_API_KEY=…   # the key, in the shell only
+bench/harbor.sh --gateway https://openrouter.ai/api/v1 --key-env OPENROUTER_API_KEY \
+                --models nvidia/nemotron-3-super-120b-a12b:free --agents isekai \
+                --dataset terminal-bench@2.0 --n-tasks 10
+```
+
+Free OpenRouter models are rate-limited per day (a key with credit gets the higher allowance); a
+trial cut by the limit lands as an error, not a fail, and `--run <name>` resumes it. For isekai and
+OpenCode head to head on your own OpenAI-compatible gateway:
+
+```sh
+export GATEWAY_API_KEY=…
+bench/harbor.sh --gateway https://gw.example/v1 --key-env GATEWAY_API_KEY \
+                --models <model-a>,<model-b> --attempts 3
 ```
 
 That is: both agents × two models × 3 attempts on the default suite (`bench/tasks`). Add `--dry-run`
@@ -48,6 +61,7 @@ Flags win over their environment variables.
 | `--tasks p1,p2` | `BENCH_TASKS` | local task dirs or dirs of tasks; one Harbor job per entry (default `bench/tasks`) |
 | `--dataset org/name@v` | `BENCH_DATASET` | a Harbor registry dataset instead of `--tasks` (e.g. `terminal-bench@2.0`) |
 | `--attempts N` | `BENCH_ATTEMPTS` | attempts per task, for every agent and model (default 1) |
+| `--n-tasks N` | `BENCH_N_TASKS` | only the first N tasks of each task set (default all); written into the job config |
 | `--concurrency N` | `BENCH_CONCURRENCY` | concurrent trials inside one Harbor job (default 1) |
 | `--run NAME` | `BENCH_RUN` | the run's directory, `bench/jobs/NAME` (or an absolute path); an existing one is resumed (default: timestamp) |
 | `--purpose TEXT` | `BENCH_PURPOSE` | recorded with every launch |

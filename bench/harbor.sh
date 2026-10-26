@@ -36,6 +36,7 @@ AGENTS=${BENCH_AGENTS:-isekai,opencode}
 TASKS=${BENCH_TASKS:-}
 DATASET=${BENCH_DATASET:-}
 ATTEMPTS=${BENCH_ATTEMPTS:-1}
+N_TASKS=${BENCH_N_TASKS:-}
 CONCURRENCY=${BENCH_CONCURRENCY:-1}
 RUN=${BENCH_RUN:-}
 PURPOSE=${BENCH_PURPOSE:-}
@@ -57,6 +58,7 @@ usage: bench/harbor.sh --gateway URL --key-env NAME --models a,b[,c] [options] [
   --tasks p1[,p2]     local task or dataset dirs, one job per entry  (env BENCH_TASKS, default bench/tasks)
   --dataset org/n@v   a registry dataset instead of --tasks          (env BENCH_DATASET)
   --attempts N        attempts per task, each agent, each model      (env BENCH_ATTEMPTS, default 1)
+  --n-tasks N         run only the first N tasks of each task set    (env BENCH_N_TASKS, default all)
   --concurrency N     concurrent trials inside one Harbor job        (env BENCH_CONCURRENCY, default 1)
   --run NAME          the run's directory bench/jobs/NAME; an existing one is resumed
                                                                      (env BENCH_RUN, default a timestamp)
@@ -82,6 +84,7 @@ while [ $# -gt 0 ]; do
     --tasks) TASKS=$2; shift 2 ;;
     --dataset) DATASET=$2; shift 2 ;;
     --attempts) ATTEMPTS=$2; shift 2 ;;
+    --n-tasks) N_TASKS=$2; shift 2 ;;
     --concurrency) CONCURRENCY=$2; shift 2 ;;
     --run|--resume) RUN=$2; shift 2 ;;
     --purpose) PURPOSE=$2; shift 2 ;;
@@ -132,6 +135,7 @@ for a in "${AGENT_LIST[@]}"; do
   case $a in isekai|opencode) ;; *) fail "--agents: unknown agent '$a' (isekai, opencode)" ;; esac
 done
 [[ $ATTEMPTS =~ ^[1-9][0-9]*$ ]] || fail "--attempts must be a positive integer"
+[ -z "$N_TASKS" ] || [[ $N_TASKS =~ ^[1-9][0-9]*$ ]] || fail "--n-tasks must be a positive integer"
 [[ $CONCURRENCY =~ ^[1-9][0-9]*$ ]] || fail "--concurrency must be a positive integer"
 case $OPENCODE_PROVIDER in compat|openai) ;; *) fail "--opencode-provider must be compat or openai" ;; esac
 case $RUNNER in host|docker|auto) ;; *) fail "--runner must be host, docker or auto" ;; esac
@@ -322,6 +326,9 @@ write_job() {
     else
       echo "  - path: $task"
     fi
+    # the slice lives in the job config, where Harbor applies it per task set (its CLI -l is
+    # refused next to a config-file dataset)
+    [ -z "$N_TASKS" ] || echo "    n_tasks: $N_TASKS"
   } > "$file"
 }
 
