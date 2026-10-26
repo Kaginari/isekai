@@ -13,6 +13,11 @@ All notable changes to Isekai are recorded here. The format follows
   (a benchmark's task container, `debian:*-slim` without `ca-certificates`) every call failed with
   `x509: certificate signed by unknown authority`. It now carries the Mozilla root bundle and uses
   it only when the host has no roots of its own.
+- **An upstream that fails mid-answer is asked again.** OpenRouter reports a failure of the
+  provider behind it as an error inside an answer already streaming ("Upstream error from …:
+  inference generation failed"); that ended the run at once. Such an error is now retried after
+  5 s and 15 s like an outage, and moves the call to a fallback model when one is set. An error
+  that blames the request itself (a 400, an invalid request) still comes back at once.
 
 ## [1.1.0] - 2026-10-24
 
