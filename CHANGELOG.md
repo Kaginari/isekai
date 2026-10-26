@@ -6,6 +6,14 @@ All notable changes to Isekai are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The binary reaches a provider over HTTPS from a container without CA certificates.** The
+  release binary is static and trusted only the host's certificate store, so in a minimal image
+  (a benchmark's task container, `debian:*-slim` without `ca-certificates`) every call failed with
+  `x509: certificate signed by unknown authority`. It now carries the Mozilla root bundle and uses
+  it only when the host has no roots of its own.
+
 ## [1.1.0] - 2026-10-24
 
 ### Highlights
